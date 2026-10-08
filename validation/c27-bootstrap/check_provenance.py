@@ -21,21 +21,28 @@ def main():
         raise SystemExit("FAIL: production source changed after C27 scope")
     asset_map = {"Cargo.toml": "Cargo.toml", "Cargo.lock": "Cargo.lock",
                  "LICENSE": "LICENSE", "tests/wire.rs": "tests/c26_wire_contract.rs"}
+    changes_path = HERE / "approved_asset_changes.json"
+    changes = json.loads(changes_path.read_text()) if changes_path.exists() else {}
     for original, retained in asset_map.items():
         expected = inputs["allowed_reused_assets"][original]
+        if original in changes:
+            if changes[original]["before"] != expected:
+                raise SystemExit("FAIL: invalid asset update baseline")
+            expected = changes[original]["after"]
         if sha(ROOT / original) != expected or sha(HERE / retained) != expected:
             raise SystemExit("FAIL: declared asset drift: " + original)
     reconstruction = {p.name: sha(p) for p in sorted((HERE / "src").glob("*.rs"))}
     if any(value in production.values() for value in reconstruction.values()):
         raise SystemExit("FAIL: byte-identical implementation source")
     report = {"production_source_unchanged": True,
-              "declared_assets_unchanged": True,
+              "declared_assets_verified_with_explicit_updates": True,
+              "approved_asset_changes": changes,
               "no_byte_identical_implementation_files": True,
               "production_source_sha256": production,
               "reconstruction_source_sha256": reconstruction,
               "limitation": "Hashes alone do not establish independent authorship or behavioral equivalence."}
     (HERE / "provenance.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print("PASS: production/declared assets unchanged; source hashes differ")
+    print("PASS: production unchanged; declared assets/explicit updates verified; source hashes differ")
 
 
 if __name__ == "__main__":

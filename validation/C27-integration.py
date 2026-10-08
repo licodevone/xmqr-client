@@ -211,7 +211,7 @@ def read_packet(stream):
 
 class TLSContracts(unittest.TestCase):
     def test_mtls_valid_ca_and_san_then_negative_no_retry(self):
-        with tempfile.TemporaryDirectory(prefix="xmqr-c27-tls-") as directory:
+        with tempfile.TemporaryDirectory(prefix="xmqr-c27-tls-", dir="/tmp") as directory:
             root = Path(directory)
             root.chmod(0o700)
             certificates(root)
@@ -270,8 +270,8 @@ class TLSContracts(unittest.TestCase):
                 self.assertIsNone(state["error"], state)
                 self.assertEqual(state["mqtt"], good, state)
                 self.assertFalse(state["retry"], state)
-                self.assertEqual(result.returncode == 0, good, result.stderr)
-                self.assertNotIn(secret, result.stderr+result.stdout)
+                self.assertEqual(result.returncode == 0, good, result.stderr.replace(secret, "<redacted>"))
+                self.assertTrue(secret not in result.stderr+result.stdout, "sensitive fixture value leaked (redacted)")
                 if good:
                     self.assertEqual(json.loads(result.stdout), {
                         "event": "publish_complete", "qos": 0, "confirmation": "sent"})

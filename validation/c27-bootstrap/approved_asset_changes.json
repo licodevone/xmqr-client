@@ -1,0 +1,7 @@
+{
+  "tests/wire.rs": {
+    "before": "8f448f68802787719c8fe4e7d14bc4cf0c8203d60b611e30517f8a4cd23fa750",
+    "after": "39296f259422e0bb6c2225ce5c67bc116fb5b91dad678d78778f7fd1086028c1",
+    "reason": "C27 rev1.3: Clippy1.99 assert_is_empty; assertion still requires empty stdout"
+  }
+}

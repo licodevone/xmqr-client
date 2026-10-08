@@ -189,7 +189,7 @@ fn repeated_disconnects_exhaust_process_budget() {
     let output = finish(child(port, "sub", &["--reconnect-attempts", "2"]));
     server.join().unwrap();
     assert!(!output.status.success());
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, [] as [u8; 0]);
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("Reconexao 1/2 em 100ms"));
     assert!(stderr.contains("Reconexao 2/2 em 200ms"));
@@ -218,7 +218,7 @@ fn failed_publication_is_not_replayed() {
         ));
         server.join().unwrap();
         assert!(!output.status.success());
-        assert!(output.stdout.is_empty());
+        assert_eq!(output.stdout, [] as [u8; 0]);
         assert!(
             String::from_utf8_lossy(&output.stderr)
                 .contains("resultado desconhecido, nao reenviada")
@@ -314,7 +314,7 @@ fn connect_rejection_never_retries_or_leaks_peer_payload() {
         let output = finish(child(port, "sub", &["--reconnect-attempts", "2"]));
         server.join().unwrap();
         assert!(!output.status.success());
-        assert!(output.stdout.is_empty());
+        assert_eq!(output.stdout, [] as [u8; 0]);
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(!stderr.contains("secret"));
         assert!(!stderr.contains("Reconexao"));
