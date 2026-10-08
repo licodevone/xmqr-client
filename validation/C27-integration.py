@@ -285,6 +285,7 @@ if __name__ == "__main__":
     parser.add_argument("--broker", type=Path, required=True)
     parser.add_argument("--client", type=Path, required=True)
     parser.add_argument("--fixtures", type=Path, required=True)
+    parser.add_argument("--only-tls", action="store_true")
     args = parser.parse_args()
     CLIENT = args.client.resolve()
     spec = importlib.util.spec_from_file_location("broker_fixtures", args.fixtures.resolve())
@@ -292,4 +293,4 @@ if __name__ == "__main__":
     spec.loader.exec_module(fixtures)
     fixtures.BROKER = args.broker.resolve()
     assert CLIENT.is_file() and fixtures.BROKER.is_file()
-    unittest.main(argv=["C27-contract-integration"], verbosity=2)
+    unittest.main(argv=["C27-contract-integration", "TLSContracts"] if args.only_tls else ["C27-contract-integration"], verbosity=2)

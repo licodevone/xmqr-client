@@ -1,6 +1,13 @@
 {
   "production_source_unchanged": true,
-  "declared_assets_unchanged": true,
+  "declared_assets_verified_with_explicit_updates": true,
+  "approved_asset_changes": {
+    "tests/wire.rs": {
+      "before": "8f448f68802787719c8fe4e7d14bc4cf0c8203d60b611e30517f8a4cd23fa750",
+      "after": "39296f259422e0bb6c2225ce5c67bc116fb5b91dad678d78778f7fd1086028c1",
+      "reason": "C27 rev1.3: Clippy1.99 assert_is_empty; assertion still requires empty stdout"
+    }
+  },
   "no_byte_identical_implementation_files": true,
   "production_source_sha256": {
     "cli.rs": "9f0b4798418f0159e4e507e1b40b3f08a803ce8794e5fb4b79b5e3baa4a69602",
