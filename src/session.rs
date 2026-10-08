@@ -18,7 +18,11 @@ const INITIAL_TIMEOUT: Duration = Duration::from_secs(8);
 const IDLE_TIMEOUT: Duration = Duration::from_secs(90);
 const MAX_PACKET_BYTES: usize = 64 * 1024;
 
-pub async fn run(cli: Cli, password: Option<String>) -> AppResult<()> {
+pub async fn run(
+    cli: Cli,
+    password: Option<String>,
+    publication: Option<crate::payload::Publication>,
+) -> AppResult<()> {
     let mut options = MqttOptions::new(&cli.client_id, &cli.host, cli.port);
     if cli.transport_mode == TransportMode::Secure {
         let tls_config = tls::build_client_config(&cli)?;
@@ -44,7 +48,7 @@ pub async fn run(cli: Cli, password: Option<String>) -> AppResult<()> {
 
     let (client, mut events) = AsyncClient::new(options, 8);
     let result = tokio::select! {
-        result = run_connected(&cli, &client, &mut events) => return result,
+        result = run_connected(&cli, &client, &mut events, publication) => return result,
         signal = tokio::signal::ctrl_c() => signal,
     };
     result?;
@@ -75,19 +79,21 @@ async fn cancel_connection(client: &AsyncClient, events: &mut EventLoop) {
     }
 }
 
-async fn run_connected(cli: &Cli, client: &AsyncClient, events: &mut EventLoop) -> AppResult<()> {
+async fn run_connected(
+    cli: &Cli,
+    client: &AsyncClient,
+    events: &mut EventLoop,
+    publication: Option<crate::payload::Publication>,
+) -> AppResult<()> {
     let mut retry = Retry::new(cli.reconnect_attempts);
     await_connack(events, &mut retry).await?;
 
     let requested_qos = cli.qos;
     match &cli.mode {
-        Mode::Pub { topic, message } => {
-            client
-                .publish(topic, requested_qos, cli.retain, message.as_bytes())
-                .await?;
-            await_publish_complete(events, requested_qos).await?;
-            graceful_disconnect(client, events).await?;
-            cli.output.complete(requested_qos);
+        Mode::Pub { topic, .. } => {
+            let publication =
+                publication.ok_or_else(|| invalid_data("entrada de publicacao ausente"))?;
+            publish_input(cli, client, events, topic, publication).await?;
         }
         Mode::Sub { filter, count } => {
             subscribe(
@@ -101,6 +107,44 @@ async fn run_connected(cli: &Cli, client: &AsyncClient, events: &mut EventLoop) 
             )
             .await?;
         }
+    }
+    Ok(())
+}
+
+async fn publish_input(
+    cli: &Cli,
+    client: &AsyncClient,
+    events: &mut EventLoop,
+    topic: &str,
+    publication: crate::payload::Publication,
+) -> AppResult<()> {
+    let crate::payload::Publication { mut input, first } = publication;
+    let mut payload = Some(first);
+    while let Some(bytes) = payload {
+        client.publish(topic, cli.qos, cli.retain, bytes).await?;
+        await_publish_complete(events, cli.qos).await?;
+        if !cli.line_mode {
+            break;
+        }
+        cli.output.complete(cli.qos);
+        // Never retry a connection or replay a batch after the first PUBLISH.
+        // Poll while waiting for input so keepalive remains active.
+        let deadline = Instant::now() + crate::payload::INPUT_TIMEOUT;
+        payload = loop {
+            tokio::select! {
+                result = input.next_before(deadline) => break result?,
+                event = events.poll() => match event {
+                    Ok(Event::Outgoing(_) | Event::Incoming(Incoming::PingResp)) => {},
+                    Ok(_) => return Err(invalid_data("resposta MQTT inesperada entre mensagens").into()),
+                    Err(_) => return Err(io::Error::new(io::ErrorKind::ConnectionAborted,
+                        "conexao interrompida entre mensagens; lote parcial, nao reenviado").into()),
+                }
+            }
+        };
+    }
+    graceful_disconnect(client, events).await?;
+    if !cli.line_mode {
+        cli.output.complete(cli.qos);
     }
     Ok(())
 }
@@ -133,7 +177,7 @@ async fn await_publish_complete(events: &mut EventLoop, qos: QoS) -> AppResult<(
             Event::Outgoing(Outgoing::Publish(0)) if qos == QoS::AtMostOnce => return Ok(()),
             Event::Incoming(Incoming::PubAck(_)) if qos == QoS::AtLeastOnce => return Ok(()),
             Event::Incoming(Incoming::PubComp(_)) if qos == QoS::ExactlyOnce => return Ok(()),
-            Event::Outgoing(_) => {}
+            Event::Outgoing(_) | Event::Incoming(Incoming::PingResp) => {}
             Event::Incoming(Incoming::PubRec(_)) if qos == QoS::ExactlyOnce => {}
             Event::Incoming(_) => return Err(invalid_data("resposta MQTT inesperada").into()),
         }

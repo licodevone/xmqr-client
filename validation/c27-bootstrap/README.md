@@ -27,3 +27,10 @@ Fixtures TLS são peers de teste; não implicam integração secure real com o b
 No cliente de produção, somente as asserções do teste wire mudaram nesta etapa;
 seus src/ permaneceram iguais aos hashes de entrada C27. Não houve instalação,
 commit/push/tag/release nem mudança de versão.
+
+## Snapshot após evolução C28
+
+Esta pasta preserva o ensaio C27 do baseline incluído emv0.2.0, com manifest
+herdado0.7.0. A produção evoluiu para candidato0.3.0 em C28. check_provenance.py
+compara contra hashes antigos e não deve ser usado para afirmar igualdade atual.
+Reconstrução independente0.3 não executada; fontes/insumos antigos preservados.

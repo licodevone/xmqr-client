@@ -1,7 +1,7 @@
 # Cobertura atual dos prompts do cliente
 
-Snapshot C27/C26, 2026-10-08. Código presente não equivale a validação externa.
-Pacote/binário independentes, Rust2024/MSRV1.88, MIT, manifest0.7.0 local sem release.
+Snapshot C28/C27/C26, 2026-10-08. Código presente não equivale a validação externa.
+Pacote/binário independentes, Rust2024/MSRV1.88, MIT, manifest0.3.0 candidato independente sem nova release.
 Nenhuma dependência do crate do broker. Estado de origem em ORIGIN.json.
 
 | Contrato | Fonte/prompt atual | Evidência e lacuna |
@@ -21,7 +21,7 @@ Nenhuma dependência do crate do broker. Estado de origem em ORIGIN.json.
 | Cancelamento/deadlines | session.rs, C26 | DISCONNECT live em até1s, descarta fila no cancelamento; cancelamento da espera testado. QoS2 recebido deadline8s; SIGINT real Linux testado live/backoff, inclusive Will suprimido no link live; Ctrl+C real Windows não injetado. |
 | Interoperabilidade externa | C21/C23/C25 | Após coordenação, broker congelado P43 + CLI atuais em estado/portas próprios; JSON/reconnect/Will testados. Mosquitto e broker TLS completo ainda não validados. Bloqueio WSL inicial preservado no histórico. |
 | Recriação pelo contrato | C27 | Implementação nova validada em pasta inicialmente vazia, dados manifest/lock/licença/testes declarados. Não é reconstrução cega ou igualdade de bits; insumos/cache/plataforma importam. |
-| Próxima fatia payload binário | C28 PLANNED | Arquivo/stdin têm critérios, mas NÃO existem ainda no cliente atual. Sem timestamps/perfis/múltiplos tópicos. |
+| Payload binário/por linha | C28rev2.0 | Arquivo/stdin bruto ou LF/CRLF; limite4096, entrada antes da rede, serial ACK, timeout8s, stdin/SIGINT e falha parcial sem replay. Wire Windows/Linux e integração isolada PASS. Sem timestamps/perfis/múltiplos tópicos. |
 
 Gates atuais: fmt --all -- --check; test --locked; clippy --locked --all-targets
 -- -D warnings; build --locked. Execução offline usa o lock/cache, sem upgrades.
@@ -30,3 +30,7 @@ Scripts de integração do broker devem receber --client explícito e rodar some
 após coordenação em ambiente isolado; não executar estado real/durável aqui.
 
 Registros: [C25](registros/C25-extracao.md), [C26](registros/C26-reconexao-jsonl.md), [C27](registros/C27-bootstrap.md).
+
+Versão candidata0.3.0 / próxima tag sugerida v0.3.0. v0.2.0 já contém C26/C27.
+Registro atual: [C28](registros/C28-payload-binario.md). Bootstrap C27 congelado
+no baseline0.2; não afirmar reconstrução independente0.3 pelo ensaio anterior.

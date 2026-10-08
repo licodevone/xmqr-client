@@ -424,3 +424,189 @@ fn interrupted_incoming_qos2_handshake_does_not_claim_safe_resume() {
     assert_eq!(String::from_utf8(output.stdout).unwrap().lines().count(), 1);
     assert!(String::from_utf8_lossy(&output.stderr).contains("recepcao QoS2 interrompida"));
 }
+
+fn stdin_child(port: u16, extra: &[&str]) -> Child {
+    Command::new(env!("CARGO_BIN_EXE_mqtt-client"))
+        .args([
+            "pub",
+            "--open-lab",
+            "--topic",
+            "t",
+            "--port",
+            &port.to_string(),
+            "--client-id",
+            "stable-input",
+            "--output",
+            "jsonl",
+            "--stdin",
+        ])
+        .args(extra)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap()
+}
+
+#[test]
+fn raw_stdin_and_file_preserve_binary_for_all_qos() {
+    for qos in 0..=2 {
+        for file_source in [false, true] {
+            let listener = listener();
+            let port = listener.local_addr().unwrap().port();
+            let expected = vec![0xef, 0xbb, 0xbf, 0, 255, 13, 10];
+            let server_bytes = expected.clone();
+            let server = thread::spawn(move || {
+                let mut stream = accept(&listener);
+                connect(&mut stream, false);
+                let (header, body) = packet(&mut stream);
+                assert_eq!(header, 0x31 | (qos << 1));
+                assert_eq!(&body[..3], &[0, 1, b't']);
+                let start = if qos == 0 { 3 } else { 5 };
+                assert_eq!(&body[start..], server_bytes);
+                if qos == 1 {
+                    stream.write_all(&[0x40, 2, body[3], body[4]]).unwrap();
+                }
+                if qos == 2 {
+                    stream.write_all(&[0x50, 2, body[3], body[4]]).unwrap();
+                    assert_eq!(packet(&mut stream), (0x62, body[3..5].to_vec()));
+                    stream.write_all(&[0x70, 2, body[3], body[4]]).unwrap();
+                }
+                assert_eq!(packet(&mut stream), (0xe0, vec![]));
+            });
+            let directory = tempfile::tempdir().unwrap();
+            let path = directory.path().join("binary");
+            std::fs::write(&path, &expected).unwrap();
+            let qos_arg = qos.to_string();
+            let process = if file_source {
+                child(
+                    port,
+                    "pub",
+                    &[
+                        "--message-file",
+                        path.to_str().unwrap(),
+                        "--qos",
+                        &qos_arg,
+                        "--retain",
+                        "true",
+                    ],
+                )
+            } else {
+                let mut process = stdin_child(port, &["--qos", &qos_arg, "--retain", "true"]);
+                process.stdin.take().unwrap().write_all(&expected).unwrap();
+                process
+            };
+            let output = finish(process);
+            server.join().unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert_eq!(String::from_utf8(output.stdout).unwrap().lines().count(), 1);
+        }
+    }
+}
+
+#[test]
+fn line_mode_waits_for_each_terminal_ack_and_reports_partial_failure() {
+    for partial in [false, true] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            connect(&mut stream, false);
+            let expected: &[&[u8]] = if partial {
+                &[b"first"]
+            } else {
+                &[b"\xff\0", b"", b"last\r"]
+            };
+            for bytes in expected {
+                let (header, body) = packet(&mut stream);
+                assert_eq!(header, 0x32);
+                assert_eq!(&body[5..], *bytes);
+                stream
+                    .set_read_timeout(Some(Duration::from_millis(60)))
+                    .unwrap();
+                let mut probe = [0];
+                assert!(stream.read(&mut probe).is_err(), "next PUBLISH before ACK");
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(3)))
+                    .unwrap();
+                stream.write_all(&[0x40, 2, body[3], body[4]]).unwrap();
+            }
+            if partial {
+                let mut probe = [0];
+                assert_eq!(stream.read(&mut probe).unwrap(), 0);
+            } else {
+                assert_eq!(packet(&mut stream), (0xe0, vec![]));
+            }
+        });
+        let mut process = stdin_child(
+            port,
+            &["--line-mode", "--qos", "1", "--reconnect-attempts", "10"],
+        );
+        let mut input = process.stdin.take().unwrap();
+        if partial {
+            input.write_all(b"first\n").unwrap();
+            input.write_all(&vec![b'x'; 4097]).unwrap();
+        } else {
+            input.write_all(b"\xff\0\r\n\nlast\r").unwrap();
+        }
+        drop(input);
+        let output = finish(process);
+        server.join().unwrap();
+        assert_eq!(output.status.success(), !partial);
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap().lines().count(),
+            if partial { 1 } else { 3 }
+        );
+        assert!(!String::from_utf8_lossy(&output.stderr).contains("Reconexao"));
+    }
+}
+
+#[test]
+fn empty_lines_and_oversized_first_payload_never_connect() {
+    for (bytes, extra, success) in [
+        (vec![], vec!["--line-mode"], true),
+        (vec![0; 4097], vec![], false),
+        (vec![0; 4097], vec!["--line-mode"], false),
+    ] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let mut process = stdin_child(port, &extra);
+        process.stdin.take().unwrap().write_all(&bytes).unwrap();
+        let output = finish(process);
+        assert_eq!(output.status.success(), success);
+        assert_eq!(output.stdout, [] as [u8; 0]);
+        assert!(listener.accept().is_err());
+    }
+    let output = Command::new(env!("CARGO_BIN_EXE_mqtt-client"))
+        .arg("--version")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(output.stdout, b"mqtt-client 0.3.0\n");
+    assert_eq!(output.stderr, [] as [u8; 0]);
+}
+
+#[test]
+fn open_stdin_times_out_without_waiting_for_native_worker_shutdown() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let mut process = stdin_child(port, &[]);
+    let held_input = process.stdin.take().unwrap();
+    let started = Instant::now();
+    while process.try_wait().unwrap().is_none() {
+        if started.elapsed() > Duration::from_secs(11) {
+            process.kill().unwrap();
+            panic!("stdin shutdown deadline");
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    let output = process.wait_with_output().unwrap();
+    drop(held_input);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(listener.accept().is_err());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("tempo esgotado"));
+}

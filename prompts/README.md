@@ -1,7 +1,7 @@
 # Prompts do xmqr-client
 
 Estado auditado em 2026-10-08: pacote xmqr-client, binário mqtt-client, manifest
-0.7.0 local herdado, Rust 2024/MSRV 1.88, MIT, publish=false. Nenhuma release
+0.3.0 candidato independente (C28), Rust 2024/MSRV 1.88, MIT, publish=false. Nenhuma release
 decorre deste índice. C26 foi escrito antes do código; revisões precederam seus ajustes.
 
 ## Ordem de uso atual
@@ -14,7 +14,7 @@ decorre deste índice. C26 foi escrito antes do código; revisões precederam se
 3. Antes de outra melhoria, criar um novo prompt a partir de [TEMPLATE](TEMPLATE.md),
    com ID/versão/estado/escopo/arquivos/aceite/testes, sem executar propostas históricas.
 4. Validar gates e gravar registro real PASS/FAIL/BLOCKED; publicar somente quando
-   solicitado, depois de decidir versão própria. Não reescrever tags existentes.
+   solicitado, com a versão própria já alinhada em0.3.0. Não reescrever tags existentes.
 
 | ID | Arquivo | Papel e alinhamento |
 | --- | --- | --- |
@@ -24,11 +24,10 @@ decorre deste índice. C26 foi escrito antes do código; revisões precederam se
 | C22 | [QoS e sessões](clients/22-qos-retained-sessions.md) | Requisitos históricos; nova retransmissão não é instrução executável atual. |
 | C23 | [Interoperabilidade](clients/23-interoperabilidade-v020.md) | Histórico broker 0.2.0; gate externo ainda não comprovado. |
 | C24 | [Auditoria](clients/24-cli-atual-e-credenciais.md) | Manutenção do código real rumqttc; caminhos src/bin/... pertencem à origem. |
-| C25 | [Extração](clients/25-extrair-xmqr-client.md) | Exige fonte/backup da origem; separação estrutural registrada, integração pendente. |
+| C25 | [Extração](clients/25-extrair-xmqr-client.md) | Exige fonte/backup da origem; extração histórica; integração isolada posterior no registro C27. |
 | C26 | [Reconexão e JSONL](clients/26-reconexao-jsonl.md) | Incremento implementado sobre projeto existente; [registro](registros/C26-reconexao-jsonl.md). |
-
-| C27 | [Bootstrap independente](clients/27-bootstrap-independente.md) | Contrato completo até C26; reconstrução nova em pasta inicialmente vazia; [registro](registros/C27-bootstrap.md). |
-| C28 | [Payload binário planejado](clients/28-payload-binario-planejado.md) | Apenas planejamento: arquivo/stdin NÃO implementados nesta etapa. |
+| C27 | [Bootstrap independente](clients/27-bootstrap-independente.md) | Contrato consolidado até C26; reconstrução nova em pasta inicialmente vazia; [registro](registros/C27-bootstrap.md). |
+| C28 | [Payload binário C28](clients/28-payload-binario-planejado.md) | Rev.2.0 executada: arquivo/stdin bruto e por linha; [registro](registros/C28-payload-binario.md). |
 
 ## Posso criar o cliente do zero usando estes prompts?
 
@@ -52,6 +51,9 @@ ausentes aqui; C20 descreve codec próprio antigo e não deve substituir rumqttc
 Para um novo ensaio, use C27 em outro diretório vazio, sem sobrescrever a evidência
 existente ou executar histórico C20. Não executar broker compartilhado sem coordenação.
 
-C28 tem critérios preparados para payload arquivo/stdin. A CLI atual continua
-aceitando somente --message texto em pub; perfis, múltiplos tópicos e timestamps
-não foram implementados. Checkpoint C27/C26 precede essa próxima execução.
+C28 rev.2.0 amplia o contrato com arquivo/stdin binário e publicação por linha;
+versão candidata0.3.0. Veja o suplemento C28 no contrato C27 e seu registro.
+A reconstrução validation/c27-bootstrap permanece congelada no baseline0.2;
+seus hashes antigos não demonstram equivalência com produção após C28.
+Perfis, múltiplos tópicos e timestamps não foram implementados; não avançar C29
+antes do checkpoint de publicação. Tag sugerida **v0.3.0**, ainda não criada aqui.

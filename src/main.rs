@@ -1,6 +1,7 @@
 mod cli;
 mod credentials;
 mod output;
+mod payload;
 mod session;
 mod tls;
 
@@ -12,12 +13,37 @@ async fn main() {
         return;
     }
 
+    if arguments.len() == 1 && arguments[0] == "--version" {
+        println!("mqtt-client {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
     let cli = match cli::parse(arguments) {
         Ok(cli) => cli,
         Err(message) => {
             eprintln!("Erro: {message}\n\n{}", cli::USAGE);
             std::process::exit(2);
         }
+    };
+    let publication = if let cli::Mode::Pub { message, .. } = &cli.mode {
+        let Ok(mut input) = payload::Input::start(message.clone(), cli.line_mode) else {
+            eprintln!("Erro: nao foi possivel preparar entrada de payload");
+            std::process::exit(2);
+        };
+        let first = tokio::select! {
+            result = input.next() => match result {
+                Ok(Some(bytes)) => bytes,
+                Ok(None) => return, // Empty line input does not connect or publish.
+                Err(error) => { eprintln!("Erro: {error}"); std::process::exit(2); }
+            },
+            signal = tokio::signal::ctrl_c() => {
+                if signal.is_err() { std::process::exit(1); }
+                eprintln!("Cancelado por Ctrl+C");
+                return;
+            }
+        };
+        Some(payload::Publication { input, first })
+    } else {
+        None
     };
     // Open-lab is deliberately anonymous; secure mode prompts before opening
     // the network connection and never places the password in argv.
@@ -39,7 +65,7 @@ async fn main() {
         }
         Some(password)
     };
-    if let Err(error) = session::run(cli, password).await {
+    if let Err(error) = session::run(cli, password, publication).await {
         eprintln!("Erro: {error}");
         std::process::exit(1);
     }

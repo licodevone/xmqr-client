@@ -87,3 +87,15 @@ Marco local concluido nos gates Windows. Parar nesta fatia para usuario decidir
 versao propria e publicacao antes de prosseguir outros recursos. Nao anunciar release.
 
 Verificacao final adicional: links locais ativos README/prompts/README/prompts/COBERTURA PASS; referencias quebradas historicas explicitadas, nao tratadas como bootstrap. rustup nao lista toolchain1.88; sem instalacao. Git HEAD/tag/manifest/lock preservados.
+
+## Fechamento adicional C27 - Unix operacional, 2026-10-08
+
+Depois da coordenacao, Ubuntu-26.04 voltou responder comRust1.99.0.
+ClienteATUALC26 (nao baseline26c1019): 30testesLinux PASS, fmt/clippyalltargets
+-Dwarnings/build/inventarioPASS; 9Will/retainedbrokerisolado +4JSON/restart/
+SIGINT/TLSpeerPASS. Windows28testes/gates reconferidosPASS. Segredo0600Linux
+validado, TLSCA/SAN/mTLSpeer controlado validados. Bloqueios iniciais acima
+sao historico, nao estadofinal. MSRV1.88/Mosquitto/brokersecurecompleto seguem
+naocomprovados. Tresassercoesde testeempty atualizadas paraClippy1.99, criterio
+inalterado; srcprod iguais aos hashesentradaC27, versao/tags preservadas.
+Veja registroC27 para insumos, reconstrucao transparente e limites. Sem release.

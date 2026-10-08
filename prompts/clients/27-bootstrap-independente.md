@@ -255,3 +255,18 @@ para certificados/segredo temporarios700/600; manter validacao de owner/0600,
 nao alterar cliente nem oferecer bypass. Redigir assert sem imprimir segredo
 mesmo se vazar, registrar fase de falha de fixture sem expor bytes sensiveis.
 Repetir testes afetados/gates Clippy1.99/build e integracaoTLS isolada.
+
+## Suplemento público C28 / versão candidata0.3.0
+
+O contrato completo adicional é C28 rev.2.0 em28-payload-binario-planejado.md:
+fontes exclusivas message/message-file/stdin; arquivo regular; raw0..4096 bytes
+exatos e EOF; line-mode LF/CRLF sem linha fantasma, linha vazia/EOF preservados;
+limite por payload; canal1/thread nativa/deadlines8s/cancelamento; primeira entrada
+antes da rede; publicação serial QoS terminal, falha parcial sem replay/reconnect;
+text/JSONL compatíveis por conclusão; versão manifest/lock/--version0.3.0.
+Use este suplemento junto de C28 para especificar a versão atual.
+
+O ensaio validation/c27-bootstrap e seus insumos/hashes são snapshot do baseline
+C26/C27 incluído na tagv0.2.0 (manifest herdado0.7.0). Não foram atualizados para
+simular nova reconstrução. Um ensaio independente0.3 continua não executado.
+Não interpretar diferenças de hashes após C28 como alteração da evidência antiga.

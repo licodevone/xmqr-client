@@ -1,8 +1,9 @@
 # xmqr-client
 
 Projeto Rust independente, extraído do cliente XMQR. Pacote `xmqr-client`,
-binário compatível `mqtt-client`. Versão local inicial **0.7.0**, herdada do
-manifest de origem; não é release publicada. Próximas versões são independentes.
+binário compatível `mqtt-client`. Versão candidata independente **0.3.0**, ainda sem
+nova tag/release. A tag existente **v0.2.0** contém C26/C27; seu manifest herdado
+0.7.0 é histórico. A próxima tag sugerida após publicação autorizada é **v0.3.0**.
 
 ```powershell
 cd D:\projects\my-project\xmqr-client
@@ -33,10 +34,10 @@ Validações Unix com broker isolado e peer TLS próprio estão no registro C27;
 MSRV1.88 exato e interoperabilidade externa ainda não comprovados.
 
 
-## Marco C26 (não publicado)
+## Marco C26 (incluído na tag v0.2.0)
 
-Versão do manifest preservada em **0.7.0**, herdada e local; a tag local existente
-não foi reescrita. A decisão sobre a versão própria e publicação permanece pendente.
+A etapa C26 preservou o manifest herdado 0.7.0. C28 inicia a numeração
+independente 0.3.0, sem reescrever a tag anterior.
 
 `--reconnect-attempts N` aceita 0..10 (padrão 0, falha sem reconectar).
 Usa o mesmo EventLoop rumqttc, Client ID e opções de sessão. O orçamento é total
@@ -92,6 +93,46 @@ O binário cliente é Rust; Python auxilia testes, inventário e conferência de
 não é um cliente alternativo nem requisito para executar mqtt-client. TOML/JSON são
 configurações/metadados; Markdown é documentação. Comandos usam PowerShell/bash.
 
-[C28](prompts/clients/28-payload-binario-planejado.md) prepara arquivo/stdin binário,
-mas continua apenas planejamento. Versão0.7.0 local e tags preservadas; nenhuma
-publicação ou evolução adicional acompanha este checkpoint.
+## Marco C28 — candidato v0.3.0
+
+[Prompt C28 rev.2.0](prompts/clients/28-payload-binario-planejado.md) e
+[registro de validação](prompts/registros/C28-payload-binario.md).
+Use exatamente uma fonte em pub: --message TEXTO, --message-file CAMINHO ou
+--stdin. Arquivo deve ser regular; erros não exibem caminhos ou bytes recebidos.
+O modo bruto preserva todos os bytes (BOM, NUL, UTF-8 inválido e CRLF), incluindo
+payload vazio, até 4096 bytes; aguarda EOF. Não converte a entrada em texto.
+
+--line-mode, somente com arquivo/stdin, publica uma mensagem por linha: remove
+LF e um CR imediatamente anterior, preserva CR isolado, BOM e bytes binários.
+Linha vazia publica payload vazio; EOF publica última linha sem LF; entrada
+vazia não conecta. LF final não cria mensagem extra. O limite de4096 bytes vale
+por payload após esse enquadramento. Retain vale para cada linha: uma linha
+vazia com --retain true apaga o retained desse tópico.
+
+Cada publicação aguarda envio QoS0 ou ACK terminal QoS1/2 antes da seguinte.
+No modo por linha, cada conclusão escreve o mesmo formato text/JSONL de C26.
+Uma falha posterior retorna erro e mantém as conclusões anteriores; não há
+rollback. Depois do primeiro PUBLISH não reconecta nem reenvia o lote.
+ACK confirma protocolo, não processamento pelo assinante ou sucesso de negócio.
+
+A primeira entrada é validada antes de credenciais/rede. Cada espera de entrada
+tem limite fixo de8s, sem renovação por eventos MQTT. Ctrl+C cancela a espera e
+tenta DISCONNECT no link ativo por até1s. A leitura nativa bloqueada não impede
+o encerramento do processo; fila limitada e publicação serial aplicam backpressure.
+Senha oculta usa console/TTY separado; --password-file preserva proteção Linux0600.
+
+~~~powershell
+cargo run --locked -- --version
+cargo run --locked -- pub --open-lab --topic 'test/binary' --message-file 'payload.bin' --qos 1 --output jsonl
+cargo run --locked -- pub --open-lab --topic 'test/lines' --message-file 'lines.bin' --line-mode --qos 2
+~~~
+
+Para stdin binário use um pipe que preserve bytes; comandos de texto do shell
+podem recodificar a entrada antes de o cliente recebê-la. --version imprime
+mqtt-client 0.3.0 sem ler entrada/senha ou abrir conexão.
+
+Gates Windows/Linux e18 cenários isolados (C28+C27+Will) passaram; MSRV1.88
+exato não instalado e Mosquitto/broker TLS completo continuam não comprovados.
+O bootstrap C27 é evidência congelada do contrato da tag0.2; não é reconstrução
+independente da nova versão0.3. Não executar seu checker antigo para declarar
+igualdade com os fontes após C28.

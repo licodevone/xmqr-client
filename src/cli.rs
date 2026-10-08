@@ -11,8 +11,14 @@ const MAX_PASSWORD_BYTES: usize = 1024;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Mode {
-    Pub { topic: String, message: String },
-    Sub { filter: String, count: Option<u64> },
+    Pub {
+        topic: String,
+        message: crate::payload::Source,
+    },
+    Sub {
+        filter: String,
+        count: Option<u64>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -32,6 +38,7 @@ pub struct Will {
 
 #[derive(Debug)]
 pub struct Cli {
+    pub line_mode: bool,
     pub output: crate::output::Output,
     pub reconnect_attempts: u8,
     pub mode: Mode,
@@ -50,7 +57,7 @@ pub struct Cli {
     pub transport_mode: TransportMode,
 }
 
-pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --output text|jsonl, --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --message TEXTO (pub), --count N (sub), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
+pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl, --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --message TEXTO (pub), --count N (sub), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -62,6 +69,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
 
     let mut output = None;
     let mut reconnect_attempts = None;
+    let mut message_file = None;
+    let mut stdin = false;
+    let mut line_mode = false;
     let mut topic = None;
     let mut message = None;
     let mut count = None;
@@ -83,6 +93,17 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut will_retain = None;
 
     while let Some(flag) = args.next() {
+        if flag == "--stdin" || flag == "--line-mode" {
+            let target = if flag == "--stdin" {
+                &mut stdin
+            } else {
+                &mut line_mode
+            };
+            if std::mem::replace(target, true) {
+                return Err(format!("opcao repetida: {flag}"));
+            }
+            continue;
+        }
         if flag == "--open-lab" {
             if transport_mode.replace(TransportMode::OpenLab).is_some() {
                 return Err("use somente um modo de laboratorio".into());
@@ -109,6 +130,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             "--will-message" => &mut will_message,
             "--will-qos" => &mut will_qos,
             "--will-retain" => &mut will_retain,
+            "--message-file" => &mut message_file,
             "--message" => &mut message,
             "--count" => &mut count,
             "--host" => &mut host,
@@ -129,7 +151,15 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         }
     }
 
-    let mode = parse_mode(&command, topic, message, count)?;
+    let mode = parse_mode(
+        &command,
+        topic,
+        message,
+        message_file,
+        stdin,
+        line_mode,
+        count,
+    )?;
     let qos = match qos.as_deref().unwrap_or("0") {
         "0" => QoS::AtMostOnce,
         "1" => QoS::AtLeastOnce,
@@ -269,6 +299,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         return Err("--reconnect-attempts deve ser 0..10".into());
     }
     Ok(Cli {
+        line_mode,
         output,
         reconnect_attempts,
         mode,
@@ -307,10 +338,14 @@ pub fn validate_password(password: &str) -> Result<(), &'static str> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)] // Source exclusivity is checked together with mode.
 fn parse_mode(
     command: &str,
     topic: Option<String>,
     message: Option<String>,
+    message_file: Option<String>,
+    stdin: bool,
+    line_mode: bool,
     count: Option<String>,
 ) -> Result<Mode, String> {
     let topic = topic.ok_or("informe --topic")?;
@@ -325,14 +360,30 @@ fn parse_mode(
         if !valid_topic(&topic) {
             return Err("topico de publicacao invalido".into());
         }
-        let message = message.ok_or("informe --message")?;
-        if message.len() > MAX_MESSAGE_BYTES {
-            return Err(format!("mensagem excede {MAX_MESSAGE_BYTES} bytes"));
+        if usize::from(message.is_some()) + usize::from(message_file.is_some()) + usize::from(stdin)
+            != 1
+        {
+            return Err(
+                "pub exige exatamente uma fonte: --message, --message-file ou --stdin".into(),
+            );
         }
+        let message = if let Some(text) = message {
+            if text.len() > MAX_MESSAGE_BYTES {
+                return Err(format!("mensagem excede {MAX_MESSAGE_BYTES} bytes"));
+            }
+            if line_mode {
+                return Err("--line-mode exige arquivo ou stdin".into());
+            }
+            crate::payload::Source::Text(text)
+        } else if let Some(path) = message_file {
+            crate::payload::Source::File(PathBuf::from(path))
+        } else {
+            crate::payload::Source::Stdin
+        };
         Ok(Mode::Pub { topic, message })
     } else {
-        if message.is_some() {
-            return Err("--message somente vale para pub".into());
+        if message.is_some() || message_file.is_some() || stdin || line_mode {
+            return Err("fontes de payload e --line-mode somente valem para pub".into());
         }
         if !valid_filter(&topic) {
             return Err("filtro de assinatura invalido".into());
@@ -647,6 +698,50 @@ mod new_options_tests {
             vec!["--reconnect-attempts", "1", "--reconnect-attempts", "2"],
         ] {
             assert!(parse(base.iter().copied().chain(tail).map(str::to_owned)).is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod payload_options_tests {
+    use super::*;
+    #[test]
+    fn sources_are_exclusive_and_lines_require_stream_source() {
+        let base = ["pub", "--open-lab", "--topic", "t"];
+        for tail in [
+            vec!["--stdin"],
+            vec!["--message-file", "data"],
+            vec!["--stdin", "--line-mode"],
+            vec!["--message-file", "data", "--line-mode"],
+        ] {
+            assert!(parse(base.iter().copied().chain(tail).map(str::to_owned)).is_ok());
+        }
+        for tail in [
+            vec!["--stdin", "--message", "x"],
+            vec!["--stdin", "--message-file", "data"],
+            vec!["--message", "x", "--message-file", "data"],
+            vec!["--message", "x", "--line-mode"],
+            vec!["--stdin", "--stdin"],
+            vec!["--stdin", "--line-mode", "--line-mode"],
+            vec!["--message-file"],
+            vec!["--line-mode"],
+        ] {
+            assert!(parse(base.iter().copied().chain(tail).map(str::to_owned)).is_err());
+        }
+        for tail in [
+            vec!["--stdin"],
+            vec!["--message-file", "data"],
+            vec!["--line-mode"],
+        ] {
+            assert!(
+                parse(
+                    ["sub", "--open-lab", "--topic", "t"]
+                        .into_iter()
+                        .chain(tail)
+                        .map(str::to_owned)
+                )
+                .is_err()
+            );
         }
     }
 }
