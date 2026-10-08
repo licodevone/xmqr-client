@@ -1,0 +1,23 @@
+{
+  "source": "D:/projects/my-project/xmqr",
+  "source_head": "bc4cc55",
+  "source_package": "mqtt-broker",
+  "source_working_version": "0.7.0",
+  "initial_independent_version": "0.7.0",
+  "release_published": false,
+  "prompt": "C25",
+  "date": "2026-10-08",
+  "original_sha256": {
+    "cli.rs": "0df9845467288646e3f2f1b4390ceb433ced367e3c4f0a9295fab3132a3f754c",
+    "credentials.rs": "0f62e25153746f545f507624f6602edda51fbbcbb19565f10c7b113a1afd0cbf",
+    "main.rs": "7298ce390a5a8a5f0ca1b788cae2aacb0a7154b34d93aecbef8636d3d73dfce0",
+    "session.rs": "bab61ccdbab7f12b652e847f666610fe425e07b7bc26f6543f77154173628476",
+    "tls.rs": "668c13039cde67788d8eaece3b3d933ad8d1e20dd5ff8ea9877c314c452e3de0"
+  },
+  "backup": "C:\\Users\\licod\\Documents\\Codex\\2026-10-07\\task\\c25-original-client",
+  "changes": [
+    "Local constant MAX_TOPIC_BYTES=1024 instead of broker import",
+    "Linux-only password-file constant cfg, no behavior change"
+  ],
+  "broker_source_removed": false
+}
