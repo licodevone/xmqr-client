@@ -1,7 +1,7 @@
 # Registro C25 - extração local, 2026-10-08
 
-Estado: cliente independente criado e gates Windows PASS; separação definitiva
-BLOCKED por integrações Unix. Broker mantém fonte original por segurança.
+Estado: separação estrutural CONCLUÍDA, gates Windows PASS.
+Integrações Unix ainda BLOCKED; não há aceite funcional completo P43/C25.
 Prompt clients/25-extrair-xmqr-client.md criado antes das edições.
 
 Broker D:/projects/my-project/xmqr; cliente D:/projects/my-project/xmqr-client.
@@ -29,8 +29,20 @@ BLOCKED. Script broker verify_last_will.py já aceita --client explícito e deve
 receber o executável independente. Nenhuma integração real com broker durável
 foi aprovada nessa retomada. Nenhuma instalação/commit/push/tag/GitHub ocorreu.
 
-Fonte src/bin/mqtt-client e dependências/fluxos antigos permanecem no broker
-até aceite de integração. Portanto desmembramento definitivo não está concluído.
-Após recuperar WSL: gates ambos, integração com --client novo, conferir backup,
-remover somente duplicado autorizado, adaptar docs/build/CI afetados e revalidar.
-O mqtt-admin permanece no broker. P43 preservado e também com aceite pendente.
+## Finalização estrutural autorizada - revisão C25 1.1
+
+Após gates Windows e nova conferência de todos os hashes/backup, removidos
+somente os cinco fontes duplicados; diretório vazio removido sem recursão.
+Backup continua na workspace e fontes rastreados têm recuperação pelo Git.
+Broker/admin em xmqr; cliente independente em xmqr-client. Rumqttc e suas
+dependências exclusivas removidos do manifest/lock/inventário do broker.
+Rpassword permanece para mqtt-admin. Import OpenOptions condicionado a Unix,
+sem mudança de semântica; Clippy all-targets do broker agora PASS no Windows.
+Build all-targets/check e bins broker/admin PASS. READMEs e guias de build,
+laboratório, cliente e Will adaptados. Scripts de integração recebem --client
+explícito e independente. Prompts históricos preservados como origem.
+
+Integrações com estado durável, 1024 UTF-8/retained/Will, monitor HTTP/MQTT e
+gates Unix permanecem bloqueados por WSL. Nenhuma durabilidade/teste enfraquecido.
+Nenhum novo recurso de cliente, instalação, GitHub, commit/push/tag/release.
+O mqtt-admin permanece no broker; P43 com aceite completo pendente.
