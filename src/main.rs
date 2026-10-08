@@ -1,5 +1,6 @@
 mod cli;
 mod credentials;
+mod output;
 mod session;
 mod tls;
 

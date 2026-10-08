@@ -1,0 +1,21 @@
+{
+  "production_source_unchanged": true,
+  "declared_assets_unchanged": true,
+  "no_byte_identical_implementation_files": true,
+  "production_source_sha256": {
+    "cli.rs": "9f0b4798418f0159e4e507e1b40b3f08a803ce8794e5fb4b79b5e3baa4a69602",
+    "credentials.rs": "1a8e97de29f2a5e9ef2eab6e732efc2aa0979fac674495dfbde47cefb752af1e",
+    "main.rs": "88c9137a31f023f165732dc308f6f873c68c6fddcfc03b1297f1b0b60b835ef4",
+    "output.rs": "14bde0be4d2cca2685e4a023a987de44d0bd21245d26e112f8ec204272402560",
+    "session.rs": "d6fac30761ea223ec5bedad0f064a72748037368ec41b21b1d94d358d01a2729",
+    "tls.rs": "668c13039cde67788d8eaece3b3d933ad8d1e20dd5ff8ea9877c314c452e3de0"
+  },
+  "reconstruction_source_sha256": {
+    "args.rs": "60c606645343441c5920ae07de8ebf9cde28e46f7fe1825bf146923b5ac69693",
+    "engine.rs": "debec53fe92d71a986555c1373f8a13e9b3c5f374306da04146e3c55aaab7e25",
+    "format.rs": "7b682a7a4724c80f92f0c7352cd714cc11628cbdc3aa6e4e1a43a5732a026472",
+    "main.rs": "ac86a8ce7a5f54e60af866f2f1b1000b5fb455d14550a8f91e44c6f8b89dc6bc",
+    "security.rs": "b848b468151f6355d94bf046259f01dd184301ac39ebe22d7aef167e89e60719"
+  },
+  "limitation": "Hashes alone do not establish independent authorship or behavioral equivalence."
+}

@@ -32,6 +32,8 @@ pub struct Will {
 
 #[derive(Debug)]
 pub struct Cli {
+    pub output: crate::output::Output,
+    pub reconnect_attempts: u8,
     pub mode: Mode,
     pub will: Option<Will>,
     pub host: String,
@@ -48,7 +50,7 @@ pub struct Cli {
     pub transport_mode: TransportMode,
 }
 
-pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --message TEXTO (pub), --count N (sub), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
+pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --output text|jsonl, --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --message TEXTO (pub), --count N (sub), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -58,6 +60,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         return Err(format!("comando desconhecido: {command}"));
     }
 
+    let mut output = None;
+    let mut reconnect_attempts = None;
     let mut topic = None;
     let mut message = None;
     let mut count = None;
@@ -98,6 +102,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             .next()
             .ok_or_else(|| format!("faltou valor para {flag}"))?;
         let slot = match flag.as_str() {
+            "--output" => &mut output,
+            "--reconnect-attempts" => &mut reconnect_attempts,
             "--topic" => &mut topic,
             "--will-topic" => &mut will_topic,
             "--will-message" => &mut will_message,
@@ -246,7 +252,25 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         (None, None) if will_qos.is_none() && will_retain.is_none() => None,
         _ => return Err("Will exige --will-topic e --will-message".into()),
     };
+    let output = match output.as_deref().unwrap_or("text") {
+        "text" => crate::output::Output::Text,
+        "jsonl" => crate::output::Output::Jsonl,
+        _ => return Err("--output deve ser text ou jsonl".into()),
+    };
+    let reconnect_attempts = reconnect_attempts
+        .map(|value| {
+            value
+                .parse::<u8>()
+                .map_err(|_| "--reconnect-attempts deve ser 0..10")
+        })
+        .transpose()?
+        .unwrap_or(0);
+    if reconnect_attempts > 10 {
+        return Err("--reconnect-attempts deve ser 0..10".into());
+    }
     Ok(Cli {
+        output,
+        reconnect_attempts,
         mode,
         will,
         host,
@@ -587,6 +611,42 @@ mod tests {
             ],
         ] {
             assert!(parse(base.iter().chain(tail.iter()).map(|s| (*s).to_owned())).is_err());
+        }
+    }
+}
+
+#[cfg(test)]
+mod new_options_tests {
+    use super::parse;
+    use crate::output::Output;
+
+    #[test]
+    fn output_and_retry_validation() {
+        let base = ["sub", "--open-lab", "--topic", "test"];
+        let cli = parse(base.map(str::to_owned)).unwrap();
+        assert_eq!(cli.output, Output::Text);
+        assert_eq!(cli.reconnect_attempts, 0);
+        for value in ["0", "1", "10"] {
+            let cli = parse(
+                base.iter()
+                    .copied()
+                    .chain(["--output", "jsonl", "--reconnect-attempts", value])
+                    .map(str::to_owned),
+            )
+            .unwrap();
+            assert_eq!(cli.output, Output::Jsonl);
+            assert_eq!(cli.reconnect_attempts.to_string(), value);
+        }
+        for tail in [
+            vec!["--output", "json"],
+            vec!["--output", "text", "--output", "jsonl"],
+            vec!["--reconnect-attempts", "11"],
+            vec!["--reconnect-attempts", "-1"],
+            vec!["--reconnect-attempts", "256"],
+            vec!["--reconnect-attempts", "x"],
+            vec!["--reconnect-attempts", "1", "--reconnect-attempts", "2"],
+        ] {
+            assert!(parse(base.iter().copied().chain(tail).map(str::to_owned)).is_err());
         }
     }
 }

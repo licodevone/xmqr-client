@@ -1,3 +1,8 @@
+> **Aviso local C26:** documento histórico da origem. Caminhos/links antigos e agentes citados
+> podem não existir neste cliente independente. Use [índice atual](../README.md) e
+> [cobertura atual](../COBERTURA.md); não aplique o codec próprio C20 sobre rumqttc.
+> Este histórico não é receita de bootstrap nem evidência de execução.
+
 # C24 — Auditar o cliente Rust atual e credenciais
 
 Tipo: manutenção existente. Leia src/bin/mqtt-client/{cli,credentials,main,session,tls}.rs,

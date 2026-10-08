@@ -1,0 +1,30 @@
+[package]
+name = "xmqr-client"
+version = "0.7.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+license = "MIT"
+description = "Cliente CLI MQTT 3.1.1 independente, originado do XMQR"
+readme = "README.md"
+
+[[bin]]
+name = "mqtt-client"
+path = "src/main.rs"
+
+[dependencies]
+rpassword = "7.5.4"
+rustls = { version = "0.23.45", default-features = false, features = ["aws_lc_rs", "logging", "prefer-post-quantum", "std", "tls12"] }
+rustls-pemfile = "2.2.0"
+rumqttc = { version = "=0.25.1", default-features = false, features = ["use-rustls-no-provider"] }
+tokio = { version = "1.53.1", features = ["io-util", "macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "deny"
+pedantic = "warn"

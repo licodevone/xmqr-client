@@ -1,0 +1,21 @@
+{
+  "prompt": "C27 rev1.0",
+  "clean_destination_verified": true,
+  "head": "26c10191c9ec0b6d3181488794584bfbf24ed756",
+  "production_source_sha256": {
+    "cli.rs": "9f0b4798418f0159e4e507e1b40b3f08a803ce8794e5fb4b79b5e3baa4a69602",
+    "credentials.rs": "1a8e97de29f2a5e9ef2eab6e732efc2aa0979fac674495dfbde47cefb752af1e",
+    "main.rs": "88c9137a31f023f165732dc308f6f873c68c6fddcfc03b1297f1b0b60b835ef4",
+    "output.rs": "14bde0be4d2cca2685e4a023a987de44d0bd21245d26e112f8ec204272402560",
+    "session.rs": "d6fac30761ea223ec5bedad0f064a72748037368ec41b21b1d94d358d01a2729",
+    "tls.rs": "668c13039cde67788d8eaece3b3d933ad8d1e20dd5ff8ea9877c314c452e3de0"
+  },
+  "allowed_reused_assets": {
+    "Cargo.toml": "a3640e6fdb97bebaa9e0a39dc44e1965b7b126d575476e16566a35349162ed3c",
+    "Cargo.lock": "d60e8d12eb31e6061e1a8a9087044be31b07e539c3aedd75792d715ca4a60ae9",
+    "LICENSE": "acfd4bb82db195b2ba0a8a1ea6c5048d2e66c05a0fd0bd843e08d8a46d34b465",
+    "tests/wire.rs": "8f448f68802787719c8fe4e7d14bc4cf0c8203d60b611e30517f8a4cd23fa750"
+  },
+  "implementation_source_copy": false,
+  "method": "newly authored source, same author already aware of C26; not blind reproduction"
+}

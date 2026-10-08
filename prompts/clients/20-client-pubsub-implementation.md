@@ -1,3 +1,8 @@
+> **Aviso local C26:** documento histórico da origem. Caminhos/links antigos e agentes citados
+> podem não existir neste cliente independente. Use [índice atual](../README.md) e
+> [cobertura atual](../COBERTURA.md); não aplique o codec próprio C20 sobre rumqttc.
+> Este histórico não é receita de bootstrap nem evidência de execução.
+
 > **Adaptação XMQR — 2026-10-07.** Histórico de escopo da origem, sem prova de execução no XMQR. Não reaplicar sobre o código existente. Para validar o snapshot atual, usar broker/36 e clients/24.
 > Leia primeiro [o contrato comum](../contrato-base.md) e a matriz [de cobertura](../COBERTURA.md).
 > Origem literal preservada: [arquivo original](../origem/clients/20-client-pubsub-implementation.md). Nenhum agente, skill ou MCP externo é requisito instalado.
