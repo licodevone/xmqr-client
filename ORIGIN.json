@@ -19,5 +19,7 @@
     "Local constant MAX_TOPIC_BYTES=1024 instead of broker import",
     "Linux-only password-file constant cfg, no behavior change"
   ],
-  "broker_source_removed": false
+  "broker_source_removed": true,
+  "structural_separation_completed": true,
+  "integration_validated": false
 }

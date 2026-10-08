@@ -28,5 +28,5 @@ Prompts C19-C24 são históricos/propostas, não autorização de implementaçã
 
 Toda melhoria deve começar por um prompt com ID/versão, estado, objetivo,
 escopo, arquivos, invariantes, aceite e testes. Veja AGENTS.md e C25.
-MIT e atribuições originais preservadas. Separação final e integração ainda
-dependem dos gates Unix; fonte original permanece no broker até esse aceite.
+MIT e atribuições originais preservadas. Separação estrutural concluída com gates Windows e backup verificado.
+Integrações Unix com o broker permanecem pendentes; não há aceite funcional completo.
