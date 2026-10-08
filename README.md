@@ -29,7 +29,8 @@ Prompts C19-C24 são históricos/propostas, não autorização de implementaçã
 Toda melhoria deve começar por um prompt com ID/versão, estado, objetivo,
 escopo, arquivos, invariantes, aceite e testes. Veja AGENTS.md e C25.
 MIT e atribuições originais preservadas. Separação estrutural concluída com gates Windows e backup verificado.
-Integrações Unix com o broker permanecem pendentes; não há aceite funcional completo.
+Validações Unix com broker isolado e peer TLS próprio estão no registro C27;
+MSRV1.88 exato e interoperabilidade externa ainda não comprovados.
 
 
 ## Marco C26 (não publicado)
@@ -70,7 +71,7 @@ cargo run --locked -- sub --open-lab --topic 'test/#' --count 2 --client-id stab
 
 Validação C26 usa fixtures MQTT próprias em loopback/portas efêmeras, sem executar
 o broker vizinho ou Mosquitto. Isso não substitui os gates de integração Unix/TLS
-com broker independente ainda pendentes em C25.
+com broker independente; a execução isolada posterior está registrada em C27.
 
 Limitação verificada: rumqttc 0.25.1 limpa o estado de recepção QoS2 ao perder
 a conexão. Se a queda ocorrer entre PUBLISH recebido e conclusão PUBREL/PUBCOMP,
@@ -78,4 +79,19 @@ o cliente falha explicitamente, sem reconectar nessa fase. O handshake recebido
 tem deadline fixo de 8s; `--count` aguarda sua conclusão antes de DISCONNECT.
 
 Prompts: veja [índice e ordem](prompts/README.md) e [matriz de cobertura](prompts/COBERTURA.md).
-Os históricos não constituem um bootstrap independente comprovado do zero.
+Os históricos não constituem um bootstrap independente; use o contrato C27.
+
+## Checkpoint C27
+
+[Contrato de bootstrap](prompts/clients/27-bootstrap-independente.md) cobre o cliente
+até C26. [Reconstrução de validação](validation/c27-bootstrap/README.md) tem fontes
+novos, insumos reutilizados explicitamente e comparação por contratos, sem substituir
+este cliente ou prometer identidade de bits. [Resultados e limitações](prompts/registros/C27-bootstrap.md).
+
+O binário cliente é Rust; Python auxilia testes, inventário e conferência de hashes,
+não é um cliente alternativo nem requisito para executar mqtt-client. TOML/JSON são
+configurações/metadados; Markdown é documentação. Comandos usam PowerShell/bash.
+
+[C28](prompts/clients/28-payload-binario-planejado.md) prepara arquivo/stdin binário,
+mas continua apenas planejamento. Versão0.7.0 local e tags preservadas; nenhuma
+publicação ou evolução adicional acompanha este checkpoint.

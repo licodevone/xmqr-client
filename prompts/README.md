@@ -9,7 +9,8 @@ decorre deste índice. C26 foi escrito antes do código; revisões precederam se
 1. Ler [AGENTS](../AGENTS.md), [README](../README.md), [ORIGIN](../ORIGIN.json),
    [skill local](../.agents/skills/xmqr-client-development/SKILL.md) e [matriz](COBERTURA.md).
 2. Para manutenção do projeto existente, ler C24 e comportamento real dos fontes;
-   C25 explica a separação, C26 registra o primeiro incremento independente.
+   C25 explica a separação, C26 registra o primeiro incremento independente;
+   [C27](clients/27-bootstrap-independente.md) especifica o bootstrap atual.
 3. Antes de outra melhoria, criar um novo prompt a partir de [TEMPLATE](TEMPLATE.md),
    com ID/versão/estado/escopo/arquivos/aceite/testes, sem executar propostas históricas.
 4. Validar gates e gravar registro real PASS/FAIL/BLOCKED; publicar somente quando
@@ -26,20 +27,31 @@ decorre deste índice. C26 foi escrito antes do código; revisões precederam se
 | C25 | [Extração](clients/25-extrair-xmqr-client.md) | Exige fonte/backup da origem; separação estrutural registrada, integração pendente. |
 | C26 | [Reconexão e JSONL](clients/26-reconexao-jsonl.md) | Incremento implementado sobre projeto existente; [registro](registros/C26-reconexao-jsonl.md). |
 
+| C27 | [Bootstrap independente](clients/27-bootstrap-independente.md) | Contrato completo até C26; reconstrução nova em pasta inicialmente vazia; [registro](registros/C27-bootstrap.md). |
+| C28 | [Payload binário planejado](clients/28-payload-binario-planejado.md) | Apenas planejamento: arquivo/stdin NÃO implementados nesta etapa. |
+
 ## Posso criar o cliente do zero usando estes prompts?
 
-Ainda não há uma receita independente completa nem reconstrução executada.
-C25 pressupõe copiar fontes existentes do broker/backup. C19–C23 mencionam
-contrato-base.md, prompts/origem, broker/36 e agentes que não estão neste projeto.
-docs/original-mqtt-client.md conserva referências da origem. C20 descreve uma
-fatia antiga com codec próprio; C24 prevalece para o cliente atual rumqttc.
-Esses links históricos são documentação da procedência, não dependências de build.
-Build/testes atuais funcionam sem importar ou executar o crate do broker.
+Agora há um contrato independente atual: **C27**, cobrindo CLI/defaults,
+dependências, TLS/SAN/mTLS/credenciais, QoS/Will/sessões, reconexão e JSONL até C26.
+Foi redigida uma implementação nova em [validation/c27-bootstrap](../validation/c27-bootstrap/README.md),
+num diretório que não existia; não foram copiados fontes src/ de produção ou broker.
+Manifest/lock/licença e fixtures C26 foram reutilizados de forma explícita,
+com hashes e mudanças aprovadas. O mesmo autor conhecia C26; não foi ensaio cego.
 
-Próxima etapa proposta: C27, especificação de bootstrap independente. Deve reunir
-manifest/features/lock, CLI completa/defaults/erros, transporte TLS/SAN/credenciais,
-contratos MQTT/QoS/Will/sessões/reconexão/JSON, limites/deadlines e fixtures autônomas;
-eliminar a necessidade de copiar fontes do broker e resolver os links normativos.
-Só depois validar em diretório limpo, sem usar os fontes atuais como entrega pronta,
-e registrar gates Windows/Linux e integrações externas. Essa etapa não foi executada
-e não constitui uma promessa de reprodutibilidade ou autorização de instalação.
+Isso fornece um caminho de reconstrução pelo contrato **com os insumos declarados**,
+não uma promessa de equivalência bit a bit, todos os comportamentos não testados
+ou dependências disponíveis em outra máquina. O Cargo.lock é dado necessário
+para resolução idêntica; versões de manifesto sozinhas não fixam as transitivas.
+Veja as plataformas, cenários PASS e lacunas no registro C27 antes de assumir aceite.
+MSRV1.88 exato e interoperabilidade com Mosquitto continuam não comprovados.
+
+C25 ainda pressupõe fontes/backup da origem e serve para entender a extração.
+C19–C23 preservam links históricos (contrato-base, prompts/origem, broker/36)
+ausentes aqui; C20 descreve codec próprio antigo e não deve substituir rumqttc.
+Para um novo ensaio, use C27 em outro diretório vazio, sem sobrescrever a evidência
+existente ou executar histórico C20. Não executar broker compartilhado sem coordenação.
+
+C28 tem critérios preparados para payload arquivo/stdin. A CLI atual continua
+aceitando somente --message texto em pub; perfis, múltiplos tópicos e timestamps
+não foram implementados. Checkpoint C27/C26 precede essa próxima execução.
