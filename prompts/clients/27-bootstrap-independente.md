@@ -240,3 +240,18 @@ em tempdirprivado, nenhum secret em log/Git. Sem baixar/instalar. Todos processo
 com deadline, ports loopbackefemeros, state temporario, cleanup somente testowned.
 Esses testes comprovam cenarios especificos, nao interoperabilidade Mosquitto,
 MSRV1.88 ou brokerTLSprod. Registrar contagens separadas para cada binario.
+
+## Revisao1.3 - ajuste de validacao antes das alteracoes
+
+Rust1.99 Clippy apontou assert_is_empty em3asserts das fixtures C26; trocar
+apenas por assert_eq(output.stdout, [] as [u8;0]) em tests/wire.rs e na copia
+C27. Nao alterar srcprod nem criterio vazio. Inputs iniciais permanecem;
+registrar hash anterior/novo da fixture em approved_asset_changes.json e
+adaptar check_provenance para verificar essa unica mudanca explicitada.
+
+Fixture TLS tentou password-file0600 em /mnt/d viaTMPDIR e o cliente recusou
+antes deCONNECT; DrvFS nao refletiu modo0600. Usar /tmp Linux nativo somente
+para certificados/segredo temporarios700/600; manter validacao de owner/0600,
+nao alterar cliente nem oferecer bypass. Redigir assert sem imprimir segredo
+mesmo se vazar, registrar fase de falha de fixture sem expor bytes sensiveis.
+Repetir testes afetados/gates Clippy1.99/build e integracaoTLS isolada.
