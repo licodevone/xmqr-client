@@ -29,3 +29,5 @@ provar integração e persistência. A imagem não inclui broker; `--open-lab` n
 alcança outro container via rede comum. A integração não demonstra mTLS de
 produção, terminal interativo PowerShell, multi-arquitetura, assinatura da imagem
 ou publicação em registry. `v0.4.0` é apenas etiqueta local da imagem, não tag Git.
+O runtime contém a licença MIT do projeto e o inventário; textos completos de
+licenças de terceiros devem ser incluídos antes de redistribuir a imagem.
