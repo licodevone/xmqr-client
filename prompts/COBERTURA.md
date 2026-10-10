@@ -1,7 +1,7 @@
 # Cobertura atual dos prompts do cliente
 
-Snapshot C28/C27/C26, 2026-10-08. Código presente não equivale a validação externa.
-Pacote/binário independentes, Rust2024/MSRV1.88, MIT, manifest0.3.0 candidato independente sem nova release.
+Snapshot C29/C28/C27/C26, 2026-10-10. Código presente não equivale a validação externa.
+Pacote/binário independentes, Rust2024/MSRV1.88, MIT, manifest0.4.0 candidato independente sem nova release.
 Nenhuma dependência do crate do broker. Estado de origem em ORIGIN.json.
 
 | Contrato | Fonte/prompt atual | Evidência e lacuna |
@@ -22,6 +22,7 @@ Nenhuma dependência do crate do broker. Estado de origem em ORIGIN.json.
 | Interoperabilidade externa | C21/C23/C25 | Após coordenação, broker congelado P43 + CLI atuais em estado/portas próprios; JSON/reconnect/Will testados. Mosquitto e broker TLS completo ainda não validados. Bloqueio WSL inicial preservado no histórico. |
 | Recriação pelo contrato | C27 | Implementação nova validada em pasta inicialmente vazia, dados manifest/lock/licença/testes declarados. Não é reconstrução cega ou igualdade de bits; insumos/cache/plataforma importam. |
 | Payload binário/por linha | C28rev2.0 | Arquivo/stdin bruto ou LF/CRLF; limite4096, entrada antes da rede, serial ACK, timeout8s, stdin/SIGINT e falha parcial sem replay. Wire Windows/Linux e integração isolada PASS. Sem timestamps/perfis/múltiplos tópicos. |
+| Múltiplos tópicos | C29 | `sub` envia um lote de 1..256 filtros; `pub` mantém tópico único. SUBACK valida quantidade e QoS. Windows/Linux e broker XMQR isolado cobrem filtros disjuntos/sobrepostos, retained e wildcard `$`; sem QoS individual ou divisão de pacote. |
 
 Gates atuais: fmt --all -- --check; test --locked; clippy --locked --all-targets
 -- -D warnings; build --locked. Execução offline usa o lock/cache, sem upgrades.
@@ -29,8 +30,8 @@ MSRV1.88 declarado; validação Windows1.98.1/Linux1.99.0; toolchain1.88 não in
 Scripts de integração do broker devem receber --client explícito e rodar somente
 após coordenação em ambiente isolado; não executar estado real/durável aqui.
 
-Registros: [C25](registros/C25-extracao.md), [C26](registros/C26-reconexao-jsonl.md), [C27](registros/C27-bootstrap.md).
+Registros: [C25](registros/C25-extracao.md), [C26](registros/C26-reconexao-jsonl.md), [C27](registros/C27-bootstrap.md), [C29](registros/C29-multiplos-topicos.md).
 
-Versão candidata0.3.0 / próxima tag sugerida v0.3.0. v0.2.0 já contém C26/C27.
-Registro atual: [C28](registros/C28-payload-binario.md). Bootstrap C27 congelado
+Tag publicada v0.3.0; candidato0.4.0 / próxima tag sugerida v0.4.0. v0.2.0 já contém C26/C27.
+Registros: [C28](registros/C28-payload-binario.md), [C29](registros/C29-multiplos-topicos.md). Bootstrap C27 congelado
 no baseline0.2; não afirmar reconstrução independente0.3 pelo ensaio anterior.

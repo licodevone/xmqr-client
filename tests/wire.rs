@@ -347,7 +347,7 @@ fn multi_topic_subscription_rejects_partial_suback() {
     let output = finish(child(port, "sub", &["--topic", "other", "--count", "1"]));
     server.join().unwrap();
     assert!(!output.status.success());
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout, [] as [u8; 0]);
     assert!(String::from_utf8_lossy(&output.stderr).contains("SUBACK"));
 }
 
@@ -643,7 +643,7 @@ fn empty_lines_and_oversized_first_payload_never_connect() {
         .output()
         .unwrap();
     assert!(output.status.success());
-    assert_eq!(output.stdout, b"mqtt-client 0.3.0\n");
+    assert_eq!(output.stdout, b"mqtt-client 0.4.0\n");
     assert_eq!(output.stderr, [] as [u8; 0]);
 }
 

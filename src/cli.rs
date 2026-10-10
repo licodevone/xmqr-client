@@ -367,7 +367,7 @@ fn parse_mode(
         }
         let topic = &topics[0];
         validate_topic(topic)?;
-        if !valid_topic(&topic) {
+        if !valid_topic(topic) {
             return Err("topico de publicacao invalido".into());
         }
         if usize::from(message.is_some()) + usize::from(message_file.is_some()) + usize::from(stdin)

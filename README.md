@@ -1,18 +1,19 @@
 # xmqr-client
 
 Projeto Rust independente, extraído do cliente XMQR. Pacote `xmqr-client`,
-binário compatível `mqtt-client`. Versão candidata independente **0.3.0**, ainda sem
-nova tag/release. A tag existente **v0.2.0** contém C26/C27; seu manifest herdado
-0.7.0 é histórico. A próxima tag sugerida após publicação autorizada é **v0.3.0**.
+binário compatível `mqtt-client`. A tag publicada mais recente é **v0.3.0**.
+O candidato local independente é **0.4.0**, com suporte a múltiplos filtros em
+uma assinatura. Nenhuma tag ou release 0.4.0 foi criada.
 
 ```powershell
-cd D:\projects\my-project\xmqr-client
+cd D:\projects\my-project\broker-client-rust\xmqr-client
 cargo build --locked --bin mqtt-client
 cargo run --locked -- --help
 ```
 
-No WSL use `/mnt/d/projects/my-project/xmqr-client`. O broker permanece em
-`D:/projects/my-project/xmqr`; mqtt-admin pertence ao broker.
+No WSL use `/mnt/d/projects/my-project/broker-client-rust/xmqr-client`. O broker
+independente permanece em `D:/projects/my-project/broker-client-rust/xmqr`;
+`mqtt-admin` pertence ao broker.
 Cliente usa rumqttc: pub/sub QoS0/1/2, retained, sessões e Last Will; TLS/mTLS
 com validação de CA/SAN e credenciais. Laboratórios somente loopback.
 Tópicos/filtros: até 1024 bytes UTF-8; payload até 4096. Melhorias C26 abaixo.

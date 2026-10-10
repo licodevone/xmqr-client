@@ -1,6 +1,15 @@
 # Changelog
 
-## 0.3.0 — candidato não publicado
+## 0.4.0 — candidato local, tag sugerida v0.4.0
+
+- C29: `sub` aceita até 256 filtros por repetição de `--topic`, numa assinatura.
+- Pacote SUBSCRIBE limitado a 64 KiB; SUBACK exige uma concessão por filtro.
+- `pub` continua aceitando um único tópico; mesmo QoS se aplica ao lote.
+- Integração C29 exercita filtros disjuntos/sobrepostos, retained e `$` com XMQR.
+- Evidência: `prompts/registros/C29-multiplos-topicos.md`.
+- Gates Windows e Ubuntu-26.04/WSL aprovados; Rust 1.88 exato não validado.
+
+## 0.3.0 — tag publicada
 
 - C28: --message-file e --stdin preservam payload binário até4096 bytes.
 - --line-mode publica serialmente por LF/CRLF, preserva linhas vazias e EOF sem LF.

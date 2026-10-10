@@ -1,7 +1,7 @@
 # Prompts do xmqr-client
 
-Estado auditado em 2026-10-08: pacote xmqr-client, binário mqtt-client, manifest
-0.3.0 candidato independente (C28), Rust 2024/MSRV 1.88, MIT, publish=false. Nenhuma release
+Estado auditado em 2026-10-10: pacote xmqr-client, binário mqtt-client, manifest
+0.4.0 candidato independente (C29), Rust 2024/MSRV 1.88, MIT, publish=false. Nenhuma release
 decorre deste índice. C26 foi escrito antes do código; revisões precederam seus ajustes.
 
 ## Ordem de uso atual
@@ -28,7 +28,7 @@ decorre deste índice. C26 foi escrito antes do código; revisões precederam se
 | C26 | [Reconexão e JSONL](clients/26-reconexao-jsonl.md) | Incremento implementado sobre projeto existente; [registro](registros/C26-reconexao-jsonl.md). |
 | C27 | [Bootstrap independente](clients/27-bootstrap-independente.md) | Contrato consolidado até C26; reconstrução nova em pasta inicialmente vazia; [registro](registros/C27-bootstrap.md). |
 | C28 | [Payload binário C28](clients/28-payload-binario-planejado.md) | Rev.2.0 executada: arquivo/stdin bruto e por linha; [registro](registros/C28-payload-binario.md). |
-| C29 | [Múltiplos tópicos](clients/29-multiplos-topicos.md) | Prompt preparado para a próxima melhoria; versão candidata 0.4.0. |
+| C29 | [Múltiplos tópicos](clients/29-multiplos-topicos.md) | Implementado; validação Windows/Linux e integração com XMQR no [registro](registros/C29-multiplos-topicos.md). |
 
 ## Posso criar o cliente do zero usando estes prompts?
 
@@ -53,7 +53,7 @@ Para um novo ensaio, use C27 em outro diretório vazio, sem sobrescrever a evid�
 existente ou executar histórico C20. Não executar broker compartilhado sem coordenação.
 
 C28 rev.2.0 amplia o contrato com arquivo/stdin binário e publicação por linha;
-versão candidata0.3.0. Veja o suplemento C28 no contrato C27 e seu registro.
+versão publicada0.3.0. Veja o suplemento C28 no contrato C27 e seu registro.
 A reconstrução validation/c27-bootstrap permanece congelada no baseline0.2;
 seus hashes antigos não demonstram equivalência com produção após C28.
 Perfis e timestamps continuam fora do escopo C29. A tag **v0.3.0** é a base
