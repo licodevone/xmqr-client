@@ -78,6 +78,146 @@ Para atualizar, baixe e verifique o novo pacote e repita
 `sudo apt install ./ARQUIVO.deb`. A configuração é preservada, mas os serviços
 são parados; revise os arquivos e inicie novamente as instâncias desejadas.
 
+## Compatibilidade Ubuntu
+
+| Ambiente amd64 | Evidência atual |
+| --- | --- |
+| Ubuntu 26.04 / WSL2 | Pacotes instalados e testes de integração e systemd com TLS/mTLS aprovados. Alvo atual dos pacotes publicados. |
+| Ubuntu 24.04 / WSL2 | Os mesmos binários executaram testes de integração; instalação do `.deb` e units nessa versão ainda não validadas. |
+| Outras versões Ubuntu, outras distribuições ou arm64 | Não validadas. Não há pacote arm64 publicado nesta etapa. |
+
+Os pacotes requerem `libc6 >= 2.38`, `libgcc-s1 >= 4.2`, `adduser` e
+`init-system-helpers`. O Ubuntu 24.04 testado tem glibc 2.39 e executa os
+binários. O teste de sessão após reinício recebeu uma mensagem QoS1 repetida na
+primeira execução e passou na repetição; a causa ainda precisa ser confirmada.
+Não considere essa validação parcial como suporte completo ao 24.04. O gerador
+de pacotes permanece restrito ao Ubuntu 26.04 amd64. Não force dependências nem
+substitua a glibc do sistema para instalar um pacote.
+
+## Controlar os clients com systemctl
+
+Execute os comandos no terminal Ubuntu/WSL. Configure o broker, certificados,
+senha e ACLs antes de iniciar. O nome após `@` identifica a instância: `device`
+usa `/etc/xmqr-client/device.conf` e os arquivos em `/etc/xmqr-client/device/`.
+Substitua `device` pelo nome de sua instância em todos os comandos.
+
+### Client de assinatura: processo contínuo
+
+| Objetivo | Comando | Efeito |
+| --- | --- | --- |
+| Iniciar | `sudo systemctl start xmqr-client-sub@device.service` | Inicia a assinatura agora. |
+| Consultar status | `systemctl status xmqr-client-sub@device.service` | Mostra estado, processo e registros recentes. |
+| Parar | `sudo systemctl stop xmqr-client-sub@device.service` | Solicita encerramento do client. |
+| Reiniciar | `sudo systemctl restart xmqr-client-sub@device.service` | Para e inicia novamente, aplicando a configuração. |
+| Habilitar início automático | `sudo systemctl enable xmqr-client-sub@device.service` | Habilita para a próxima inicialização, sem iniciar agora. |
+| Habilitar e iniciar agora | `sudo systemctl enable --now xmqr-client-sub@device.service` | Combina início automático e início imediato. |
+| Desabilitar início automático | `sudo systemctl disable xmqr-client-sub@device.service` | Remove o início automático, sem parar agora. |
+| Desabilitar e parar | `sudo systemctl disable --now xmqr-client-sub@device.service` | Remove o início automático e para agora. |
+| Consultar atividade | `systemctl is-active xmqr-client-sub@device.service` | Exibe `active`, `inactive` ou `failed`, por exemplo. |
+| Consultar início automático | `systemctl is-enabled xmqr-client-sub@device.service` | Exibe `enabled` ou `disabled`, por exemplo. |
+
+`active (running)` indica processo em execução; confira os logs e a entrega de
+uma mensagem para confirmar a assinatura. `inactive (dead)` significa parado;
+`failed` indica uma falha. Se a configuração da instância estiver ausente, sua
+condição de início pode impedir a execução: confira o status e o caminho do
+arquivo. Para `Unit ... could not be found`, verifique a instalação com
+`dpkg-query -W xmqr-client`.
+
+Instâncias simultâneas precisam de ClientIDs diferentes. Uma assinatura
+contínua pode ser mantida enquanto outra instância publica. Consulte o
+[controle do broker](../xmqr/README.md#controlar-o-broker-com-systemctl) para
+iniciar o servidor primeiro.
+
+### Client de publicação: execução pontual
+
+A unit `xmqr-client-pub@device.service` publica o conteúdo de
+`/etc/xmqr-client/device/payload.bin`, com limite de 4096 bytes. Prepare o arquivo
+para que o usuário `xmqr-client` consiga lê-lo e configure `TOPIC` como tópico
+de publicação, sem os curingas `+` ou `#`. Para manter publicação e assinatura
+simultâneas, prefira instâncias distintas, como `publisher` e `subscriber`, com
+seus próprios arquivos `.conf`, diretórios e ClientIDs.
+
+```bash
+# Executar uma publicação
+sudo systemctl start xmqr-client-pub@device.service
+
+# Conferir estado e resultado
+systemctl status xmqr-client-pub@device.service --no-pager
+journalctl -u xmqr-client-pub@device.service -n 50 --no-pager
+
+# Interromper uma publicação que ainda esteja em execução
+sudo systemctl stop xmqr-client-pub@device.service
+```
+
+Esse serviço é `oneshot`: termina após a tentativa de publicação e não reinicia
+automaticamente. Após sucesso pode aparecer como `inactive (dead)`; confira
+nos logs o evento `publish_complete` e seu resultado de protocolo. Para
+consultar o código de saída do processo:
+
+```bash
+systemctl show xmqr-client-pub@device.service --property=ExecMainStatus --value
+```
+
+O código `0` indica saída com sucesso, mas deve ser interpretado junto com os
+logs e a confirmação prevista pelo QoS. Não comprova processamento pelo
+destinatário. Repetir `start` ou usar `restart` pode publicar a mensagem de novo.
+`stop` não desfaz uma mensagem já enviada. A unit de publicação não possui
+seção de instalação para `enable` nem timer; use `start` para cada envio.
+
+### Logs dos clients
+
+```bash
+# Acompanhar a assinatura em tempo real
+journalctl -u xmqr-client-sub@device.service -f
+
+# Consultar as últimas 50 linhas
+journalctl -u xmqr-client-sub@device.service -n 50 --no-pager
+
+# Consultar registros desta inicialização do Ubuntu
+journalctl -u xmqr-client-sub@device.service -b --no-pager
+
+# Consultar registros recentes da publicação
+journalctl -u xmqr-client-pub@device.service --since "10 minutes ago" --no-pager
+
+# Listar as units de clients atualmente carregadas
+systemctl list-units --all 'xmqr-client-*'
+```
+
+`journalctl` consulta os registros do systemd; `-u` filtra a unit e `-f` mantém
+o acompanhamento de novos registros. Não inicia nem para o client. Pressione
+**Ctrl+C** para sair dos logs e **q** para sair da tela paginada de status.
+Use `--no-pager` para consultar status sem essa tela. Se o acesso aos logs for
+negado, execute a consulta com `sudo`.
+
+### Configuração, falhas e WSL
+
+Depois de alterar o `.conf`, senha ou certificados, reinicie a assinatura com
+`sudo systemctl restart xmqr-client-sub@device.service`. Os clients não possuem
+`ExecReload`: não use `systemctl reload` para aplicar essas alterações. A
+publicação lê os arquivos no próximo `start`.
+
+Se editar uma unit ou override, execute `sudo systemctl daemon-reload` e depois
+reinicie a instância desejada. `daemon-reload` recarrega as definições do
+systemd, sem iniciar ou reiniciar os clients sozinho.
+
+A assinatura pode reiniciar após falhas, com limite de cinco inícios por 120
+segundos. Erros de configuração com saída `2` não provocam reinício automático.
+Após corrigir o problema, consulte os logs e, se o limite de início foi atingido:
+
+```bash
+sudo systemctl reset-failed xmqr-client-sub@device.service
+sudo systemctl start xmqr-client-sub@device.service
+```
+
+`reset-failed` limpa o estado de falha, sem corrigir a configuração. Uma parada
+solicitada por `stop` não provoca reinício automático. Antes de remover o
+pacote, desabilite as instâncias de assinatura com `disable --now`.
+
+No WSL, `ps -p 1 -o comm=` deve mostrar `systemd`; consulte o
+[guia Ubuntu e serviços](docs/ubuntu-systemd.md) para habilitá-lo. Instâncias
+habilitadas iniciam quando a distribuição Ubuntu é iniciada. Os comandos
+controlam os serviços dentro dessa distribuição.
+
 ## Compilar a partir do código
 
 ```powershell
