@@ -40,3 +40,11 @@ instância permanente configurada no WSL. Sem APT próprio assinado, timers,
 instalação Windows, persistência MQTT local ou prontidão para produção.
 Broker seguro testado com client próprio; não equivale a TLS externo Mosquitto.
 Commit/push/prerelease autorizados, feitos após gates e anunciados no resultado.
+
+## Publicação / CI confirmados
+
+Commit de implementação:2615908; tag anotada v0.5.0 sincronizada.
+Prerelease:https://github.com/licodevone/xmqr-client/releases/tag/v0.5.0
+Deb e checksum anexados e SHA256 remoto igual ao local.
+GitHubActions:38085654031 — jobs rust e ubuntu-package PASS.
+Repositório sincronizado; nenhuma instância permanente instalada no WSL.

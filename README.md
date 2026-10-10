@@ -145,3 +145,9 @@ igualdade com os fontes após C28.
 SIGTERM/SIGINT usam DISCONNECT limitado a1s no link disponível. A unit de
 publicação não reinicia; a de assinatura tem reinícios limitados. Atualizações
 param instâncias; reinicie explicitamente após revisar configuração.
+
+## Publicação verificada
+
+Prerelease atual: [v0.5.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.5.0),
+com debUbuntu26amd64 e checksum. CI Rust e pacote Ubuntu aprovados no
+[GitHub Actions](https://github.com/licodevone/xmqr-client/actions/runs/38085654031).
