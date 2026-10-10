@@ -8,6 +8,9 @@
 - Integração C29 exercita filtros disjuntos/sobrepostos, retained e `$` com XMQR.
 - Evidência: `prompts/registros/C29-multiplos-topicos.md`.
 - Gates Windows e Ubuntu-26.04/WSL aprovados; Rust 1.88 exato não validado.
+- C30: imagem Docker local multi-stage Debian slim, entrypoint `mqtt-client`;
+  `xmqr-client:0.4.0` construída sem publicação em registry.
+- Evidência Docker: `prompts/registros/C30-docker.md`.
 
 ## 0.3.0 — tag publicada
 

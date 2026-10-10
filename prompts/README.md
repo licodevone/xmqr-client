@@ -29,6 +29,7 @@ decorre deste índice. C26 foi escrito antes do código; revisões precederam se
 | C27 | [Bootstrap independente](clients/27-bootstrap-independente.md) | Contrato consolidado até C26; reconstrução nova em pasta inicialmente vazia; [registro](registros/C27-bootstrap.md). |
 | C28 | [Payload binário C28](clients/28-payload-binario-planejado.md) | Rev.2.0 executada: arquivo/stdin bruto e por linha; [registro](registros/C28-payload-binario.md). |
 | C29 | [Múltiplos tópicos](clients/29-multiplos-topicos.md) | Implementado; validação Windows/Linux e integração com XMQR no [registro](registros/C29-multiplos-topicos.md). |
+| C30 | [Imagem Docker](clients/30-container-docker.md) | Imagem local 0.4.0 construída e integrada com o broker; [registro](registros/C30-docker.md). |
 
 ## Posso criar o cliente do zero usando estes prompts?
 

@@ -14,6 +14,8 @@ cargo run --locked -- --help
 No WSL use `/mnt/d/projects/my-project/broker-client-rust/xmqr-client`. O broker
 independente permanece em `D:/projects/my-project/broker-client-rust/xmqr`;
 `mqtt-admin` pertence ao broker.
+Veja [a imagem Docker do cliente](docs/docker.md) para build e montagem de
+certificados.
 Cliente usa rumqttc: pub/sub QoS0/1/2, retained, sessões e Last Will; TLS/mTLS
 com validação de CA/SAN e credenciais. Laboratórios somente loopback.
 Tópicos/filtros: até 1024 bytes UTF-8; payload até 4096. Melhorias C26 abaixo.

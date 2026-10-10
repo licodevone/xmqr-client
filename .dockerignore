@@ -1,0 +1,13 @@
+.git
+.serena
+target
+**/target
+.env
+*.key
+*.crt
+*.pem
+prompts
+scripts
+tests
+validation
+docs/original-mqtt-client.md
