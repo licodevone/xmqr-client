@@ -101,6 +101,22 @@ senha e ACLs antes de iniciar. O nome após `@` identifica a instância: `device
 usa `/etc/xmqr-client/device.conf` e os arquivos em `/etc/xmqr-client/device/`.
 Substitua `device` pelo nome de sua instância em todos os comandos.
 
+### Tabela comparativa de comandos
+
+Execute no Ubuntu/WSL. `device` é o nome da instância do client de assinatura;
+substitua-o pelo nome configurado em `/etc/xmqr-client/NOME.conf`.
+
+| Ação | Broker | Client de assinatura |
+| --- | --- | --- |
+| Iniciar | `sudo systemctl start xmqr-broker.service` | `sudo systemctl start xmqr-client-sub@device.service` |
+| Ver status | `systemctl status xmqr-broker.service` | `systemctl status xmqr-client-sub@device.service` |
+| Parar | `sudo systemctl stop xmqr-broker.service` | `sudo systemctl stop xmqr-client-sub@device.service` |
+| Reiniciar | `sudo systemctl restart xmqr-broker.service` | `sudo systemctl restart xmqr-client-sub@device.service` |
+| Iniciar agora e automaticamente | `sudo systemctl enable --now xmqr-broker.service` | `sudo systemctl enable --now xmqr-client-sub@device.service` |
+| Parar e desativar início automático | `sudo systemctl disable --now xmqr-broker.service` | `sudo systemctl disable --now xmqr-client-sub@device.service` |
+| Verificar se está ativo | `systemctl is-active xmqr-broker.service` | `systemctl is-active xmqr-client-sub@device.service` |
+| Verificar início automático | `systemctl is-enabled xmqr-broker.service` | `systemctl is-enabled xmqr-client-sub@device.service` |
+
 ### Client de assinatura: processo contínuo
 
 | Objetivo | Comando | Efeito |
