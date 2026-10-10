@@ -1,9 +1,84 @@
 # xmqr-client
 
 Projeto Rust independente, extraído do cliente XMQR. Pacote `xmqr-client`,
-binário compatível `mqtt-client`. A base publicada é **v0.4.0**; o novo marco **0.5.0** adiciona systemd e
+binário compatível `mqtt-client`. A versão publicada **v0.5.0** adiciona systemd e
 pacote Ubuntu26.04 amd64. Veja [instalação e serviços](docs/ubuntu-systemd.md).
 Projeto experimental; consulte as prereleases no GitHub.
+
+## Instalação Ubuntu / WSL
+
+O pacote experimental abaixo é destinado ao Ubuntu 26.04 **amd64**. Ainda não
+há repositório APT próprio: baixe o `.deb` e instale-o com o APT.
+
+1. No Windows, abra o Ubuntu pelo PowerShell. Confira o nome da distribuição
+   com `wsl --list --verbose` e ajuste o comando se necessário:
+
+```powershell
+wsl -d Ubuntu-26.04
+```
+
+2. Execute os próximos comandos **no terminal do Ubuntu**. Confirme Ubuntu
+   26.04 e arquitetura `amd64`, depois prepare o download:
+
+```bash
+cat /etc/os-release
+dpkg --print-architecture
+sudo apt update
+sudo apt install -y wget ca-certificates
+mkdir -p ~/xmqr-pacotes
+cd ~/xmqr-pacotes
+```
+
+3. Baixe o pacote e confira sua integridade:
+
+```bash
+wget -O xmqr-client_0.5.0-1_amd64.deb https://github.com/licodevone/xmqr-client/releases/download/v0.5.0/xmqr-client_0.5.0-1_amd64.deb
+wget -O xmqr-client_0.5.0-1_amd64.deb.sha256 https://github.com/licodevone/xmqr-client/releases/download/v0.5.0/xmqr-client_0.5.0-1_amd64.deb.sha256
+sha256sum -c xmqr-client_0.5.0-1_amd64.deb.sha256
+```
+
+Prossiga somente se a verificação mostrar `OK`.
+
+4. Instale e confirme o pacote, o executável e a conta de serviço:
+
+```bash
+sudo apt install ./xmqr-client_0.5.0-1_amd64.deb
+dpkg-query -W -f='${Status}\n' xmqr-client
+mqtt-client --version
+id xmqr-client
+```
+
+O resultado esperado da consulta é `install ok installed`. O pacote cria
+automaticamente o usuário e grupo `xmqr-client`. O executável chama-se
+`mqtt-client`; `mqtt-admin` é instalado pelo pacote do broker.
+
+5. Para conectar com TLS/mTLS e senha, configure o broker primeiro e siga o
+   [guia de certificados, credenciais e serviços](docs/ubuntu-systemd.md).
+   Para a instância `device`, prepare `/etc/xmqr-client/device.conf` e os
+   arquivos `ca.crt`, `client.crt`, `client.key` e `password` em
+   `/etc/xmqr-client/device/`. A chave e o arquivo de senha devem pertencer a
+   `xmqr-client:xmqr-client`, com permissão `0600`. O usuário MQTT e as ACLs
+   precisam existir no broker, e o endereço usado deve corresponder ao SAN do
+   certificado do servidor. Não coloque senhas na linha de comando ou no Git.
+
+6. Para manter a assinatura como serviço, após configurar a instância:
+
+```bash
+sudo systemctl enable --now xmqr-client-sub@device.service
+systemctl status xmqr-client-sub@device.service
+journalctl -u xmqr-client-sub@device.service -f
+```
+
+Use `Ctrl+C` para sair dos logs. O pacote não inicia instâncias automaticamente.
+No WSL, habilite o systemd conforme o guia; a instância habilitada inicia quando
+a distribuição é iniciada. Para uso manual, consulte `mqtt-client --help` e os
+exemplos do guia.
+
+Para atualizar, baixe e verifique o novo pacote e repita
+`sudo apt install ./ARQUIVO.deb`. A configuração é preservada, mas os serviços
+são parados; revise os arquivos e inicie novamente as instâncias desejadas.
+
+## Compilar a partir do código
 
 ```powershell
 cd D:\projects\my-project\rapidez-projects/rapidez-broker-client\xmqr-client
