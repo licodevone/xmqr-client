@@ -1,0 +1,27 @@
+[Unit]
+Description=XMQR MQTT subscription (%i)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/xmqr-client/%i.conf
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=xmqr-client
+Group=xmqr-client
+EnvironmentFile=/etc/xmqr-client/%i.conf
+ExecStart=/usr/bin/mqtt-client sub --host ${HOST} --port ${PORT} --topic ${TOPIC} --username ${USERNAME} --client-id ${CLIENT_ID} --clean-session false --qos ${QOS} --reconnect-attempts 3 --output jsonl --ca /etc/xmqr-client/%i/ca.crt --cert /etc/xmqr-client/%i/client.crt --key /etc/xmqr-client/%i/client.key --password-file /etc/xmqr-client/%i/password
+Restart=on-failure
+RestartPreventExitStatus=2
+RestartSec=5
+TimeoutStopSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

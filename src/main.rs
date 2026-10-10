@@ -3,6 +3,7 @@ mod credentials;
 mod output;
 mod payload;
 mod session;
+mod signals;
 mod tls;
 
 #[tokio::main]
@@ -35,9 +36,9 @@ async fn main() {
                 Ok(None) => return, // Empty line input does not connect or publish.
                 Err(error) => { eprintln!("Erro: {error}"); std::process::exit(2); }
             },
-            signal = tokio::signal::ctrl_c() => {
+            signal = signals::shutdown() => {
                 if signal.is_err() { std::process::exit(1); }
-                eprintln!("Cancelado por Ctrl+C");
+                eprintln!("Cancelado por sinal de encerramento");
                 return;
             }
         };

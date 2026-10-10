@@ -1,0 +1,6 @@
+HOST=localhost
+PORT=8883
+TOPIC=example/messages
+USERNAME=configure-me
+CLIENT_ID=xmqr-example
+QOS=1

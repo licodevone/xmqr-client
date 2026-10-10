@@ -13,6 +13,32 @@ fn listener() -> TcpListener {
     listener
 }
 
+#[cfg(unix)]
+#[test]
+fn sigterm_sends_disconnect_without_reconnecting() {
+    let listener = listener();
+    let mut process = child(listener.local_addr().unwrap().port(), "sub", &[]);
+    let mut stream = accept(&listener);
+    connect(&mut stream, false);
+    subscribe(&mut stream, 0);
+    // Observe readiness rather than relying on a scheduling sleep.
+    let stderr = process.stderr.take().unwrap();
+    let mut reader = std::io::BufReader::new(stderr);
+    let mut line = String::new();
+    std::io::BufRead::read_line(&mut reader, &mut line).unwrap();
+    assert!(line.contains("Assinatura ativa"));
+    assert!(
+        Command::new("kill")
+            .args(["-TERM", &process.id().to_string()])
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    assert!(finish(process).status.success());
+    assert!(listener.accept().is_err());
+}
+
 fn accept(listener: &TcpListener) -> TcpStream {
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
@@ -643,7 +669,10 @@ fn empty_lines_and_oversized_first_payload_never_connect() {
         .output()
         .unwrap();
     assert!(output.status.success());
-    assert_eq!(output.stdout, b"mqtt-client 0.4.0\n");
+    assert_eq!(
+        output.stdout,
+        format!("mqtt-client {}\n", env!("CARGO_PKG_VERSION")).as_bytes()
+    );
     assert_eq!(output.stderr, [] as [u8; 0]);
 }
 

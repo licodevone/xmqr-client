@@ -3,3 +3,5 @@
 *.key
 *.crt
 .env
+/dist/
+__pycache__/

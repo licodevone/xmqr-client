@@ -1,0 +1,21 @@
+[Unit]
+Description=XMQR one-shot MQTT publication (%i)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/xmqr-client/%i.conf
+
+[Service]
+Type=oneshot
+User=xmqr-client
+Group=xmqr-client
+EnvironmentFile=/etc/xmqr-client/%i.conf
+ExecStart=/usr/bin/mqtt-client pub --host ${HOST} --port ${PORT} --topic ${TOPIC} --username ${USERNAME} --client-id ${CLIENT_ID} --qos ${QOS} --message-file /etc/xmqr-client/%i/payload.bin --output jsonl --ca /etc/xmqr-client/%i/ca.crt --cert /etc/xmqr-client/%i/client.crt --key /etc/xmqr-client/%i/client.key --password-file /etc/xmqr-client/%i/password
+Restart=no
+TimeoutStartSec=30
+TimeoutStopSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictSUIDSGID=true

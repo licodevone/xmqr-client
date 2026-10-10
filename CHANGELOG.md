@@ -1,6 +1,20 @@
+# Histórico de versões
+
+## 0.5.0 — systemd e Ubuntu 26.04
+
+- Tratamento SIGTERM/SIGINT e integração com systemctl.
+- Pacote .deb amd64 para Ubuntu26.04, sem ativação automática.
+- Configuração e dados preservados; guia de instalação, upgrade e remoção.
+- Release experimental com pacote e SHA-256; sem repositório APT próprio.
+- DISCONNECT limitado no encerramento; units sub e pub oneshot opcionais.
+- CI Linux para fmt, testes, Clippy, build e inventário.
+- Evidência: prompts/registros/C31-systemd-ubuntu.md.
+
+## Histórico dos marcos anteriores
+
 # Changelog
 
-## 0.4.0 — candidato local, tag sugerida v0.4.0
+## 0.4.0 — tag publicada v0.4.0
 
 - C29: `sub` aceita até 256 filtros por repetição de `--topic`, numa assinatura.
 - Pacote SUBSCRIBE limitado a 64 KiB; SUBACK exige uma concessão por filtro.

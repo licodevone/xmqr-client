@@ -49,11 +49,11 @@ pub async fn run(
     let (client, mut events) = AsyncClient::new(options, 8);
     let result = tokio::select! {
         result = run_connected(&cli, &client, &mut events, publication) => return result,
-        signal = tokio::signal::ctrl_c() => signal,
+        signal = crate::signals::shutdown() => signal,
     };
     result?;
     cancel_connection(&client, &mut events).await;
-    eprintln!("Cancelado por Ctrl+C");
+    eprintln!("Cancelado por sinal de encerramento");
     Ok(())
 }
 

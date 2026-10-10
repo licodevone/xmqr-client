@@ -6,8 +6,8 @@ Debian slim contém o `mqtt-client`, certificados públicos do sistema e os
 avisos de licença; o processo roda como UID/GID 10001.
 
 ```sh
-docker build -t xmqr-client:0.4.0 .
-docker run --rm xmqr-client:0.4.0 --version
+docker build -t xmqr-client:0.5.0 .
+docker run --rm xmqr-client:0.5.0 --version
 ```
 
 Passe o subcomando e seus argumentos depois do nome da imagem. TLS/mTLS usa
@@ -18,7 +18,7 @@ fora da imagem e nunca passe a senha como argumento.
 ```sh
 docker run --rm \
   -v "$PWD/certs:/run/certs:ro" \
-  xmqr-client:0.4.0 sub \
+  xmqr-client:0.5.0 sub \
   --host broker --port 8883 --topic 'sensors/#' --topic 'alerts/#' \
   --ca /run/certs/ca.crt --cert /run/certs/client.crt --key /run/certs/client.key \
   --output jsonl

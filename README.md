@@ -1,18 +1,18 @@
 # xmqr-client
 
 Projeto Rust independente, extraído do cliente XMQR. Pacote `xmqr-client`,
-binário compatível `mqtt-client`. A tag publicada mais recente é **v0.3.0**.
-O candidato local independente é **0.4.0**, com suporte a múltiplos filtros em
-uma assinatura. Nenhuma tag ou release 0.4.0 foi criada.
+binário compatível `mqtt-client`. A base publicada é **v0.4.0**; o novo marco **0.5.0** adiciona systemd e
+pacote Ubuntu26.04 amd64. Veja [instalação e serviços](docs/ubuntu-systemd.md).
+Projeto experimental; consulte as prereleases no GitHub.
 
 ```powershell
-cd D:\projects\my-project\broker-client-rust\xmqr-client
+cd D:\projects\my-project\rapidez-projects/rapidez-broker-client\xmqr-client
 cargo build --locked --bin mqtt-client
 cargo run --locked -- --help
 ```
 
-No WSL use `/mnt/d/projects/my-project/broker-client-rust/xmqr-client`. O broker
-independente permanece em `D:/projects/my-project/broker-client-rust/xmqr`;
+No WSL use `/mnt/d/projects/my-project/rapidez-projects/rapidez-broker-client/xmqr-client`. O broker
+independente permanece em `D:/projects/my-project/rapidez-projects/rapidez-broker-client/xmqr`;
 `mqtt-admin` pertence ao broker.
 Veja [a imagem Docker do cliente](docs/docker.md) para build e montagem de
 certificados.
@@ -96,7 +96,7 @@ O binário cliente é Rust; Python auxilia testes, inventário e conferência de
 não é um cliente alternativo nem requisito para executar mqtt-client. TOML/JSON são
 configurações/metadados; Markdown é documentação. Comandos usam PowerShell/bash.
 
-## Marco C28 — candidato v0.3.0
+## Marco C28 — incluído na tag v0.3.0
 
 [Prompt C28 rev.2.0](prompts/clients/28-payload-binario-planejado.md) e
 [registro de validação](prompts/registros/C28-payload-binario.md).
@@ -132,10 +132,16 @@ cargo run --locked -- pub --open-lab --topic 'test/lines' --message-file 'lines.
 
 Para stdin binário use um pipe que preserve bytes; comandos de texto do shell
 podem recodificar a entrada antes de o cliente recebê-la. --version imprime
-mqtt-client 0.3.0 sem ler entrada/senha ou abrir conexão.
+a versão atual sem ler entrada/senha ou abrir conexão.
 
 Gates Windows/Linux e18 cenários isolados (C28+C27+Will) passaram; MSRV1.88
 exato não instalado e Mosquitto/broker TLS completo continuam não comprovados.
 O bootstrap C27 é evidência congelada do contrato da tag0.2; não é reconstrução
 independente da nova versão0.3. Não executar seu checker antigo para declarar
 igualdade com os fontes após C28.
+
+## Encerramento de serviço
+
+SIGTERM/SIGINT usam DISCONNECT limitado a1s no link disponível. A unit de
+publicação não reinicia; a de assinatura tem reinícios limitados. Atualizações
+param instâncias; reinicie explicitamente após revisar configuração.
