@@ -1,4 +1,4 @@
-use std::{env, path::PathBuf};
+use std::{collections::HashSet, env, path::PathBuf};
 
 use rumqttc::QoS;
 use rumqttc::mqttbytes::{valid_filter, valid_topic};
@@ -8,6 +8,8 @@ const MAX_TOPIC_BYTES: usize = 1024;
 const MAX_MESSAGE_BYTES: usize = 4096;
 const MAX_USERNAME_BYTES: usize = 128;
 const MAX_PASSWORD_BYTES: usize = 1024;
+const MAX_SUBSCRIPTION_FILTERS: usize = 256;
+const MAX_PACKET_BYTES: usize = 64 * 1024;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Mode {
@@ -16,7 +18,7 @@ pub enum Mode {
         message: crate::payload::Source,
     },
     Sub {
-        filter: String,
+        filters: Vec<String>,
         count: Option<u64>,
     },
 }
@@ -72,7 +74,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut message_file = None;
     let mut stdin = false;
     let mut line_mode = false;
-    let mut topic = None;
+    let mut topics = Vec::new();
     let mut message = None;
     let mut count = None;
     let mut host = None;
@@ -122,10 +124,13 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         let value = args
             .next()
             .ok_or_else(|| format!("faltou valor para {flag}"))?;
+        if flag == "--topic" {
+            topics.push(value);
+            continue;
+        }
         let slot = match flag.as_str() {
             "--output" => &mut output,
             "--reconnect-attempts" => &mut reconnect_attempts,
-            "--topic" => &mut topic,
             "--will-topic" => &mut will_topic,
             "--will-message" => &mut will_message,
             "--will-qos" => &mut will_qos,
@@ -153,7 +158,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
 
     let mode = parse_mode(
         &command,
-        topic,
+        topics,
         message,
         message_file,
         stdin,
@@ -341,22 +346,27 @@ pub fn validate_password(password: &str) -> Result<(), &'static str> {
 #[allow(clippy::too_many_arguments)] // Source exclusivity is checked together with mode.
 fn parse_mode(
     command: &str,
-    topic: Option<String>,
+    topics: Vec<String>,
     message: Option<String>,
     message_file: Option<String>,
     stdin: bool,
     line_mode: bool,
     count: Option<String>,
 ) -> Result<Mode, String> {
-    let topic = topic.ok_or("informe --topic")?;
-    if topic.is_empty() || topic.len() > MAX_TOPIC_BYTES || topic.contains('\0') {
-        return Err("topico/filtro vazio, longo demais ou com NUL".into());
-    }
-
     if command == "pub" {
+        if topics.len() != 1 {
+            return Err(if topics.is_empty() {
+                "informe --topic"
+            } else {
+                "pub aceita somente um --topic"
+            }
+            .into());
+        }
         if count.is_some() {
             return Err("--count somente vale para sub".into());
         }
+        let topic = &topics[0];
+        validate_topic(topic)?;
         if !valid_topic(&topic) {
             return Err("topico de publicacao invalido".into());
         }
@@ -380,13 +390,36 @@ fn parse_mode(
         } else {
             crate::payload::Source::Stdin
         };
-        Ok(Mode::Pub { topic, message })
+        Ok(Mode::Pub {
+            topic: topic.clone(),
+            message,
+        })
     } else {
+        if topics.is_empty() {
+            return Err("informe ao menos um --topic para sub".into());
+        }
+        if topics.len() > MAX_SUBSCRIPTION_FILTERS {
+            return Err(format!(
+                "sub aceita no máximo {MAX_SUBSCRIPTION_FILTERS} filtros"
+            ));
+        }
         if message.is_some() || message_file.is_some() || stdin || line_mode {
             return Err("fontes de payload e --line-mode somente valem para pub".into());
         }
-        if !valid_filter(&topic) {
-            return Err("filtro de assinatura invalido".into());
+        let mut unique = HashSet::with_capacity(topics.len());
+        for filter in &topics {
+            validate_topic(filter)?;
+            if !valid_filter(filter) {
+                return Err("filtro de assinatura invalido".into());
+            }
+            if !unique.insert(filter) {
+                return Err("filtros de assinatura duplicados".into());
+            }
+        }
+        let packet_size =
+            subscribe_packet_size(&topics).ok_or("pacote SUBSCRIBE excede o limite de tamanho")?;
+        if packet_size > MAX_PACKET_BYTES {
+            return Err("pacote SUBSCRIBE excede 64 KiB".into());
         }
         let count = count
             .map(|value| {
@@ -399,10 +432,32 @@ fn parse_mode(
             return Err("--count deve ser maior que zero".into());
         }
         Ok(Mode::Sub {
-            filter: topic,
+            filters: topics,
             count,
         })
     }
+}
+
+fn validate_topic(topic: &str) -> Result<(), String> {
+    if topic.is_empty() || topic.len() > MAX_TOPIC_BYTES || topic.contains('\0') {
+        return Err("topico/filtro vazio, longo demais ou com NUL".into());
+    }
+    Ok(())
+}
+
+fn subscribe_packet_size(filters: &[String]) -> Option<usize> {
+    let remaining = filters.iter().try_fold(2_usize, |size, filter| {
+        size.checked_add(3)?.checked_add(filter.len())
+    })?;
+    let mut encoded_length_bytes = 1;
+    let mut length = remaining;
+    while length >= 128 {
+        encoded_length_bytes += 1;
+        length /= 128;
+    }
+    1_usize
+        .checked_add(encoded_length_bytes)?
+        .checked_add(remaining)
 }
 
 #[cfg(test)]
@@ -461,6 +516,40 @@ mod tests {
         assert!(parse(args).is_err());
         let mut args = base("sub");
         args.extend(["--topic".into(), "other".into()]);
+        assert!(
+            matches!(parse(args).unwrap().mode, Mode::Sub { filters, .. } if filters.len() == 2)
+        );
+        let mut args = base("sub");
+        args.extend(["--topic".into(), "test/message".into()]);
+        assert!(parse(args).is_err());
+        let mut args = base("pub");
+        args.extend([
+            "--topic".into(),
+            "other".into(),
+            "--message".into(),
+            "x".into(),
+        ]);
+        assert!(parse(args).is_err());
+    }
+
+    #[test]
+    fn sub_filters_obey_count_byte_and_packet_limits() {
+        let mut args = vec!["sub".into(), "--open-lab".into()];
+        for index in 0..256 {
+            args.extend(["--topic".into(), format!("topic/{index}")]);
+        }
+        assert!(
+            matches!(parse(args.clone()).unwrap().mode, Mode::Sub { filters, .. } if filters.len() == 256)
+        );
+        args.extend(["--topic".into(), "topic/256".into()]);
+        assert!(parse(args).is_err());
+
+        let mut args = vec!["sub".into(), "--open-lab".into()];
+        for index in 0..64 {
+            let suffix = index.to_string();
+            let prefix = "a".repeat(1024 - suffix.len() - 2);
+            args.extend(["--topic".into(), format!("{prefix}{suffix}/+")]);
+        }
         assert!(parse(args).is_err());
     }
 

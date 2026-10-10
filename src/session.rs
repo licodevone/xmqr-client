@@ -3,7 +3,7 @@ use std::{error::Error, io, time::Duration};
 use rumqttc::{
     AsyncClient, ConnectionError, Event, EventLoop, Incoming, MqttOptions, Outgoing, QoS,
     Transport,
-    mqttbytes::v4::{ConnectReturnCode, SubscribeReasonCode},
+    mqttbytes::v4::{ConnectReturnCode, SubscribeFilter, SubscribeReasonCode},
 };
 use tokio::time::{Instant, timeout, timeout_at};
 
@@ -95,12 +95,12 @@ async fn run_connected(
                 publication.ok_or_else(|| invalid_data("entrada de publicacao ausente"))?;
             publish_input(cli, client, events, topic, publication).await?;
         }
-        Mode::Sub { filter, count } => {
+        Mode::Sub { filters, count } => {
             subscribe(
                 client,
                 events,
                 &mut retry,
-                filter,
+                filters,
                 requested_qos,
                 *count,
                 cli.output,
@@ -274,12 +274,19 @@ async fn subscribe(
     client: &AsyncClient,
     events: &mut EventLoop,
     retry: &mut Retry,
-    filter: &str,
+    filters: &[String],
     qos: QoS,
     count: Option<u64>,
     output: crate::output::Output,
 ) -> AppResult<()> {
-    client.subscribe(filter, qos).await?;
+    client
+        .subscribe_many(
+            filters
+                .iter()
+                .cloned()
+                .map(|filter| SubscribeFilter::new(filter, qos)),
+        )
+        .await?;
     let mut acknowledged = false;
     let mut waiting_ack = true;
     let mut deadline = Instant::now() + INITIAL_TIMEOUT;
@@ -316,7 +323,14 @@ async fn subscribe(
                     events
                         .pending
                         .retain(|request| !matches!(request, rumqttc::Request::Subscribe(_)));
-                    client.subscribe(filter, qos).await?;
+                    client
+                        .subscribe_many(
+                            filters
+                                .iter()
+                                .cloned()
+                                .map(|filter| SubscribeFilter::new(filter, qos)),
+                        )
+                        .await?;
                     waiting_ack = true;
                     acknowledged = false;
                 } else {
@@ -330,8 +344,10 @@ async fn subscribe(
                     };
             }
             Event::Incoming(Incoming::SubAck(ack)) if waiting_ack => {
-                if !matches!(ack.return_codes.as_slice(),
-                    [SubscribeReasonCode::Success(granted)] if *granted == qos)
+                if ack.return_codes.len() != filters.len()
+                    || ack.return_codes.iter().any(|code| {
+                        !matches!(code, SubscribeReasonCode::Success(granted) if *granted == qos)
+                    })
                 {
                     return Err(invalid_data("SUBACK recusou ou alterou QoS solicitado").into());
                 }

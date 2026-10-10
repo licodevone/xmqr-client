@@ -295,6 +295,63 @@ fn publish_before_suback_obeys_count() {
 }
 
 #[test]
+fn sub_sends_all_repeated_topics_and_checks_each_suback_code() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        connect(&mut stream, false);
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x82);
+        let packet_id = [body[0], body[1]];
+        let mut cursor = 2;
+        let mut filters = Vec::new();
+        while cursor < body.len() {
+            let length = usize::from(u16::from_be_bytes([body[cursor], body[cursor + 1]]));
+            cursor += 2;
+            let filter = String::from_utf8(body[cursor..cursor + length].to_vec()).unwrap();
+            cursor += length;
+            let qos = body[cursor];
+            cursor += 1;
+            filters.push((filter, qos));
+        }
+        assert_eq!(filters, [("t".into(), 0), ("other".into(), 0)]);
+        stream
+            .write_all(&[0x90, 4, packet_id[0], packet_id[1], 0, 0])
+            .unwrap();
+        publish(&mut stream);
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(port, "sub", &["--topic", "other", "--count", "1"]));
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8(output.stdout).unwrap().lines().count(), 1);
+}
+
+#[test]
+fn multi_topic_subscription_rejects_partial_suback() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        connect(&mut stream, false);
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x82);
+        stream.write_all(&[0x90, 3, body[0], body[1], 0]).unwrap();
+        let _ = stream.read(&mut [0; 1]);
+    });
+    let output = finish(child(port, "sub", &["--topic", "other", "--count", "1"]));
+    server.join().unwrap();
+    assert!(!output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("SUBACK"));
+}
+
+#[test]
 fn connect_rejection_never_retries_or_leaks_peer_payload() {
     for reply in [
         vec![0x20, 2, 0, 5],

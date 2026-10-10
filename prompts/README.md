@@ -28,6 +28,7 @@ decorre deste índice. C26 foi escrito antes do código; revisões precederam se
 | C26 | [Reconexão e JSONL](clients/26-reconexao-jsonl.md) | Incremento implementado sobre projeto existente; [registro](registros/C26-reconexao-jsonl.md). |
 | C27 | [Bootstrap independente](clients/27-bootstrap-independente.md) | Contrato consolidado até C26; reconstrução nova em pasta inicialmente vazia; [registro](registros/C27-bootstrap.md). |
 | C28 | [Payload binário C28](clients/28-payload-binario-planejado.md) | Rev.2.0 executada: arquivo/stdin bruto e por linha; [registro](registros/C28-payload-binario.md). |
+| C29 | [Múltiplos tópicos](clients/29-multiplos-topicos.md) | Prompt preparado para a próxima melhoria; versão candidata 0.4.0. |
 
 ## Posso criar o cliente do zero usando estes prompts?
 
@@ -55,5 +56,5 @@ C28 rev.2.0 amplia o contrato com arquivo/stdin binário e publicação por linh
 versão candidata0.3.0. Veja o suplemento C28 no contrato C27 e seu registro.
 A reconstrução validation/c27-bootstrap permanece congelada no baseline0.2;
 seus hashes antigos não demonstram equivalência com produção após C28.
-Perfis, múltiplos tópicos e timestamps não foram implementados; não avançar C29
-antes do checkpoint de publicação. Tag sugerida **v0.3.0**, ainda não criada aqui.
+Perfis e timestamps continuam fora do escopo C29. A tag **v0.3.0** é a base
+publicada; C29 prepara a evolução independente seguinte.
