@@ -445,7 +445,7 @@ fn parse_mode(
         let packet_size =
             subscribe_packet_size(&topics).ok_or("pacote SUBSCRIBE excede o limite de tamanho")?;
         if packet_size > MAX_PACKET_BYTES {
-            return Err("pacote SUBSCRIBE excede 64 KiB".into());
+            return Err("pacote SUBSCRIBE excede 64 KiB completos (cabecalho e corpo)".into());
         }
         let count = count
             .map(|value| {
@@ -614,6 +614,38 @@ mod tests {
             args.extend(["--topic".into(), format!("{prefix}{suffix}/+")]);
         }
         assert!(parse(args).is_err());
+    }
+
+    #[test]
+    fn subscribe_packet_limit_counts_header_and_utf8_bytes_at_exact_boundary() {
+        for (tail_bytes, allowed) in [(826, true), (827, false)] {
+            let mut filters: Vec<String> = (0..63)
+                .map(|index| format!("{index:02}{}", "é".repeat(511)))
+                .collect();
+            filters.push("a".repeat(tail_bytes));
+            assert_eq!(
+                super::subscribe_packet_size(&filters),
+                Some(65536 + usize::from(!allowed))
+            );
+            let mut args = vec!["sub".into(), "--open-lab".into()];
+            for filter in filters {
+                args.extend(["--topic".into(), filter]);
+            }
+            let result = parse(args);
+            assert_eq!(result.is_ok(), allowed);
+            if !allowed {
+                assert!(result.unwrap_err().contains("64 KiB completos"));
+            }
+        }
+        let mut args = vec![
+            "sub".into(),
+            "--open-lab".into(),
+            "--topic".into(),
+            "é".repeat(513),
+        ];
+        assert!(parse(args.clone()).is_err());
+        args[3] = "é".repeat(512);
+        assert!(parse(args).is_ok());
     }
 
     #[test]

@@ -798,3 +798,122 @@ fn configured_timeout_bounds_silent_protocol_stages_without_replay() {
         assert!(listener.accept().is_err());
     }
 }
+
+#[test]
+fn payload_boundary_preserves_all_bytes_for_each_qos() {
+    for qos in 0..=2_u8 {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let expected: Vec<u8> = (0..4096)
+            .map(|index| u8::try_from(index % 256).unwrap())
+            .collect();
+        let wanted = expected.clone();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            connect(&mut stream, false);
+            let (header, body) = packet(&mut stream);
+            assert_eq!((header >> 1) & 3, qos);
+            let offset = if qos == 0 { 3 } else { 5 };
+            assert_eq!(&body[offset..], &wanted);
+            if qos == 1 {
+                stream.write_all(&[0x40, 2, body[3], body[4]]).unwrap();
+            } else if qos == 2 {
+                stream.write_all(&[0x50, 2, body[3], body[4]]).unwrap();
+                assert_eq!(packet(&mut stream), (0x62, body[3..5].to_vec()));
+                stream.write_all(&[0x70, 2, body[3], body[4]]).unwrap();
+            }
+            assert_eq!(packet(&mut stream), (0xe0, vec![]));
+        });
+        let qos_text = qos.to_string();
+        let mut process = stdin_child(port, &["--qos", &qos_text]);
+        process.stdin.take().unwrap().write_all(&expected).unwrap();
+        let output = finish(process);
+        server.join().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("publish_complete"));
+    }
+}
+
+#[test]
+fn incoming_packet_limit_reserves_header_even_with_nonminimal_remaining_length() {
+    for (remaining, nonminimal, rejected) in [
+        (65531_usize, false, false),
+        (65532, false, true),
+        (65533, false, true),
+        (65531, true, false),
+        (65532, true, true),
+    ] {
+        let listener = listener();
+        let process = child(
+            listener.local_addr().unwrap().port(),
+            "sub",
+            &["--timeout-seconds", "1"],
+        );
+        let mut stream = accept(&listener);
+        connect(&mut stream, false);
+        assert_eq!(packet(&mut stream).0, 0x82);
+        let mut length = remaining;
+        let mut header = vec![0x30];
+        loop {
+            let byte = u8::try_from(length % 128).unwrap();
+            length /= 128;
+            header.push(byte | if length > 0 { 0x80 } else { 0 });
+            if length == 0 {
+                break;
+            }
+        }
+        if nonminimal {
+            *header.last_mut().unwrap() |= 0x80;
+            header.push(0);
+        }
+        assert_eq!(header.len(), if nonminimal { 5 } else { 4 });
+        if !rejected {
+            assert!(header.len() + remaining <= 65536);
+        }
+        stream.write_all(&header).unwrap();
+        let started = Instant::now();
+        let output = finish(process);
+        assert!(!output.status.success());
+        let diagnostic = String::from_utf8_lossy(&output.stderr);
+        assert!(output.stdout.is_empty());
+        if rejected {
+            assert!(
+                diagnostic.contains("pacote MQTT recebido excede limite local de recepcao"),
+                "{diagnostic}"
+            );
+            assert!(started.elapsed() < Duration::from_millis(700));
+        } else {
+            assert!(diagnostic.contains("tempo esgotado"), "{diagnostic}");
+            assert!(started.elapsed() >= Duration::from_millis(700));
+        }
+        assert!(!diagnostic.contains("quota"));
+    }
+}
+
+#[test]
+fn refused_suback_reports_policy_limits_without_claiming_a_quota_reason() {
+    let listener = listener();
+    let process = child(
+        listener.local_addr().unwrap().port(),
+        "sub",
+        &["--reconnect-attempts", "1"],
+    );
+    let mut stream = accept(&listener);
+    connect(&mut stream, false);
+    let (header, body) = packet(&mut stream);
+    assert_eq!(header, 0x82);
+    stream
+        .write_all(&[0x90, 3, body[0], body[1], 0x80])
+        .unwrap();
+    let output = finish(process);
+    assert!(!output.status.success());
+    let diagnostic = String::from_utf8_lossy(&output.stderr);
+    assert!(diagnostic.contains("confira ACL e limites do broker"));
+    assert!(diagnostic.contains("nao informa causa especifica"));
+    assert!(!diagnostic.contains("Reconexao"));
+    assert!(listener.accept().is_err());
+}

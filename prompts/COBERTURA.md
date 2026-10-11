@@ -35,3 +35,5 @@ Registros: [C25](registros/C25-extracao.md), [C26](registros/C26-reconexao-jsonl
 Tag publicada v0.3.0; candidato0.4.0 / próxima tag sugerida v0.4.0. v0.2.0 já contém C26/C27.
 Registros: [C28](registros/C28-payload-binario.md), [C29](registros/C29-multiplos-topicos.md). Bootstrap C27 congelado
 no baseline0.2; não afirmar reconstrução independente0.3 pelo ensaio anterior.
+
+C38 amplia negativos de payload4096/4097, fronteira do SUBSCRIBE completo65536/65537, diagnóstico de recusa sem atribuir causa específica e harness Unix real para limites/C37. Ver [registroC38](registros/C38-limites-fase1.md); integração Unix pendente não é PASS.

@@ -436,3 +436,19 @@ desconhecido e não é reenviada. A opção não altera os timeouts internos do 
 
 Exemplo local: `mqtt-client sub --open-lab --topic test/# --keepalive-seconds 45 --timeout-seconds 3`.
 Veja [registro C37](prompts/registros/C37-timeout-keepalive.md).
+
+## Limites da fase1 — C38
+
+Payload de publicação até4096 bytes; tópico/filtro até1024 bytes UTF-8. O SUBSCRIBE de saída inclui cabeçalho e corpo no teto65536 bytes:65536 aceito,65537 recusado antes de rede.
+
+Na recepção, rumqttc0.25.1 limita Remaining Length, não o frame completo. O client configura65531 bytes de corpo e reserva o cabeçalho máximo de5bytes; assim nenhum frame aceito excede65536 bytes, inclusive comprimento codificado sem a forma mínima. Essa proteção pode recusar um frame canônico de65536 bytes por1byte. Não afeta as publicações suportadas pelo broker (payload4096/tópico1024). Não há promessa de fronteira inclusiva idêntica de entrada/saída; uma necessidade externa dessa fronteira exige escopo próprio para o codec.
+
+SUBACK recusado orienta conferir ACL/limites; MQTT3.1.1 não informa causa específica. Uma queda de transporte não comprova quota, e publicação interrompida mantém resultado desconhecido sem reenvio. PUBACK/PUBCOMP confirmam protocolo, sem reason de quota.
+
+Integração real isolada (Unix, sem usar serviços/estado instalado):
+
+```bash
+python3 scripts/verify_phase1.py --broker ../xmqr/target/debug/mqtt-broker --client target/debug/mqtt-client --report /tmp/c38-phase1.json
+```
+
+O harness usa somente loopback e diretórios temporários; verifica4096/4097 QoS0/1/2, keepalive1/timeout1, SUBSCRIBE65536/65537 e recusa por limite de assinaturas. Confira o [registroC38](prompts/registros/C38-limites-fase1.md): preparação ou fixtures não equivalem ao aceite Unix.

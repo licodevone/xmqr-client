@@ -1,6 +1,6 @@
 # Paridade do mqtt-client com Mosquitto
 
-Checkpoint C37, 2026-10-11. Client independente MQTT3.1.1/rumqttc. Pacote0.5.0 experimental; C35 está no código posterior à release. Esta matriz é documental, não conformidade integral ou benchmark.
+Checkpoint C38, 2026-10-11. Client independente MQTT3.1.1/rumqttc. Pacote0.5.0 experimental; C35 está no código posterior à release. Esta matriz é documental, não conformidade integral ou benchmark.
 
 ## Matriz funcional
 
@@ -29,7 +29,7 @@ Mosquitto oferece opções de protocolo, keepalive, repetição e propriedadesMQ
 | Client XMQR → XMQR P55 | QuotasN/N+1, recusa/redução/restart sem perda | BLOCKED: aceite Unix P55 pendente |
 | Fixtures wire do client | CONNECT/SUBACK/ACK/erros/cancelamento sem estado real | C37: fixtures locais; ver registro de gates |
 
-Preservar payload4096, tópico1024, pacote64KiB e laboratórios loopback. ACK não comprova processamento de negócio. Sessão persistente no broker não comprova persistência local do client.
+Preservar payload4096, tópico1024 e laboratórios loopback. SUBSCRIBE de saída conta pacote completo65536 inclusivo; recepção rumqttc usa cap conservador de corpo65531 para garantir frame até65536 mesmo com header5. Pode recusar frame canônico65536 por1byte; não afeta tráfego broker suportado4096/1024 e não é paridade inclusiva da fronteira de entrada. ACK não comprova processamento de negócio. Sessão persistente no broker não comprova persistência local do client.
 
 ## Sequência de evolução
 
@@ -40,3 +40,5 @@ Preservar payload4096, tópico1024, pacote64KiB e laboratórios loopback. ACK n�
 5. MQTT5 e WS/WSS coordenados com o [plano do broker](../../xmqr/docs/evolution-plan.md).
 
 Criar prompt antes de funcionalidade, registrar evidência, validar commit exato e criar tag de marco aceita. Tags de versão devem acompanhar manifests e conteúdo efetivo; releases incluem pacotes testados/checksums. C36 é marco documental, sem novo pacote.
+
+C38: negativos locais de payload/packet e diagnóstico de SUBACK sem inferir causa; harness Unix real `scripts/verify_phase1.py` preparado. [RegistroC38](../prompts/registros/C38-limites-fase1.md) separa gates portáveis e integração BLOCKED; fase1 não aceita por fixtures.

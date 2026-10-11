@@ -59,3 +59,7 @@ A reconstrução validation/c27-bootstrap permanece congelada no baseline0.2;
 seus hashes antigos não demonstram equivalência com produção após C28.
 Perfis e timestamps continuam fora do escopo C29. A tag **v0.3.0** é a base
 publicada; C29 prepara a evolução independente seguinte.
+
+## Continuação fase1
+
+[C38 — limites e diagnósticos](clients/38-limites-fase1.md), com [registro](registros/C38-limites-fase1.md). Harness Unix próprio exige caminhos explícitos de broker/client e estado descartável; fixtures Windows não substituem integração real.

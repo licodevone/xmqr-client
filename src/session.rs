@@ -16,6 +16,10 @@ type AppResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 const IDLE_TIMEOUT: Duration = Duration::from_secs(90);
 const MAX_PACKET_BYTES: usize = 64 * 1024;
+// rumqttc 0.25.1 checks incoming Remaining Length, outgoing full frame.
+// Reserve the maximum five-byte header, including non-minimal length encodings.
+// Canonical frames of exactly 64 KiB may be refused one byte early; documented in C38.
+const MAX_INCOMING_REMAINING_BYTES: usize = MAX_PACKET_BYTES - 5;
 
 pub async fn run(
     cli: Cli,
@@ -39,7 +43,7 @@ pub async fn run(
     }
     options.set_clean_session(cli.clean_session);
     options.set_keep_alive(Duration::from_secs(u64::from(cli.keepalive_seconds)));
-    options.set_max_packet_size(MAX_PACKET_BYTES, MAX_PACKET_BYTES);
+    options.set_max_packet_size(MAX_INCOMING_REMAINING_BYTES, MAX_PACKET_BYTES);
     if let (Some(username), Some(password)) = (cli.username.clone(), password) {
         // MQTT 3.1.1 §3.1.3.4-5: secure mode carries both credentials in CONNECT.
         options.set_credentials(username, password);
@@ -272,6 +276,11 @@ fn connection_diagnostic(error: &ConnectionError) -> &'static str {
         ConnectionError::ConnectionRefused(ConnectReturnCode::ServiceUnavailable) => {
             "broker MQTT indisponivel"
         }
+        ConnectionError::MqttState(rumqttc::StateError::Deserialization(
+            rumqttc::mqttbytes::Error::PayloadSizeLimitExceeded(_),
+        )) => {
+            "pacote MQTT recebido excede limite local de recepcao: corpo ate 65531 bytes, pacote ate 64 KiB"
+        }
         ConnectionError::Tls(_) => {
             "falha TLS; confira CA, SAN, validade e certificado/chave do client"
         }
@@ -382,7 +391,7 @@ async fn subscribe(
                         !matches!(code, SubscribeReasonCode::Success(granted) if *granted == qos)
                     })
                 {
-                    return Err(invalid_data("SUBACK recusou ou alterou QoS solicitado").into());
+                    return Err(invalid_data("SUBACK recusou ou alterou QoS solicitado; confira ACL e limites do broker; MQTT 3.1.1 nao informa causa especifica").into());
                 }
                 waiting_ack = false;
                 acknowledged = true;
