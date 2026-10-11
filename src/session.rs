@@ -218,7 +218,7 @@ impl Retry {
             };
             if !retryable(&error) {
                 // Do not format NotConnAck(Packet): untrusted packets may carry secrets.
-                return Err(invalid_data("falha MQTT/TLS nao recuperavel").into());
+                return Err(invalid_data(connection_diagnostic(&error)).into());
             }
             self.wait().await?;
         }
@@ -240,6 +240,31 @@ impl Retry {
         );
         tokio::time::sleep(delay).await;
         Ok(())
+    }
+}
+
+fn connection_diagnostic(error: &ConnectionError) -> &'static str {
+    match error {
+        ConnectionError::ConnectionRefused(ConnectReturnCode::BadUserNamePassword) => {
+            "autenticacao MQTT recusada; confira usuario e senha"
+        }
+        ConnectionError::ConnectionRefused(ConnectReturnCode::NotAuthorized) => {
+            "acesso MQTT recusado; confira identidade e politica do broker"
+        }
+        ConnectionError::ConnectionRefused(ConnectReturnCode::RefusedProtocolVersion) => {
+            "versao MQTT recusada; este client usa MQTT 3.1.1"
+        }
+        ConnectionError::ConnectionRefused(ConnectReturnCode::BadClientId) => {
+            "ClientID recusado pelo broker"
+        }
+        ConnectionError::ConnectionRefused(ConnectReturnCode::ServiceUnavailable) => {
+            "broker MQTT indisponivel"
+        }
+        ConnectionError::Tls(_) => {
+            "falha TLS; confira CA, SAN, validade e certificado/chave do client"
+        }
+        ConnectionError::Io(_) => "falha de transporte nao recuperavel; confira rede e TLS",
+        _ => "falha MQTT/TLS nao recuperavel",
     }
 }
 
@@ -420,6 +445,30 @@ fn timed_out(stage: &'static str) -> io::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn diagnostics_distinguish_authentication_and_protocol_without_error_contents() {
+        assert!(
+            connection_diagnostic(&ConnectionError::ConnectionRefused(
+                ConnectReturnCode::BadUserNamePassword
+            ))
+            .contains("autenticacao")
+        );
+        assert!(
+            connection_diagnostic(&ConnectionError::ConnectionRefused(
+                ConnectReturnCode::NotAuthorized
+            ))
+            .contains("acesso")
+        );
+        assert!(
+            connection_diagnostic(&ConnectionError::ConnectionRefused(
+                ConnectReturnCode::RefusedProtocolVersion
+            ))
+            .contains("3.1.1")
+        );
+        let secret_error = ConnectionError::Io(io::Error::other("secret-fixture-content"));
+        assert!(!connection_diagnostic(&secret_error).contains("secret-fixture-content"));
+    }
 
     #[test]
     fn retry_budget_and_progressive_delays_are_finite() {

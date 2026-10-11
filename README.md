@@ -234,6 +234,37 @@ No WSL, `ps -p 1 -o comm=` deve mostrar `systemd`; consulte o
 habilitadas iniciam quando a distribuição Ubuntu é iniciada. Os comandos
 controlam os serviços dentro dessa distribuição.
 
+## Diagnóstico e confirmação de telemetria — C35
+
+O client diferencia recusas MQTT de autenticação, autorização, versão e ClientID.
+Falhas TLS indicam revisão de CA/SAN/validade e certificado/chave; outras falhas
+de transporte não são classificadas automaticamente como erro de certificado.
+Mensagens não incluem conteúdo recebido, senhas ou detalhes privados de erros.
+O comportamento de reconexão permanece limitado; autenticação recusada não
+provoca novas tentativas automáticas.
+
+Para confirmar a telemetria do ESP32, use um usuário com ACL de assinatura para
+`camara/cold-room-sim-01/telemetria` e um ClientID diferente do dispositivo.
+No Ubuntu, o comando abaixo solicita a senha sem exibi-la. Substitua
+`USUARIO_AUTORIZADO` pelo usuário cadastrado e confira os caminhos dos arquivos:
+
+```bash
+mqtt-client sub \
+  --host 127.0.0.1 --port 8883 \
+  --topic camara/cold-room-sim-01/telemetria \
+  --username USUARIO_AUTORIZADO --client-id telemetry-check \
+  --qos 1 --count 5 --output jsonl \
+  --ca ~/xmqr-certificados/ca.crt \
+  --cert ~/xmqr-certificados/client.crt \
+  --key ~/xmqr-certificados/client.key
+```
+
+O exemplo é para execução manual; não registra automaticamente dados reais.
+Cinco eventos recebidos comprovam entrega ao client, não processamento de negócio.
+QoS1 permite duplicatas; para contagem lógica, compare o identificador/sequência
+do payload da aplicação. A assinatura QoS1 não aumenta o QoS da publicação.
+Não usar o mesmo ClientID do ESP32: isso pode desconectar a conexão existente.
+
 ## Compilar a partir do código
 
 ```powershell
