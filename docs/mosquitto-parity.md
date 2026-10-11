@@ -42,3 +42,10 @@ Preservar payload4096, tópico1024 e laboratórios loopback. SUBSCRIBE de saída
 Criar prompt antes de funcionalidade, registrar evidência, validar commit exato e criar tag de marco aceita. Tags de versão devem acompanhar manifests e conteúdo efetivo; releases incluem pacotes testados/checksums. C36 é marco documental, sem novo pacote.
 
 C38: negativos locais de payload/packet e diagnóstico de SUBACK sem inferir causa; harness Unix real `scripts/verify_phase1.py` preparado. [RegistroC38](../prompts/registros/C38-limites-fase1.md) separa gates portáveis e integração BLOCKED; fase1 não aceita por fixtures.
+
+## Checkpoint atual — aceite P61/C39, 2026-10-11
+
+Fase1 concluída no Ubuntu26/WSL: broker0.11.0/client0.7.0, configuração e
+quotas, limites de pacotes, integrações e pacote install/upgrade/rollback aceitos.
+Os BLOCKED anteriores desta página são históricos. Ver [registroC39](../prompts/registros/C39-release-fase1.md).
+Fase2 (capacidade/RAM/latência) aguarda prompt próprio e não foi executada aqui.

@@ -1,5 +1,11 @@
 # C38 rev1 — limites e diagnósticos da fase 1
 
+## rev5 — análise Rust1.99 no Ubuntu26
+
+Clippy recusou assert!(output.stdout.is_empty()) em tests/wire.rs:882.
+Usar comparação do comprimento comzero: mantém teste e evita imprimir payload
+na falha. Sem mudar implementação ou afrouxar ausência de saída. Repetir gates.
+
 Entrada: HEAD 6ee5aa87d0e1eb16c48c625408eeaf227197da14, versão0.6.0/tag local v0.6.0, árvore limpa. AGENTS.md, README, ORIGIN.json, skill xmqr-client-development e plano de evolução lidos. Pedido autoriza execução; commit/tag/publicação coordenados pelo agente raiz após gates.
 
 Objetivo: fixar evidência nas fronteiras de payload4096 e pacote completo65536 bytes; esclarecer recusas SUBACK/transporte sem inferir quotas de uma desconexão MQTT3.1.1. C37 mantém timeout/keepalive.

@@ -1,8 +1,8 @@
 # xmqr-client
 
 Projeto Rust independente, extraído do cliente XMQR. Pacote `xmqr-client`,
-binário compatível `mqtt-client`. A versão publicada **v0.5.0** adiciona systemd e
-pacote Ubuntu26.04 amd64. Veja [instalação e serviços](docs/ubuntu-systemd.md).
+binário compatível `mqtt-client`. A versão **v0.7.0** conclui a fase1 com timeout, keepalive e limites;
+inclui integração systemd e pacote Ubuntu26.04 amd64. Veja [instalação e serviços](docs/ubuntu-systemd.md).
 Projeto experimental; consulte as prereleases no GitHub.
 
 ## Instalação Ubuntu / WSL
@@ -32,9 +32,9 @@ cd ~/xmqr-pacotes
 3. Baixe o pacote e confira sua integridade:
 
 ```bash
-wget -O xmqr-client_0.5.0-1_amd64.deb https://github.com/licodevone/xmqr-client/releases/download/v0.5.0/xmqr-client_0.5.0-1_amd64.deb
-wget -O xmqr-client_0.5.0-1_amd64.deb.sha256 https://github.com/licodevone/xmqr-client/releases/download/v0.5.0/xmqr-client_0.5.0-1_amd64.deb.sha256
-sha256sum -c xmqr-client_0.5.0-1_amd64.deb.sha256
+wget -O xmqr-client_0.7.0-1_amd64.deb https://github.com/licodevone/xmqr-client/releases/download/v0.7.0/xmqr-client_0.7.0-1_amd64.deb
+wget -O xmqr-client_0.7.0-1_amd64.deb.sha256 https://github.com/licodevone/xmqr-client/releases/download/v0.7.0/xmqr-client_0.7.0-1_amd64.deb.sha256
+sha256sum -c xmqr-client_0.7.0-1_amd64.deb.sha256
 ```
 
 Prossiga somente se a verificação mostrar `OK`.
@@ -42,7 +42,7 @@ Prossiga somente se a verificação mostrar `OK`.
 4. Instale e confirme o pacote, o executável e a conta de serviço:
 
 ```bash
-sudo apt install ./xmqr-client_0.5.0-1_amd64.deb
+sudo apt install ./xmqr-client_0.7.0-1_amd64.deb
 dpkg-query -W -f='${Status}\n' xmqr-client
 mqtt-client --version
 id xmqr-client
@@ -410,9 +410,9 @@ param instâncias; reinicie explicitamente após revisar configuração.
 
 ## Publicação verificada
 
-Prerelease atual: [v0.5.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.5.0),
-com debUbuntu26amd64 e checksum. CI Rust e pacote Ubuntu aprovados no
-[GitHub Actions](https://github.com/licodevone/xmqr-client/actions/runs/38085654031).
+Prerelease da fase1: [v0.7.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.7.0),
+com deb Ubuntu26 amd64 e checksum. Aceite em
+[registro C39](prompts/registros/C39-release-fase1.md).
 
 
 ## Evolução e paridade
@@ -452,3 +452,11 @@ python3 scripts/verify_phase1.py --broker ../xmqr/target/debug/mqtt-broker --cli
 ```
 
 O harness usa somente loopback e diretórios temporários; verifica4096/4097 QoS0/1/2, keepalive1/timeout1, SUBSCRIBE65536/65537 e recusa por limite de assinaturas. Confira o [registroC38](prompts/registros/C38-limites-fase1.md): preparação ou fixtures não equivalem ao aceite Unix.
+
+## Aceite final da fase1 — C39
+
+Ubuntu26/WSL:52 testes, fmt/Clippy/build e integração com broker0.11.0 aprovados.
+Instalação de0.5.0, upgrade para0.7.0, rollback, remove/purge e preservação de
+arquivos foram testados em container descartável. Ver [registroC39](prompts/registros/C39-release-fase1.md).
+Históricos C37/C38 com BLOCKED foram superados nesse ambiente; não são novos
+resultados Windows, Ubuntu24, arm64 ou MSRV1.88 exato.

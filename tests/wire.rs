@@ -879,7 +879,7 @@ fn incoming_packet_limit_reserves_header_even_with_nonminimal_remaining_length()
         let output = finish(process);
         assert!(!output.status.success());
         let diagnostic = String::from_utf8_lossy(&output.stderr);
-        assert!(output.stdout.is_empty());
+        assert_eq!(output.stdout.len(), 0);
         if rejected {
             assert!(
                 diagnostic.contains("pacote MQTT recebido excede limite local de recepcao"),

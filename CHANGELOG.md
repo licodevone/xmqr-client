@@ -1,11 +1,14 @@
 # Histórico de versões
 
-## Em desenvolvimento — C38 limites da fase1
+## 0.7.0 — C39 aceite Ubuntu da fase1
 
 - SUBSCRIBE completo65536/65537 e payload4096/4097 com negativos UTF-8/QoS0/1/2.
 - Recepção com corpo até65531 e reserva de header5 para manter frame até64KiB. Pode recusar frame canônico65536 por1byte; não afeta tráfego suportado pelo broker.
 - Diagnóstico de SUBACK orienta ACL/limites sem atribuir razão inexistente em MQTT3.1.1.
-- Harness Unix real isolado para quotas/C37 preparado; execução pendente no registroC38.
+- Harness Unix real isolado para quotas/C37 aprovado no registroC39.
+
+-52 testes Ubuntu, fmt/Clippy/build e integração com broker0.11.0 aprovados.
+- Deb Ubuntu26 amd64; install/upgrade/rollback/remove/purge aprovados em container.
 
 ## 0.6.0 — C37 timeout e keepalive
 
