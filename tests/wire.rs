@@ -152,6 +152,7 @@ fn reconnect_preserves_id_and_resubscribes_only_without_session() {
             let mut stream = accept(&listener);
             let first = connect(&mut stream, false);
             assert_eq!(first[7] & 2, 0, "CleanSession=false");
+            assert_eq!(&first[8..10], &[0, 47], "selected keepalive survives retry");
             subscribe(&mut stream, 0);
             // Deliver one message to prove count survives the reconnect.
             publish(&mut stream);
@@ -180,6 +181,10 @@ fn reconnect_preserves_id_and_resubscribes_only_without_session() {
                 "false",
                 "--reconnect-attempts",
                 "1",
+                "--keepalive-seconds",
+                "47",
+                "--timeout-seconds",
+                "2",
             ],
         ));
         server.join().unwrap();
@@ -695,4 +700,101 @@ fn open_stdin_times_out_without_waiting_for_native_worker_shutdown() {
     assert_eq!(output.status.code(), Some(2));
     assert!(listener.accept().is_err());
     assert!(String::from_utf8_lossy(&output.stderr).contains("tempo esgotado"));
+}
+
+#[test]
+fn connect_carries_default_and_selected_keepalive_bytes() {
+    for (extra, expected) in [
+        (&[][..], 30_u16),
+        (&["--keepalive-seconds", "65535"][..], 65535),
+        (&["--keepalive-seconds", "1"][..], 1),
+    ] {
+        let listener = listener();
+        let mut process = child(listener.local_addr().unwrap().port(), "sub", extra);
+        let mut stream = accept(&listener);
+        let body = connect(&mut stream, false);
+        assert_eq!(u16::from_be_bytes([body[8], body[9]]), expected);
+        process.kill().unwrap();
+        process.wait().unwrap();
+    }
+}
+
+#[test]
+fn configured_timeout_bounds_silent_protocol_stages_without_replay() {
+    for stage in ["connack", "suback", "puback", "pubcomp", "incoming_qos2"] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let mode = if matches!(stage, "puback" | "pubcomp") {
+            "pub"
+        } else {
+            "sub"
+        };
+        let qos = if matches!(stage, "pubcomp" | "incoming_qos2") {
+            "2"
+        } else {
+            "1"
+        };
+        let mut extra = vec![
+            "--timeout-seconds",
+            "1",
+            "--qos",
+            qos,
+            "--reconnect-attempts",
+            "1",
+        ];
+        if mode == "pub" {
+            extra.extend(["--message", "fixture"]);
+        }
+        if stage == "incoming_qos2" {
+            extra.extend(["--count", "1"]);
+        }
+        let process = child(port, mode, &extra);
+        let mut stream = accept(&listener);
+        if stage == "connack" {
+            assert_eq!(packet(&mut stream).0, 0x10);
+        } else {
+            connect(&mut stream, false);
+            let (header, body) = packet(&mut stream);
+            if stage == "suback" {
+                assert_eq!(header, 0x82);
+            }
+            if stage == "puback" {
+                assert_eq!(header >> 4, 3);
+            }
+            if stage == "pubcomp" {
+                assert_eq!(header >> 4, 3);
+                let topic_length = usize::from(u16::from_be_bytes([body[0], body[1]]));
+                let id = 2 + topic_length;
+                stream
+                    .write_all(&[0x50, 2, body[id], body[id + 1]])
+                    .unwrap();
+                assert_eq!(packet(&mut stream).0, 0x62);
+            }
+            if stage == "incoming_qos2" {
+                assert_eq!(header, 0x82);
+                stream.write_all(&[0x90, 3, body[0], body[1], 2]).unwrap();
+                stream
+                    .write_all(&[0x34, 6, 0, 1, b't', 0, 7, b'x'])
+                    .unwrap();
+                assert_eq!(packet(&mut stream), (0x50, vec![0, 7]));
+            }
+        }
+        let waiting = Instant::now();
+        let output = finish(process);
+        let elapsed = waiting.elapsed();
+        assert!(!output.status.success(), "stage {stage}");
+        assert!(
+            elapsed >= Duration::from_millis(700),
+            "early timeout {stage}: {elapsed:?}"
+        );
+        assert!(
+            elapsed < Duration::from_secs(4),
+            "late timeout {stage}: {elapsed:?}"
+        );
+        assert!(
+            !String::from_utf8_lossy(&output.stderr).contains("Reconexao"),
+            "no retry after timeout or PUBLISH"
+        );
+        assert!(listener.accept().is_err());
+    }
 }

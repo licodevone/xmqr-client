@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.6.0 — C37 timeout e keepalive
+
+- `--keepalive-seconds` 1..65535 (padrão 30), preservado na reconexão.
+- `--timeout-seconds` 1..300 (padrão 8) para protocolo; idle/input/cancelamento preservados.
+- Fixtures locais cobrem CONNECT, CONNACK silencioso, SUBACK, PUBACK/PUBCOMP e QoS2 recebido.
+- Gates Windows aprovados; Unix, MSRV 1.88 exato e interoperabilidade externa pendentes.
+- Marco de código portátil; sem novo pacote Ubuntu. Registro: `prompts/registros/C37-timeout-keepalive.md`.
+
 ## 0.5.0 — systemd e Ubuntu 26.04
 
 - Tratamento SIGTERM/SIGINT e integração com systemctl.

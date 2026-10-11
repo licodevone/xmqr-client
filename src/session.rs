@@ -14,7 +14,6 @@ use super::{
 
 type AppResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
-const INITIAL_TIMEOUT: Duration = Duration::from_secs(8);
 const IDLE_TIMEOUT: Duration = Duration::from_secs(90);
 const MAX_PACKET_BYTES: usize = 64 * 1024;
 
@@ -39,7 +38,7 @@ pub async fn run(
         ));
     }
     options.set_clean_session(cli.clean_session);
-    options.set_keep_alive(Duration::from_secs(30));
+    options.set_keep_alive(Duration::from_secs(u64::from(cli.keepalive_seconds)));
     options.set_max_packet_size(MAX_PACKET_BYTES, MAX_PACKET_BYTES);
     if let (Some(username), Some(password)) = (cli.username.clone(), password) {
         // MQTT 3.1.1 §3.1.3.4-5: secure mode carries both credentials in CONNECT.
@@ -79,6 +78,10 @@ async fn cancel_connection(client: &AsyncClient, events: &mut EventLoop) {
     }
 }
 
+fn protocol_timeout(cli: &Cli) -> Duration {
+    Duration::from_secs(u64::from(cli.timeout_seconds))
+}
+
 async fn run_connected(
     cli: &Cli,
     client: &AsyncClient,
@@ -86,7 +89,7 @@ async fn run_connected(
     publication: Option<crate::payload::Publication>,
 ) -> AppResult<()> {
     let mut retry = Retry::new(cli.reconnect_attempts);
-    await_connack(events, &mut retry).await?;
+    await_connack(events, &mut retry, protocol_timeout(cli)).await?;
 
     let requested_qos = cli.qos;
     match &cli.mode {
@@ -104,6 +107,7 @@ async fn run_connected(
                 requested_qos,
                 *count,
                 cli.output,
+                protocol_timeout(cli),
             )
             .await?;
         }
@@ -122,7 +126,7 @@ async fn publish_input(
     let mut payload = Some(first);
     while let Some(bytes) = payload {
         client.publish(topic, cli.qos, cli.retain, bytes).await?;
-        await_publish_complete(events, cli.qos).await?;
+        await_publish_complete(events, cli.qos, protocol_timeout(cli)).await?;
         if !cli.line_mode {
             break;
         }
@@ -142,16 +146,20 @@ async fn publish_input(
             }
         };
     }
-    graceful_disconnect(client, events).await?;
+    graceful_disconnect(client, events, protocol_timeout(cli)).await?;
     if !cli.line_mode {
         cli.output.complete(cli.qos);
     }
     Ok(())
 }
 
-async fn await_connack(events: &mut EventLoop, retry: &mut Retry) -> AppResult<()> {
+async fn await_connack(
+    events: &mut EventLoop,
+    retry: &mut Retry,
+    limit: Duration,
+) -> AppResult<()> {
     loop {
-        match retry.next(events, INITIAL_TIMEOUT).await? {
+        match retry.next(events, limit).await? {
             Event::Incoming(Incoming::ConnAck(ack)) if ack.code == ConnectReturnCode::Success => {
                 return Ok(());
             }
@@ -166,8 +174,12 @@ async fn await_connack(events: &mut EventLoop, retry: &mut Retry) -> AppResult<(
     }
 }
 
-async fn await_publish_complete(events: &mut EventLoop, qos: QoS) -> AppResult<()> {
-    let deadline = Instant::now() + INITIAL_TIMEOUT;
+async fn await_publish_complete(
+    events: &mut EventLoop,
+    qos: QoS,
+    limit: Duration,
+) -> AppResult<()> {
+    let deadline = Instant::now() + limit;
     loop {
         match next_before(events, deadline, "envio de PUBLISH")
             .await
@@ -303,6 +315,7 @@ async fn subscribe(
     qos: QoS,
     count: Option<u64>,
     output: crate::output::Output,
+    limit: Duration,
 ) -> AppResult<()> {
     client
         .subscribe_many(
@@ -314,7 +327,7 @@ async fn subscribe(
         .await?;
     let mut acknowledged = false;
     let mut waiting_ack = true;
-    let mut deadline = Instant::now() + INITIAL_TIMEOUT;
+    let mut deadline = Instant::now() + limit;
     let mut received = 0;
     let mut incoming_qos2 = std::collections::HashSet::new();
     let mut qos2_deadline = None;
@@ -361,12 +374,7 @@ async fn subscribe(
                 } else {
                     waiting_ack = false;
                 }
-                deadline = Instant::now()
-                    + if waiting_ack {
-                        INITIAL_TIMEOUT
-                    } else {
-                        IDLE_TIMEOUT
-                    };
+                deadline = Instant::now() + if waiting_ack { limit } else { IDLE_TIMEOUT };
             }
             Event::Incoming(Incoming::SubAck(ack)) if waiting_ack => {
                 if ack.return_codes.len() != filters.len()
@@ -384,7 +392,7 @@ async fn subscribe(
             Event::Incoming(Incoming::Publish(publish)) => {
                 if publish.qos == QoS::ExactlyOnce {
                     if incoming_qos2.is_empty() {
-                        qos2_deadline = Some(Instant::now() + INITIAL_TIMEOUT);
+                        qos2_deadline = Some(Instant::now() + limit);
                     }
                     incoming_qos2.insert(publish.pkid);
                 }
@@ -406,12 +414,16 @@ async fn subscribe(
             deadline = Instant::now() + IDLE_TIMEOUT;
         }
     }
-    graceful_disconnect(client, events).await
+    graceful_disconnect(client, events, limit).await
 }
 
-async fn graceful_disconnect(client: &AsyncClient, events: &mut EventLoop) -> AppResult<()> {
+async fn graceful_disconnect(
+    client: &AsyncClient,
+    events: &mut EventLoop,
+    limit: Duration,
+) -> AppResult<()> {
     client.disconnect().await?;
-    let deadline = Instant::now() + INITIAL_TIMEOUT;
+    let deadline = Instant::now() + limit;
     loop {
         match next_before(events, deadline, "DISCONNECT").await? {
             Event::Outgoing(Outgoing::Disconnect) => return Ok(()),

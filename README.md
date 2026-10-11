@@ -342,7 +342,7 @@ com broker independente; a execução isolada posterior está registrada em C27.
 Limitação verificada: rumqttc 0.25.1 limpa o estado de recepção QoS2 ao perder
 a conexão. Se a queda ocorrer entre PUBLISH recebido e conclusão PUBREL/PUBCOMP,
 o cliente falha explicitamente, sem reconectar nessa fase. O handshake recebido
-tem deadline fixo de 8s; `--count` aguarda sua conclusão antes de DISCONNECT.
+tem deadline padrão de 8s, configurável por `--timeout-seconds`; `--count` aguarda sua conclusão antes de DISCONNECT.
 
 Prompts: veja [índice e ordem](prompts/README.md) e [matriz de cobertura](prompts/COBERTURA.md).
 Os históricos não constituem um bootstrap independente; use o contrato C27.
@@ -418,4 +418,21 @@ com debUbuntu26amd64 e checksum. CI Rust e pacote Ubuntu aprovados no
 ## Evolução e paridade
 
 Veja a [matriz Mosquitto](docs/mosquitto-parity.md), com lacunas, evidências e
-próximos incrementos. C36 é documental; timeout/keepalive serão a fatiaC37.
+próximos incrementos. C36 é documental; C37 implementa timeout/keepalive com fixtures locais.
+
+## Timeout e keepalive — C37
+
+`--keepalive-seconds N` aceita 1..65535, padrão 30, enviado em CONNECT e
+preservado na reconexão. Zero, embora permitido pelo MQTT, fica fora deste contrato.
+`--timeout-seconds N` aceita 1..300, padrão 8. Limita cada poll/tentativa antes
+do CONNACK e os deadlines de SUBACK, envio/ACK terminal de PUBLISH, conclusão
+do QoS2 recebido e DISCONNECT normal. Não limita o comando inteiro, espera por
+mensagens de aplicação ou backoff de reconexão. O orçamento de retry permanece
+inalterado; expirar o deadline externo não cria nova tentativa.
+
+A assinatura mantém sua inatividade de 90s, entrada de payload mantém 8s e
+cancelamento mantém DISCONNECT de até 1s. Publicação interrompida tem resultado
+desconhecido e não é reenviada. A opção não altera os timeouts internos do rumqttc.
+
+Exemplo local: `mqtt-client sub --open-lab --topic test/# --keepalive-seconds 45 --timeout-seconds 3`.
+Veja [registro C37](prompts/registros/C37-timeout-keepalive.md).
