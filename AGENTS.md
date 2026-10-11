@@ -26,3 +26,11 @@ P47 (broker0.10.0) / C31 (client0.5.0): integração systemd e pacote deb
 Ubuntu26.04 amd64. Tags0.9/0.4 são publicadas e imutáveis. Seções anteriores
 são históricas. Ver docs/ubuntu-systemd.md e registros de validação atuais.
 Commit/push/prerelease desta etapa autorizados explicitamente pelo usuário.
+
+
+## Evolução contínua autorizada
+
+Pedido atual autoriza executar fatias do plano por prompts e criar tags após
+aceite, com releases conforme necessidade. Matriz em docs/mosquitto-parity.md;
+C36 é documental, C37 planeja timeout/keepalive. Não promover teste pendente
+a PASS; tags de versão exigem commit validado e manifests coerentes.

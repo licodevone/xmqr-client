@@ -1,0 +1,42 @@
+# Paridade do mqtt-client com Mosquitto
+
+Checkpoint C36, 2026-10-11. Client independente MQTT3.1.1/rumqttc. Pacote0.5.0 experimental; C35 está no código posterior à release. Esta matriz é documental, não conformidade integral ou benchmark.
+
+## Matriz funcional
+
+| Capacidade | XMQR atual | Lacuna/próximo incremento | Evidência |
+| --- | --- | --- | --- |
+| pub/sub QoS0/1/2 | --qos | Interop externa ampliada | src/session.rs; tests/wire.rs |
+| Payload texto/binário/stdin | --message, --message-file, --stdin, --line-mode | Repetição com intervalo | src/payload.rs; src/cli.rs |
+| Assinaturas múltiplas | --topic repetido, --count | Filtros de saída/retained | src/cli.rs; tests/wire.rs |
+| Retained e Will | --retain, --will-* | Filtros retained; Will binário conforme demanda | src/cli.rs; src/session.rs |
+| Sessão/reconexão | --clean-session, --client-id, --reconnect-attempts | Persistência local/reconexão avançada exige contrato | src/session.rs; tests/wire.rs |
+| TLS/mTLS | CA/cert/chave e senha; SAN validado | TLS sem certificado cliente | src/tls.rs; src/credentials.rs |
+| Diagnóstico e saída | text/jsonl e erros estáticos | Filtros/formatos conforme demanda | src/output.rs; registroC35 |
+| Keepalive | Fixo30s | C37: configurável | src/session.rs |
+| Timeouts | Inicial8s, idle90s internos | C37: contrato explícito | src/session.rs |
+| Perfis reutilizáveis | CLI/algumas variáveis, configuração systemd | Prompt próprio de perfis | README; packaging |
+| MQTT5/WS/WSS | Ausentes | Evolução conjunta com broker nas fases correspondentes | src/cli.rs; src/session.rs |
+
+Mosquitto oferece opções de protocolo, keepalive, repetição e propriedadesMQTT5; sub oferece timeout, exclusão de tópicos e filtros retained. Referências consultadas: [pub](https://mosquitto.org/man/mosquitto_pub-1.html), [sub](https://mosquitto.org/man/mosquitto_sub-1.html). Há opções específicas de2.1; registrar mosquitto --version/compilação antes da campanha. Não assumir equivalência a toda versão instalada.
+
+## Validação cruzada planejada
+
+| Direção/cenário | Evidência exigida | Estado C36 |
+| --- | --- | --- |
+| Client XMQR → Mosquitto | QoS0/1/2, retained/Will, clean/persistent, reconnect e erros | NOT_RUN nesta tarefa |
+| mosquitto_pub/sub → XMQR | Mesmos cenários; TLS/mTLS e ACL negativos | NOT_RUN nesta tarefa |
+| Client XMQR → XMQR P55 | QuotasN/N+1, recusa/redução/restart sem perda | BLOCKED: aceite Unix P55 pendente |
+| Fixtures wire do client | CONNECT/SUBACK/ACK/erros/cancelamento sem estado real | Testes existentes; novos gates só em C37 |
+
+Preservar payload4096, tópico1024, pacote64KiB e laboratórios loopback. ACK não comprova processamento de negócio. Sessão persistente no broker não comprova persistência local do client.
+
+## Sequência de evolução
+
+1. C37: timeout de operação e keepalive configuráveis, defaults preservados, negativos e fixtures wire.
+2. Quotas/payload/pacote: integração contra P55 aceito e avaliação da fase1; não aumentar client unilateralmente.
+3. Perfis de conexão e filtros retained/saída em prompts independentes.
+4. Modalidades TLS, repetição controlada e interoperabilidade externa conforme demanda.
+5. MQTT5 e WS/WSS coordenados com o [plano do broker](../../xmqr/docs/evolution-plan.md).
+
+Criar prompt antes de funcionalidade, registrar evidência, validar commit exato e criar tag de marco aceita. Tags de versão devem acompanhar manifests e conteúdo efetivo; releases incluem pacotes testados/checksums. C36 é marco documental, sem novo pacote.

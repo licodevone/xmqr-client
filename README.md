@@ -413,3 +413,9 @@ param instâncias; reinicie explicitamente após revisar configuração.
 Prerelease atual: [v0.5.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.5.0),
 com debUbuntu26amd64 e checksum. CI Rust e pacote Ubuntu aprovados no
 [GitHub Actions](https://github.com/licodevone/xmqr-client/actions/runs/38085654031).
+
+
+## Evolução e paridade
+
+Veja a [matriz Mosquitto](docs/mosquitto-parity.md), com lacunas, evidências e
+próximos incrementos. C36 é documental; timeout/keepalive serão a fatiaC37.
