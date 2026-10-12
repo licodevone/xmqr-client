@@ -45,3 +45,14 @@ Versão/tag/release experimental autorizadas após gates finais. Artefatos em
 target/c41-assets; checksums e validação portátil registrados antes de publicação.
 Sem prontidão de produção, MQTT5/WS/WSS, APT, arm64, Windowsbroker ou novo
 aceite de MSRV1.88. Fase2 permanece aberta; filtros não encerram fase5.
+
+## Publicação confirmada
+
+Commit de código:8cd0e1c; tag anotada v0.8.0 aponta para esse commit.
+Push atômico main/tag PASS. Objeto da tag local/remota idêntico:
+3a5aa2ff8ea5d11b698d193733599d9a814da193. Tag preservada após registro documental.
+
+[Prerelease v0.8.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.8.0)
+confirmada por API/gh:7 anexos (deb, TARLinux, ZIPWindows,3 checksums e
+acceptance-0.8.0.json com source_commit). Notas com link absoluto para evidência
+da tag. Nenhuma imagemDocker0.8.0 publicada;0.7.1 permanece a imagem anterior.
