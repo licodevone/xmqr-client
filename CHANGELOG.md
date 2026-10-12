@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.7.1 — distribuição Docker
+
+- LabelsOCI/version/revision, SIGTERM e imagemLinux/amd64 exportada comchecksum.
+- mTLS pub/sub, retained/restart e negativos em containers isolados aprovados.
+- Pacote.debUbuntu26 porrelease, com install/upgrade/rollback testado.
+- Sem alterações funcionais de protocolo, TLS ou quotas.
+
+
 ## 0.7.0 — C39 aceite Ubuntu da fase1
 
 - SUBSCRIBE completo65536/65537 e payload4096/4097 com negativos UTF-8/QoS0/1/2.

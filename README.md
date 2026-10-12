@@ -32,9 +32,9 @@ cd ~/xmqr-pacotes
 3. Baixe o pacote e confira sua integridade:
 
 ```bash
-wget -O xmqr-client_0.7.0-1_amd64.deb https://github.com/licodevone/xmqr-client/releases/download/v0.7.0/xmqr-client_0.7.0-1_amd64.deb
-wget -O xmqr-client_0.7.0-1_amd64.deb.sha256 https://github.com/licodevone/xmqr-client/releases/download/v0.7.0/xmqr-client_0.7.0-1_amd64.deb.sha256
-sha256sum -c xmqr-client_0.7.0-1_amd64.deb.sha256
+wget -O xmqr-client_0.7.1-1_amd64.deb https://github.com/licodevone/xmqr-client/releases/download/v0.7.1/xmqr-client_0.7.1-1_amd64.deb
+wget -O xmqr-client_0.7.1-1_amd64.deb.sha256 https://github.com/licodevone/xmqr-client/releases/download/v0.7.1/xmqr-client_0.7.1-1_amd64.deb.sha256
+sha256sum -c xmqr-client_0.7.1-1_amd64.deb.sha256
 ```
 
 Prossiga somente se a verificação mostrar `OK`.
@@ -42,7 +42,7 @@ Prossiga somente se a verificação mostrar `OK`.
 4. Instale e confirme o pacote, o executável e a conta de serviço:
 
 ```bash
-sudo apt install ./xmqr-client_0.7.0-1_amd64.deb
+sudo apt install ./xmqr-client_0.7.1-1_amd64.deb
 dpkg-query -W -f='${Status}\n' xmqr-client
 mqtt-client --version
 id xmqr-client
@@ -460,3 +460,9 @@ Instalação de0.5.0, upgrade para0.7.0, rollback, remove/purge e preservação 
 arquivos foram testados em container descartável. Ver [registroC39](prompts/registros/C39-release-fase1.md).
 Históricos C37/C38 com BLOCKED foram superados nesse ambiente; não são novos
 resultados Windows, Ubuntu24, arm64 ou MSRV1.88 exato.
+
+## Docker — distribuição P63/C40
+
+Imagem xmqr-client:0.7.1 paraLinux/amd64 com imagem tar.gz eSHA-256 na release; também inclui
+.debUbuntu26amd64. [Build/load, configuração e execução](docs/docker.md).
+Sem chaves/estado na imagem; usuário10001, mTLS e volumes externos.
