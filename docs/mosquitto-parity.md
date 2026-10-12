@@ -1,6 +1,10 @@
 # Paridade do mqtt-client com Mosquitto
 
-Checkpoint C38, 2026-10-11. Client independente MQTT3.1.1/rumqttc. Pacote0.5.0 experimental; C35 está no código posterior à release. Esta matriz é documental, não conformidade integral ou benchmark.
+Atualizado em C41, 2026-10-12: client 0.8.0, independente MQTT3.1.1/rumqttc.
+Filtros retained aceitos em fixtures e integração própria QoS0/1/2. As tabelas
+de validação C36 abaixo são históricas; aceite posterior da fase1 é P61/C39.
+Campanha de capacidade broker/client: [P72](../../xmqr/docs/performance-fanout.md).
+Esta matriz não declara conformidade integral ou paridade exaustiva.
 
 ## Matriz funcional
 
@@ -8,8 +12,8 @@ Checkpoint C38, 2026-10-11. Client independente MQTT3.1.1/rumqttc. Pacote0.5.0 e
 | --- | --- | --- | --- |
 | pub/sub QoS0/1/2 | --qos | Interop externa ampliada | src/session.rs; tests/wire.rs |
 | Payload texto/binário/stdin | --message, --message-file, --stdin, --line-mode | Repetição com intervalo | src/payload.rs; src/cli.rs |
-| Assinaturas múltiplas | --topic repetido, --count | Filtros de saída/retained | src/cli.rs; tests/wire.rs |
-| Retained e Will | --retain, --will-* | Filtros retained; Will binário conforme demanda | src/cli.rs; src/session.rs |
+| Assinaturas múltiplas | --topic repetido, --count; --ignore-retained/--retained-only na saída | Exclusão de tópicos e outros formatos | src/cli.rs; tests/wire.rs; C41 |
+| Retained e Will | --retain, --will-*; filtros locais pela flag RETAIN | Will binário conforme demanda | src/cli.rs; src/session.rs; C41 |
 | Sessão/reconexão | --clean-session, --client-id, --reconnect-attempts | Persistência local/reconexão avançada exige contrato | src/session.rs; tests/wire.rs |
 | TLS/mTLS | CA/cert/chave e senha; SAN validado | TLS sem certificado cliente | src/tls.rs; src/credentials.rs |
 | Diagnóstico e saída | text/jsonl e erros estáticos | Filtros/formatos conforme demanda | src/output.rs; registroC35 |

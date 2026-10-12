@@ -30,6 +30,23 @@ pub enum TransportMode {
     PlainAuthLab,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RetainedFilter {
+    All,
+    Ignore,
+    Only,
+}
+
+impl RetainedFilter {
+    pub const fn accepts(self, retained: bool) -> bool {
+        match self {
+            Self::All => true,
+            Self::Ignore => !retained,
+            Self::Only => retained,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Will {
     pub topic: String,
@@ -41,6 +58,7 @@ pub struct Will {
 #[derive(Debug)]
 pub struct Cli {
     pub line_mode: bool,
+    pub retained_filter: RetainedFilter,
     pub output: crate::output::Output,
     pub reconnect_attempts: u8,
     pub keepalive_seconds: u16,
@@ -61,7 +79,7 @@ pub struct Cli {
     pub transport_mode: TransportMode,
 }
 
-pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl, --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --message TEXTO (pub), --count N (sub), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
+pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl, --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --message TEXTO (pub), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -72,6 +90,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     }
 
     let mut output = None;
+    let mut retained_filter = None;
     let mut reconnect_attempts = None;
     let mut keepalive_seconds = None;
     let mut timeout_seconds = None;
@@ -99,6 +118,20 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut will_retain = None;
 
     while let Some(flag) = args.next() {
+        if flag == "--ignore-retained" || flag == "--retained-only" {
+            if command != "sub" {
+                return Err("filtros retained somente valem para sub".into());
+            }
+            let selected = if flag == "--ignore-retained" {
+                RetainedFilter::Ignore
+            } else {
+                RetainedFilter::Only
+            };
+            if retained_filter.replace(selected).is_some() {
+                return Err("use somente um filtro retained, sem repetir".into());
+            }
+            continue;
+        }
         if flag == "--stdin" || flag == "--line-mode" {
             let target = if flag == "--stdin" {
                 &mut stdin
@@ -318,6 +351,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let timeout_seconds = parse_seconds(timeout_seconds.as_deref(), "--timeout-seconds", 8, 300)?;
     Ok(Cli {
         line_mode,
+        retained_filter: retained_filter.unwrap_or(RetainedFilter::All),
         output,
         reconnect_attempts,
         keepalive_seconds,
@@ -488,7 +522,7 @@ fn subscribe_packet_size(filters: &[String]) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Mode, TransportMode, parse, validate_password};
+    use super::{Mode, RetainedFilter, TransportMode, parse, validate_password};
 
     fn base(mode: &str) -> Vec<String> {
         [
@@ -507,6 +541,30 @@ mod tests {
         .into_iter()
         .map(str::to_owned)
         .collect()
+    }
+
+    #[test]
+    fn retained_filters_are_sub_only_and_mutually_exclusive() {
+        assert_eq!(
+            parse(base("sub")).unwrap().retained_filter,
+            RetainedFilter::All
+        );
+        for (flag, expected) in [
+            ("--ignore-retained", RetainedFilter::Ignore),
+            ("--retained-only", RetainedFilter::Only),
+        ] {
+            let mut args = base("sub");
+            args.push(flag.into());
+            assert_eq!(parse(args.clone()).unwrap().retained_filter, expected);
+            args.push(flag.into());
+            assert!(parse(args).is_err());
+            let mut args = base("pub");
+            args.extend(["--message".into(), "test".into(), flag.into()]);
+            assert!(parse(args).is_err());
+        }
+        let mut args = base("sub");
+        args.extend(["--ignore-retained".into(), "--retained-only".into()]);
+        assert!(parse(args).is_err());
     }
 
     #[test]

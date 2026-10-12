@@ -1,5 +1,13 @@
 # Histórico de versões
 
+## 0.8.0 — filtros retained na saída
+
+- `sub --ignore-retained` e `sub --retained-only`, exclusivos e opcionais.
+- `--count` considera somente mensagens exibidas; mensagens filtradas mantêm
+  os ACKs de QoS1/2. Default, assinatura, ACL e formato de saída preservados.
+- Flags baseadas no RETAIN recebido, com distinção entre replay e publicação
+  ao vivo documentada. Fixtures e integração real cobrem QoS0/1/2.
+
 ## 0.7.1 — distribuição Docker
 
 - LabelsOCI/version/revision, SIGTERM e imagemLinux/amd64 exportada comchecksum.

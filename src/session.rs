@@ -111,6 +111,7 @@ async fn run_connected(
                 requested_qos,
                 *count,
                 cli.output,
+                cli.retained_filter,
                 protocol_timeout(cli),
             )
             .await?;
@@ -324,6 +325,7 @@ async fn subscribe(
     qos: QoS,
     count: Option<u64>,
     output: crate::output::Output,
+    retained_filter: crate::cli::RetainedFilter,
     limit: Duration,
 ) -> AppResult<()> {
     client
@@ -405,7 +407,9 @@ async fn subscribe(
                     }
                     incoming_qos2.insert(publish.pkid);
                 }
-                if count.is_none_or(|limit| received < limit) {
+                if retained_filter.accepts(publish.retain)
+                    && count.is_none_or(|limit| received < limit)
+                {
                     output.publish(&publish);
                     received += 1;
                 }

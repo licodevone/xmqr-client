@@ -1,7 +1,8 @@
 # xmqr-client
 
 Projeto Rust independente, extraído do cliente XMQR. Pacote `xmqr-client`,
-binário compatível `mqtt-client`. A versão **v0.7.0** conclui a fase1 com timeout, keepalive e limites;
+binário compatível `mqtt-client`. A versão **v0.8.0** acrescenta filtros retained
+na saída do assinante. O marco **v0.7.0** concluiu a fase1 com timeout, keepalive e limites;
 inclui integração systemd e pacote Ubuntu26.04 amd64. Veja [instalação e serviços](docs/ubuntu-systemd.md).
 Projeto experimental; consulte as prereleases no GitHub.
 
@@ -32,9 +33,9 @@ cd ~/xmqr-pacotes
 3. Baixe o pacote e confira sua integridade:
 
 ```bash
-wget -O xmqr-client_0.7.1-1_amd64.deb https://github.com/licodevone/xmqr-client/releases/download/v0.7.1/xmqr-client_0.7.1-1_amd64.deb
-wget -O xmqr-client_0.7.1-1_amd64.deb.sha256 https://github.com/licodevone/xmqr-client/releases/download/v0.7.1/xmqr-client_0.7.1-1_amd64.deb.sha256
-sha256sum -c xmqr-client_0.7.1-1_amd64.deb.sha256
+wget -O xmqr-client_0.8.0-1_amd64.deb https://github.com/licodevone/xmqr-client/releases/download/v0.8.0/xmqr-client_0.8.0-1_amd64.deb
+wget -O xmqr-client_0.8.0-1_amd64.deb.sha256 https://github.com/licodevone/xmqr-client/releases/download/v0.8.0/xmqr-client_0.8.0-1_amd64.deb.sha256
+sha256sum -c xmqr-client_0.8.0-1_amd64.deb.sha256
 ```
 
 Prossiga somente se a verificação mostrar `OK`.
@@ -42,7 +43,7 @@ Prossiga somente se a verificação mostrar `OK`.
 4. Instale e confirme o pacote, o executável e a conta de serviço:
 
 ```bash
-sudo apt install ./xmqr-client_0.7.1-1_amd64.deb
+sudo apt install ./xmqr-client_0.8.0-1_amd64.deb
 dpkg-query -W -f='${Status}\n' xmqr-client
 mqtt-client --version
 id xmqr-client
@@ -407,6 +408,24 @@ igualdade com os fontes após C28.
 SIGTERM/SIGINT usam DISCONNECT limitado a1s no link disponível. A unit de
 publicação não reinicia; a de assinatura tem reinícios limitados. Atualizações
 param instâncias; reinicie explicitamente após revisar configuração.
+
+## Filtros retained na assinatura — C41
+
+`sub --ignore-retained` omite mensagens recebidas com RETAIN=true;
+`sub --retained-only` exibe somente essas mensagens. Sem flag, todas são exibidas.
+As opções são exclusivas, não aceitam valor e não valem para `pub`.
+
+```sh
+mqtt-client sub --open-lab --topic 'sensor/#' --ignore-retained --count 1 --output jsonl
+mqtt-client sub --open-lab --topic 'sensor/#' --retained-only --count 1 --output jsonl
+```
+
+`--count` conta somente mensagens exibidas. Mensagens filtradas continuam sendo
+recebidas e confirmadas em QoS1/2; o filtro não muda a assinatura nem a ACL.
+RETAIN é a flag recebida do broker: o replay de retained normalmente a usa,
+enquanto publicações ao vivo chegam com RETAIN=false mesmo quando o publicador
+usou `--retain true`. O filtro não deduz quais tópicos têm retained armazenado.
+Text e JSONL seguem a mesma regra; reconexão, cancelamento e timeouts permanecem.
 
 ## Publicação verificada
 

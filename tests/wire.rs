@@ -104,6 +104,65 @@ fn publish(stream: &mut TcpStream) {
         .unwrap();
 }
 
+#[test]
+fn retained_filters_count_only_displayed_messages_and_ack_filtered_qos() {
+    for filter in ["--ignore-retained", "--retained-only"] {
+        for qos in 0..=2 {
+            let listener = listener();
+            let port = listener.local_addr().unwrap().port();
+            let only = filter == "--retained-only";
+            let server = thread::spawn(move || {
+                let mut stream = accept(&listener);
+                connect(&mut stream, false);
+                subscribe(&mut stream, qos);
+                for (identifier, retained, content) in [(7_u8, !only, b'x'), (8, only, b'y')] {
+                    let mut body = vec![0, 1, b't'];
+                    if qos > 0 {
+                        body.extend([0, identifier]);
+                    }
+                    body.push(content);
+                    stream
+                        .write_all(
+                            &[
+                                vec![
+                                    0x30 | (qos << 1) | u8::from(retained),
+                                    u8::try_from(body.len()).unwrap(),
+                                ],
+                                body,
+                            ]
+                            .concat(),
+                        )
+                        .unwrap();
+                    if qos == 1 {
+                        assert_eq!(packet(&mut stream), (0x40, vec![0, identifier]));
+                    } else if qos == 2 {
+                        assert_eq!(packet(&mut stream), (0x50, vec![0, identifier]));
+                        stream.write_all(&[0x62, 2, 0, identifier]).unwrap();
+                        assert_eq!(packet(&mut stream), (0x70, vec![0, identifier]));
+                    }
+                }
+                assert_eq!(packet(&mut stream), (0xe0, vec![]));
+            });
+            let qos_text = qos.to_string();
+            let output = finish(child(
+                port,
+                "sub",
+                &[filter, "--count", "1", "--qos", &qos_text],
+            ));
+            server.join().unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let stdout = String::from_utf8(output.stdout).unwrap();
+            assert_eq!(stdout.lines().count(), 1);
+            assert!(stdout.contains("\"payload_bytes\":[121]"));
+            assert!(stdout.contains(&format!("\"retain\":{only}")));
+        }
+    }
+}
+
 fn child(port: u16, command: &str, extra: &[&str]) -> Child {
     Command::new(env!("CARGO_BIN_EXE_mqtt-client"))
         .args([
