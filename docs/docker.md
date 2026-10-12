@@ -20,6 +20,7 @@ docker run --rm \
   -v "$PWD/certs:/run/certs:ro" \
   xmqr-client:0.7.1 sub \
   --host broker --port 8883 --topic 'sensors/#' --topic 'alerts/#' \
+  --username device --password-file /run/certs/password \
   --ca /run/certs/ca.crt --cert /run/certs/client.crt --key /run/certs/client.key \
   --output jsonl
 ```
@@ -32,8 +33,8 @@ use `-i` com um fluxo redirecionado ou um bind mount para o arquivo.
 `--open-lab` só alcança um broker no loopback do mesmo namespace de rede. Não o
 use como forma de conectar containers separados; para a rede entre containers,
 use TLS/mTLS e confira o SAN do certificado contra o nome de host escolhido.
-Essas imagens permanecem locais: nenhum registry é acessado e nenhuma tag Git é
-criada por esta tarefa.
+As imagens são distribuídas por arquivos anexados às releases. Os builds
+baixam imagens-base/dependências; não houve publicação em registry nesta entrega.
 
 ## Distribuição P63/C40 — linux/amd64
 
