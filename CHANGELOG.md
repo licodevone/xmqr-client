@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## C45 — robustez de sessão (candidato; versão pelo marco coordenado)
+
+- --total-timeout-seconds1..86400 opcional, monotônico, sem reset por tráfego/retry.
+- Jitter80..100% no backoff exponencial, orçamento0..10 total sem reset.
+- CONNACK de reconexão limitado pelo protocolo, SUBACK/idle deadlineabsoluto;
+  PINGRESP/ACKs não renovam os90s de ausência de PUBLISH.
+- SIGINT/SIGTERM prioritários; não reconectar/republicar no cancelamento ou total.
+- QoS1duplicata continua legítima; recepçãoQoS2interrompida falha explicitamente.
+- Sem novas dependências, sem relaxarTLS/SAN/credenciais/limites.
+
 ## 0.8.1 — distribuição Docker Hub
 
 - Corrige label Docker que ainda identificava 0.7.1; verifica a versão real no build.

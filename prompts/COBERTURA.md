@@ -1,5 +1,11 @@
 # Cobertura atual dos prompts do cliente
 
+AtualizaçãoC45,2026-10-13: promptprévio cobre totalmonotônico opcional,
+jitterlimitado/budgetúnico e cancelamentoSIGINT/SIGTERM, separação de
+CONNACK/protocolo/idle e QoSincerto. Veja [registroC45](registros/C45-robustez-reconexao.md)
+para gates reais; nenhum aceite externo ou release inferido da existência do código.
+Snapshot histórico abaixo preservado; C43/C44 encerraram fase2 no recorte aceito.
+
 Snapshot C29/C28/C27/C26, 2026-10-10. Código presente não equivale a validação externa.
 Pacote/binário independentes, Rust2024/MSRV1.88, MIT, manifest0.4.0 candidato independente sem nova release.
 Nenhuma dependência do crate do broker. Estado de origem em ORIGIN.json.

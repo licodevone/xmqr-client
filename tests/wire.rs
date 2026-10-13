@@ -255,7 +255,7 @@ fn reconnect_preserves_id_and_resubscribes_only_without_session() {
         let stdout = String::from_utf8(output.stdout).unwrap();
         let expected = "{\"event\":\"publish\",\"topic\":\"t\",\"qos\":0,\"retain\":true,\"payload_bytes\":[0,255,10,34]}";
         assert_eq!(stdout.lines().collect::<Vec<_>>(), [expected, expected]);
-        assert!(String::from_utf8_lossy(&output.stderr).contains("Reconexao 1/1 em 100ms"));
+        assert_retry_delay(&output.stderr, "1/1", 80..=100);
     }
 }
 
@@ -281,9 +281,26 @@ fn repeated_disconnects_exhaust_process_budget() {
     assert!(!output.status.success());
     assert_eq!(output.stdout, [] as [u8; 0]);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("Reconexao 1/2 em 100ms"));
-    assert!(stderr.contains("Reconexao 2/2 em 200ms"));
+    assert_retry_delay(&output.stderr, "1/2", 80..=100);
+    assert_retry_delay(&output.stderr, "2/2", 160..=200);
     assert!(stderr.contains("limite de reconexao esgotado"));
+}
+
+fn assert_retry_delay(stderr: &[u8], attempt: &str, range: std::ops::RangeInclusive<u64>) {
+    let stderr = String::from_utf8_lossy(stderr);
+    let prefix = format!("Reconexao {attempt} em ");
+    let line = stderr
+        .lines()
+        .find(|line| line.starts_with(&prefix))
+        .unwrap();
+    let milliseconds = line
+        .strip_prefix(&prefix)
+        .unwrap()
+        .strip_suffix("ms")
+        .unwrap()
+        .parse::<u64>()
+        .unwrap();
+    assert!(range.contains(&milliseconds));
 }
 
 #[test]
@@ -975,4 +992,311 @@ fn refused_suback_reports_policy_limits_without_claiming_a_quota_reason() {
     assert!(diagnostic.contains("nao informa causa especifica"));
     assert!(!diagnostic.contains("Reconexao"));
     assert!(listener.accept().is_err());
+}
+
+#[test]
+fn total_timeout_bounds_connack_suback_publish_and_application_wait() {
+    for stage in ["connack", "suback", "puback", "application"] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            if stage == "connack" {
+                assert_eq!(packet(&mut stream).0, 0x10);
+            } else {
+                connect(&mut stream, false);
+                if stage == "application" {
+                    subscribe(&mut stream, 0);
+                } else {
+                    let header = packet(&mut stream).0;
+                    assert_eq!(header >> 4, if stage == "suback" { 8 } else { 3 });
+                }
+            }
+            let mut byte = [0];
+            assert_eq!(
+                stream.read(&mut byte).unwrap(),
+                0,
+                "deadline drops without reconnect"
+            );
+            assert!(listener.accept().is_err());
+        });
+        let mut extra = vec![
+            "--timeout-seconds",
+            "8",
+            "--total-timeout-seconds",
+            "1",
+            "--reconnect-attempts",
+            "10",
+        ];
+        let command = if stage == "puback" {
+            extra.extend(["--message", "deadline-fixture", "--qos", "1"]);
+            "pub"
+        } else {
+            "sub"
+        };
+        let started = Instant::now();
+        let output = finish(child(port, command, &extra));
+        let elapsed = started.elapsed();
+        server.join().unwrap();
+        assert!(!output.status.success());
+        assert!(elapsed >= Duration::from_millis(800) && elapsed < Duration::from_secs(3));
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("tempo total da operacao esgotado")
+        );
+        assert_eq!(output.stdout, [] as [u8; 0]);
+    }
+}
+
+#[test]
+fn total_timeout_is_not_renewed_by_messages_or_reconnection_backoff() {
+    // Frequent application traffic renews idle but must not renew total.
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        connect(&mut stream, false);
+        subscribe(&mut stream, 0);
+        for _ in 0..20 {
+            if stream.write_all(&[0x30, 4, 0, 1, b't', b'a']).is_err() {
+                break;
+            }
+            thread::sleep(Duration::from_millis(80));
+        }
+        assert!(listener.accept().is_err());
+    });
+    let started = Instant::now();
+    let output = finish(child(port, "sub", &["--total-timeout-seconds", "1"]));
+    let elapsed = started.elapsed();
+    server.join().unwrap();
+    assert!(!output.status.success());
+    assert!(elapsed < Duration::from_secs(3));
+    assert_ne!(output.stdout, [] as [u8; 0]);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("tempo total da operacao esgotado"));
+
+    let listener = crate::listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        // Four failures consume base 100+200+400+800; total expires during #4 backoff.
+        for _ in 0..4 {
+            let mut stream = accept(&listener);
+            assert_eq!(packet(&mut stream).0, 0x10);
+        }
+        thread::sleep(Duration::from_millis(900));
+        assert!(
+            listener.accept().is_err(),
+            "no fifth attempt after total expiry"
+        );
+    });
+    let output = finish(child(
+        port,
+        "sub",
+        &["--total-timeout-seconds", "1", "--reconnect-attempts", "10"],
+    ));
+    server.join().unwrap();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Reconexao 4/10"));
+    assert!(!stderr.contains("Reconexao 5/10"));
+    assert!(stderr.contains("tempo total da operacao esgotado"));
+}
+
+#[test]
+fn qos1_duplicate_delivery_remains_observable_without_exactly_once_claim() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        connect(&mut stream, false);
+        subscribe(&mut stream, 1);
+        for header in [0x32, 0x3a] {
+            stream
+                .write_all(&[header, 6, 0, 1, b't', 0, 7, b'x'])
+                .unwrap();
+            assert_eq!(packet(&mut stream), (0x40, vec![0, 7]));
+        }
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(
+        port,
+        "sub",
+        &["--qos", "1", "--count", "2", "--total-timeout-seconds", "3"],
+    ));
+    server.join().unwrap();
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout).lines().count(), 2);
+}
+
+#[cfg(unix)]
+#[test]
+fn signals_cancel_connack_poll_backoff_and_following_input_without_retry() {
+    for signal in ["-INT", "-TERM"] {
+        for stage in ["poll", "backoff", "input"] {
+            let listener = listener();
+            let port = listener.local_addr().unwrap().port();
+            let mut process = if stage == "input" {
+                let mut process = stdin_child(
+                    port,
+                    &["--line-mode", "--qos", "1", "--reconnect-attempts", "10"],
+                );
+                process
+                    .stdin
+                    .as_mut()
+                    .unwrap()
+                    .write_all(b"first\n")
+                    .unwrap();
+                process
+            } else {
+                child(port, "sub", &["--reconnect-attempts", "10"])
+            };
+            let mut stream = accept(&listener);
+            if stage == "input" {
+                connect(&mut stream, false);
+                let (_, body) = packet(&mut stream);
+                stream.write_all(&[0x40, 2, body[3], body[4]]).unwrap();
+                let stdout = process.stdout.take().unwrap();
+                let mut reader = std::io::BufReader::new(stdout);
+                let mut line = String::new();
+                std::io::BufRead::read_line(&mut reader, &mut line).unwrap();
+                assert!(line.contains("publish_complete"));
+            } else {
+                assert_eq!(packet(&mut stream).0, 0x10);
+                if stage == "backoff" {
+                    drop(stream);
+                    // Observe sixth (>=2560ms) backoff before signal, not a guessed sleep.
+                    let stderr = process.stderr.take().unwrap();
+                    let mut reader = std::io::BufReader::new(stderr);
+                    for attempt in 1..=6 {
+                        if attempt > 1 {
+                            stream = accept(&listener);
+                            assert_eq!(packet(&mut stream).0, 0x10);
+                            drop(stream);
+                        }
+                        let mut line = String::new();
+                        std::io::BufRead::read_line(&mut reader, &mut line).unwrap();
+                        assert!(line.contains(&format!("Reconexao {attempt}/10")));
+                    }
+                    assert!(
+                        Command::new("kill")
+                            .args([signal, &process.id().to_string()])
+                            .status()
+                            .unwrap()
+                            .success()
+                    );
+                    assert!(finish(process).status.success());
+                    thread::sleep(Duration::from_millis(50));
+                    assert!(listener.accept().is_err());
+                    continue;
+                }
+            }
+            assert!(
+                Command::new("kill")
+                    .args([signal, &process.id().to_string()])
+                    .status()
+                    .unwrap()
+                    .success()
+            );
+            if stage == "input" {
+                assert_eq!(packet(&mut stream), (0xe0, vec![]));
+            } else {
+                let mut byte = [0];
+                assert_eq!(stream.read(&mut byte).unwrap(), 0);
+            }
+            assert!(finish(process).status.success());
+            assert!(listener.accept().is_err());
+        }
+    }
+}
+
+#[test]
+fn total_timeout_also_bounds_following_payload_input_without_new_publish() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let mut process = stdin_child(
+        port,
+        &["--line-mode", "--qos", "1", "--total-timeout-seconds", "1"],
+    );
+    process
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(b"first\n")
+        .unwrap();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        connect(&mut stream, false);
+        let (_, body) = packet(&mut stream);
+        stream.write_all(&[0x40, 2, body[3], body[4]]).unwrap();
+        let mut byte = [0];
+        assert_eq!(
+            stream.read(&mut byte).unwrap(),
+            0,
+            "no second PUBLISH nor retry after total expiry"
+        );
+        assert!(listener.accept().is_err());
+    });
+    let started = Instant::now();
+    let output = finish(process);
+    server.join().unwrap();
+    assert!(started.elapsed() < Duration::from_secs(3));
+    assert!(!output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout).lines().count(), 1);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("tempo total da operacao esgotado"));
+}
+
+#[test]
+fn reconnect_connack_is_protocol_bounded_not_ninety_second_idle() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let (ready, resume) = std::sync::mpsc::channel();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        connect(&mut stream, false);
+        subscribe(&mut stream, 0);
+        resume.recv_timeout(Duration::from_secs(3)).unwrap();
+        drop(stream);
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        // A silent reconnected peer cannot borrow the application's idle90s.
+        let mut byte = [0];
+        assert_eq!(stream.read(&mut byte).unwrap(), 0);
+        assert!(listener.accept().is_err());
+    });
+    let started = Instant::now();
+    let mut process = child(
+        port,
+        "sub",
+        &["--timeout-seconds", "1", "--reconnect-attempts", "10"],
+    );
+    let mut reader = std::io::BufReader::new(process.stderr.take().unwrap());
+    let mut line = String::new();
+    std::io::BufRead::read_line(&mut reader, &mut line).unwrap();
+    assert!(line.contains("Assinatura ativa"));
+    process.stderr = Some(reader.into_inner());
+    ready.send(()).unwrap();
+    let output = finish(process);
+    server.join().unwrap();
+    assert!(started.elapsed() < Duration::from_secs(3));
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("tempo esgotado aguardando resposta do broker"));
+    assert!(stderr.contains("Reconexao 1/10"));
+    assert!(!stderr.contains("Reconexao 2/10"));
+}
+
+#[test]
+fn invalid_total_timeout_is_static_and_never_opens_network() {
+    let listener = listener();
+    for value in ["0", "86401", "private-fixture-input", "4294967296"] {
+        let output = finish(child(
+            listener.local_addr().unwrap().port(),
+            "sub",
+            &["--total-timeout-seconds", value],
+        ));
+        assert_eq!(output.status.code(), Some(2));
+        assert_eq!(output.stdout, [] as [u8; 0]);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("--total-timeout-seconds deve ser 1..86400"));
+        assert!(!stderr.contains("private-fixture-input"));
+        assert!(listener.accept().is_err());
+    }
 }

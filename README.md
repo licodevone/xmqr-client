@@ -1,5 +1,10 @@
 # xmqr-client
 
+C45 acrescenta prazo total monotônico opcional e jitter limitado de reconexão,
+separa CONNACK de reconexão do idle e prioriza cancelamentoSIGINT/SIGTERM.
+Veja [robustez da sessão](docs/client-robustness.md) e [registroC45](prompts/registros/C45-robustez-reconexao.md).
+O marco de release será registrado somente após os gates coordenados.
+
 O client participa do [checklist da fase2](docs/phase2-acceptance.md).
 C43 amplia interop externa sem mudar runtime0.8.1; P85/C44 completaram
 o aceite físico ESP32 e encerraram a fase2 no escopo validado, sem declarar produção.
@@ -317,7 +322,8 @@ independente 0.3.0, sem reescrever a tag anterior.
 `--reconnect-attempts N` aceita 0..10 (padrão 0, falha sem reconectar).
 Usa o mesmo EventLoop rumqttc, Client ID e opções de sessão. O orçamento é total
 por processo, incluindo falhas antes do CONNACK e quedas após conectar, sem reset.
-As esperas são 100, 200, 400, 800, 1600, 3200ms e no máximo 5s nas demais tentativas;
+Desde C45, as bases são 100, 200, 400, 800, 1600, 3200ms e 5s nas demais;
+cada espera usa jitter limitado80..100% da base, sem ultrapassar5s;
 cada conexão mantém os timeouts da biblioteca e os deadlines do cliente.
 TLS, recusa de autenticação e erros de protocolo não são retentados.
 
@@ -461,6 +467,17 @@ inalterado; expirar o deadline externo não cria nova tentativa.
 A assinatura mantém sua inatividade de 90s, entrada de payload mantém 8s e
 cancelamento mantém DISCONNECT de até 1s. Publicação interrompida tem resultado
 desconhecido e não é reenviada. A opção não altera os timeouts internos do rumqttc.
+
+C45 corrige a renovação do idle: após SUBACK, somente PUBLISH recebido reinicia
+90s; PINGRESP/eventos de saída não mascaram ausência de mensagens. Na reconexão,
+CONNACK usa protocolo configurado, não idle90s. SUBACK/idle incluem backoff.
+
+`--total-timeout-seconds N` aceita1..86400, opcional; padrão sem prazo total.
+Usa uma deadline monotônica desde session::run após a primeira entrada de payload
+e senha, incluindo TLS/rede/backoff/protocolo/mensagens/entrada posterior e
+DISCONNECT normal. Nunca renova; não limita a senha interativa nem a entrada
+inicial (8s). Expiração sai com erro, sem reenvio nem período adicional.
+SIGINT/SIGTERM já pendentes são priorizados sobre poll e nova tentativa.
 
 Exemplo local: `mqtt-client sub --open-lab --topic test/# --keepalive-seconds 45 --timeout-seconds 3`.
 Veja [registro C37](prompts/registros/C37-timeout-keepalive.md).

@@ -9,6 +9,12 @@
 !src/**
 !docs/
 !docs/third-party-licenses.md
+!scripts/
+!scripts/collect_notices.py
+!packaging/
+!packaging/notices/
+!packaging/notices/valuable-0.1.1/
+!packaging/notices/valuable-0.1.1/LICENSE
 **/.env*
 **/*.key
 **/*.pem

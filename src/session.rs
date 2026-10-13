@@ -1,4 +1,6 @@
-use std::{error::Error, io, time::Duration};
+use std::{
+    collections::hash_map::RandomState, error::Error, hash::BuildHasher, io, time::Duration,
+};
 
 use rumqttc::{
     AsyncClient, ConnectionError, Event, EventLoop, Incoming, MqttOptions, Outgoing, QoS,
@@ -26,6 +28,11 @@ pub async fn run(
     password: Option<String>,
     publication: Option<crate::payload::Publication>,
 ) -> AppResult<()> {
+    // One monotonic deadline; reconnects and ordinary traffic cannot renew it.
+    // Initial payload/password reads occur before run() and are excluded.
+    let total_deadline = cli
+        .total_timeout_seconds
+        .map(|seconds| Instant::now() + Duration::from_secs(u64::from(seconds)));
     let mut options = MqttOptions::new(&cli.client_id, &cli.host, cli.port);
     if cli.transport_mode == TransportMode::Secure {
         let tls_config = tls::build_client_config(&cli)?;
@@ -51,13 +58,40 @@ pub async fn run(
 
     let (client, mut events) = AsyncClient::new(options, 8);
     let result = tokio::select! {
-        result = run_connected(&cli, &client, &mut events, publication) => return result,
+        biased;
         signal = crate::signals::shutdown() => signal,
+        () = total_expired(total_deadline) => {
+            // Do not add a grace period or call poll() after total expiry.
+            let message = if matches!(cli.mode, Mode::Pub { .. }) {
+                "tempo total da operacao esgotado; publicacao pode ter resultado desconhecido, nao reenviada"
+            } else {
+                "tempo total da operacao esgotado"
+            };
+            return Err(io::Error::new(io::ErrorKind::TimedOut, message).into());
+        },
+        result = run_connected(&cli, &client, &mut events, publication) => return result,
     };
     result?;
-    cancel_connection(&client, &mut events).await;
+    if let Some(deadline) = cancellation_deadline(total_deadline) {
+        let _ = timeout_at(deadline, cancel_connection(&client, &mut events)).await;
+    }
     eprintln!("Cancelado por sinal de encerramento");
     Ok(())
+}
+
+fn cancellation_deadline(total: Option<Instant>) -> Option<Instant> {
+    let now = Instant::now();
+    let normal = now + Duration::from_secs(1);
+    let deadline = total.map_or(normal, |total| total.min(normal));
+    (deadline > now).then_some(deadline)
+}
+
+async fn total_expired(deadline: Option<Instant>) {
+    if let Some(deadline) = deadline {
+        tokio::time::sleep_until(deadline).await;
+    } else {
+        std::future::pending::<()>().await;
+    }
 }
 
 async fn cancel_connection(client: &AsyncClient, events: &mut EventLoop) {
@@ -164,7 +198,7 @@ async fn await_connack(
     limit: Duration,
 ) -> AppResult<()> {
     loop {
-        match retry.next(events, limit).await? {
+        match retry.next(events, limit, limit).await? {
             Event::Incoming(Incoming::ConnAck(ack)) if ack.code == ConnectReturnCode::Success => {
                 return Ok(());
             }
@@ -206,13 +240,20 @@ async fn await_publish_complete(
 struct Retry {
     remaining: u8,
     used: u8,
+    jitter_state: u64,
 }
 
 impl Retry {
-    const fn new(attempts: u8) -> Self {
+    fn new(attempts: u8) -> Self {
+        // RandomState provides a per-process seed; jitter is not a security primitive.
+        Self::with_seed(attempts, RandomState::new().hash_one(std::process::id()))
+    }
+
+    const fn with_seed(attempts: u8, seed: u64) -> Self {
         Self {
             remaining: attempts,
             used: 0,
+            jitter_state: if seed == 0 { 1 } else { seed },
         }
     }
 
@@ -221,14 +262,29 @@ impl Retry {
             return None;
         }
         self.remaining -= 1;
-        let delay = Duration::from_millis((100_u64 << self.used).min(5000));
+        let base_ms = (100_u64 << self.used).min(5000);
+        self.jitter_state ^= self.jitter_state << 13;
+        self.jitter_state ^= self.jitter_state >> 7;
+        self.jitter_state ^= self.jitter_state << 17;
+        let percent = 80 + self.jitter_state % 21;
+        let delay = Duration::from_millis(base_ms * percent / 100);
         self.used += 1;
         Some(delay)
     }
 
-    async fn next(&mut self, events: &mut EventLoop, limit: Duration) -> AppResult<Event> {
+    async fn next(
+        &mut self,
+        events: &mut EventLoop,
+        limit: Duration,
+        connect_limit: Duration,
+    ) -> AppResult<Event> {
         loop {
-            let error = match timeout(limit, events.poll()).await {
+            let poll_limit = if events.network.is_none() {
+                limit.min(connect_limit)
+            } else {
+                limit
+            };
+            let error = match timeout(poll_limit, events.poll()).await {
                 Ok(Ok(event)) => return Ok(event),
                 Ok(Err(error)) => error,
                 Err(_) => return Err(timed_out("resposta do broker").into()),
@@ -257,6 +313,26 @@ impl Retry {
         );
         tokio::time::sleep(delay).await;
         Ok(())
+    }
+
+    async fn next_before(
+        &mut self,
+        events: &mut EventLoop,
+        deadline: Instant,
+        connect_limit: Duration,
+        waiting_ack: bool,
+    ) -> AppResult<Event> {
+        let duration = deadline.saturating_duration_since(Instant::now());
+        // Absolute protocol/idle deadline includes failed polls and backoff.
+        timeout_at(deadline, self.next(events, duration, connect_limit))
+            .await
+            .map_err(|_| {
+                timed_out(if waiting_ack {
+                    "SUBACK"
+                } else {
+                    "mensagens de aplicacao"
+                })
+            })?
     }
 }
 
@@ -349,8 +425,9 @@ async fn subscribe(
             break;
         }
         let event = if incoming_qos2.is_empty() {
-            let duration = deadline.saturating_duration_since(Instant::now());
-            retry.next(events, duration).await?
+            retry
+                .next_before(events, deadline, limit, waiting_ack)
+                .await?
         } else {
             // rumqttc clean() drops incoming QoS2 state. Resuming a partially
             // received handshake could reject PUBREL or duplicate application data.
@@ -423,9 +500,7 @@ async fn subscribe(
             Event::Outgoing(_) | Event::Incoming(Incoming::PingResp) => {}
             Event::Incoming(_) => return Err(invalid_data("resposta MQTT inesperada").into()),
         }
-        if !waiting_ack {
-            deadline = Instant::now() + IDLE_TIMEOUT;
-        }
+        // PINGRESP and outbound protocol ACKs do not renew application idle.
     }
     graceful_disconnect(client, events, limit).await
 }
@@ -472,6 +547,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn cancellation_budget_never_extends_total_deadline() {
+        let now = Instant::now();
+        assert!(cancellation_deadline(None).unwrap() <= Instant::now() + Duration::from_secs(1));
+        let short = now + Duration::from_millis(25);
+        assert_eq!(cancellation_deadline(Some(short)), Some(short));
+        assert_eq!(cancellation_deadline(Some(now)), None);
+        assert!(
+            cancellation_deadline(Some(now + Duration::from_secs(10))).unwrap()
+                < now + Duration::from_secs(2)
+        );
+    }
+
+    #[test]
     fn diagnostics_distinguish_authentication_and_protocol_without_error_contents() {
         assert!(
             connection_diagnostic(&ConnectionError::ConnectionRefused(
@@ -497,13 +585,20 @@ mod tests {
 
     #[test]
     fn retry_budget_and_progressive_delays_are_finite() {
-        let mut retry = Retry::new(10);
+        let mut retry = Retry::with_seed(10, 123);
         let delays: Vec<_> = (0..10)
             .map(|_| retry.take_delay().unwrap().as_millis())
             .collect();
+        let bases = [100, 200, 400, 800, 1600, 3200, 5000, 5000, 5000, 5000];
+        for (delay, base) in delays.iter().zip(bases) {
+            assert!((base * 80 / 100..=base).contains(delay));
+        }
+        let mut same_seed = Retry::with_seed(10, 123);
         assert_eq!(
             delays,
-            [100, 200, 400, 800, 1600, 3200, 5000, 5000, 5000, 5000]
+            (0..10)
+                .map(|_| same_seed.take_delay().unwrap().as_millis())
+                .collect::<Vec<_>>()
         );
         assert_eq!(retry.take_delay(), None);
         assert_eq!(Retry::new(0).take_delay(), None);
@@ -574,6 +669,7 @@ mod tests {
         let mut retry = Retry {
             remaining: 1,
             used: 5,
+            jitter_state: 123,
         };
         assert!(
             timeout(Duration::from_millis(100), retry.wait())

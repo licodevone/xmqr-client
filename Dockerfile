@@ -8,10 +8,16 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
+COPY scripts/collect_notices.py ./scripts/collect_notices.py
+COPY packaging/notices ./packaging/notices
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && python3 scripts/collect_notices.py --output /third-party-notices
 RUN cargo build --locked --release --bin mqtt-client
 
 FROM debian:bookworm-slim AS runtime
-ARG VERSION=0.8.1
+ARG VERSION=0.9.0
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="XMQR Client" \
       org.opencontainers.image.version="${VERSION}" \
@@ -26,6 +32,7 @@ RUN apt-get update \
 COPY --from=build --chown=10001:10001 /src/target/release/mqtt-client /usr/local/bin/mqtt-client
 COPY --chown=10001:10001 LICENSE /usr/share/licenses/xmqr-client/LICENSE
 COPY --chown=10001:10001 docs/third-party-licenses.md /usr/share/licenses/xmqr-client/third-party-licenses.md
+COPY --from=build --chown=10001:10001 /third-party-notices /usr/share/licenses/xmqr-client/third-party
 USER 10001:10001
 STOPSIGNAL SIGTERM
 RUN test "$(/usr/local/bin/mqtt-client --version)" = "mqtt-client ${VERSION}"

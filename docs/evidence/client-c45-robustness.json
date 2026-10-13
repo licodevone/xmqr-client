@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "client_version": "mqtt-client 0.9.0",
+  "client_sha256": "a7a89dba2245f56d4161d52a9767441257edca04be8042edcabf358e4bb05f58",
+  "transport": "anonymous_loopback",
+  "cases": [
+    {
+      "name": "initial_input_cancel_SIGINT",
+      "status": "PASS",
+      "seconds": 0.041,
+      "connections": 0
+    },
+    {
+      "name": "initial_input_cancel_SIGTERM",
+      "status": "PASS",
+      "seconds": 0.013,
+      "connections": 0
+    },
+    {
+      "name": "idle90_not_renewed_by_pingresp",
+      "status": "PASS",
+      "seconds": 90.001,
+      "ping_responses": 89
+    }
+  ],
+  "elapsed_seconds": 90.583
+}

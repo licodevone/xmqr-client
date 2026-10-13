@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tempfile
 import tomllib
+from collect_notices import collect
 
 
 def run(*args, **kwargs):
@@ -43,6 +44,8 @@ def main():
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='xmqr-deb-') as temp:
+        notices = Path(temp) / 'third-party-notices'
+        collect(root, notices)
         stage = Path(temp) / 'package'
         def put(source, destination, mode=0o644):
             target = stage / destination
@@ -56,6 +59,8 @@ def main():
             put(unit, 'usr/lib/systemd/system/' + unit.name)
         for file in ['LICENSE', 'docs/third-party-licenses.md', 'docs/ubuntu-systemd.md']:
             put(root / file, 'usr/share/doc/' + name + '/' + Path(file).name)
+        put(root / 'LICENSE', 'usr/share/doc/' + name + '/copyright')
+        shutil.copytree(notices, stage / 'usr/share/doc' / name / 'third-party')
         control = stage / 'DEBIAN'
         control.mkdir()
         # Let dpkg derive ABI dependencies from the actual ELF files.

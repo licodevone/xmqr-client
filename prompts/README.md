@@ -1,5 +1,9 @@
 # Prompts do xmqr-client
 
+Próxima fatia corrente C45: [robustez/reconexão fase3](clients/45-robustez-reconexao.md),
+preparada antes das fontes; [registro real](registros/C45-robustez-reconexao.md).
+O histórico abaixo não substitui os aceites posterioresC39/C43/C44.
+
 Estado auditado em 2026-10-10: pacote xmqr-client, binário mqtt-client, manifest
 0.4.0 candidato independente (C29), Rust 2024/MSRV 1.88, MIT, publish=false. Nenhuma release
 decorre deste índice. C26 foi escrito antes do código; revisões precederam seus ajustes.

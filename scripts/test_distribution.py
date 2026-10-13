@@ -46,7 +46,10 @@ class DistributionContract(unittest.TestCase):
         self.assertEqual(rules[0], '**')
         self.assertEqual({r for r in rules if r.startswith('!')}, {
             '!Cargo.toml', '!Cargo.lock', '!Dockerfile', '!.dockerignore', '!LICENSE',
-            '!src/', '!src/**', '!docs/', '!docs/third-party-licenses.md'})
+            '!src/', '!src/**', '!docs/', '!docs/third-party-licenses.md',
+            '!scripts/', '!scripts/collect_notices.py', '!packaging/',
+            '!packaging/notices/', '!packaging/notices/valuable-0.1.1/',
+            '!packaging/notices/valuable-0.1.1/LICENSE'})
         for pattern in ['**/.env*', '**/*.key', '**/*.pem', '**/*.crt', '**/*.wal', '**/*.db']:
             self.assertIn(pattern, rules)
             self.assertGreater(rules.index(pattern), rules.index('!src/**'))
@@ -71,6 +74,14 @@ class DistributionContract(unittest.TestCase):
         wrong['Architecture'] = 'arm64'
         with self.assertRaises(ValueError):
             RELEASE.validate_image(wrong, 'mqtt-admin', '0.11.3', 'commit-fixture')
+
+    def test_original_notices_and_mit_copyright_are_packaged(self):
+        package_script = (ROOT / 'scripts/build_deb.py').read_text()
+        self.assertIn('collect(root, notices)', package_script)
+        self.assertIn("'/copyright'", package_script)
+        self.assertIn("/ 'third-party')", package_script)
+        self.assertIn('python3 scripts/collect_notices.py --output /third-party-notices', self.dockerfile)
+        self.assertIn('COPY --from=build --chown=10001:10001 /third-party-notices', self.dockerfile)
 
 
 if __name__ == '__main__':

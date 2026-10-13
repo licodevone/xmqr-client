@@ -63,6 +63,7 @@ pub struct Cli {
     pub reconnect_attempts: u8,
     pub keepalive_seconds: u16,
     pub timeout_seconds: u16,
+    pub total_timeout_seconds: Option<u32>,
     pub mode: Mode,
     pub will: Option<Will>,
     pub host: String,
@@ -79,7 +80,7 @@ pub struct Cli {
     pub transport_mode: TransportMode,
 }
 
-pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl, --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --message TEXTO (pub), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
+pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl, --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -94,6 +95,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut reconnect_attempts = None;
     let mut keepalive_seconds = None;
     let mut timeout_seconds = None;
+    let mut total_timeout_seconds = None;
     let mut message_file = None;
     let mut stdin = false;
     let mut line_mode = false;
@@ -170,6 +172,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             "--reconnect-attempts" => &mut reconnect_attempts,
             "--keepalive-seconds" => &mut keepalive_seconds,
             "--timeout-seconds" => &mut timeout_seconds,
+            "--total-timeout-seconds" => &mut total_timeout_seconds,
             "--will-topic" => &mut will_topic,
             "--will-message" => &mut will_message,
             "--will-qos" => &mut will_qos,
@@ -349,6 +352,15 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         u16::MAX,
     )?;
     let timeout_seconds = parse_seconds(timeout_seconds.as_deref(), "--timeout-seconds", 8, 300)?;
+    let total_timeout_seconds = total_timeout_seconds
+        .map(|value| {
+            value
+                .parse::<u32>()
+                .ok()
+                .filter(|seconds| (1..=86_400).contains(seconds))
+                .ok_or("--total-timeout-seconds deve ser 1..86400")
+        })
+        .transpose()?;
     Ok(Cli {
         line_mode,
         retained_filter: retained_filter.unwrap_or(RetainedFilter::All),
@@ -356,6 +368,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         reconnect_attempts,
         keepalive_seconds,
         timeout_seconds,
+        total_timeout_seconds,
         mode,
         will,
         host,
@@ -572,6 +585,7 @@ mod tests {
         let defaults = parse(base("sub")).unwrap();
         assert_eq!(defaults.keepalive_seconds, 30);
         assert_eq!(defaults.timeout_seconds, 8);
+        assert_eq!(defaults.total_timeout_seconds, None);
         for (flag, max) in [("--keepalive-seconds", 65535), ("--timeout-seconds", 300)] {
             for value in ["1".to_owned(), max.to_string()] {
                 let mut args = base("sub");
@@ -602,6 +616,32 @@ mod tests {
             args.extend([flag.into(), "1".into(), flag.into(), "2".into()]);
             assert!(parse(args).is_err());
         }
+    }
+
+    #[test]
+    fn total_timeout_is_optional_bounded_and_unique() {
+        for value in ["1", "86400"] {
+            let mut args = base("sub");
+            args.extend(["--total-timeout-seconds".into(), value.into()]);
+            assert_eq!(
+                parse(args.clone())
+                    .unwrap()
+                    .total_timeout_seconds
+                    .unwrap()
+                    .to_string(),
+                value
+            );
+            args.extend(["--total-timeout-seconds".into(), value.into()]);
+            assert!(parse(args).is_err());
+        }
+        for value in ["0", "86401", "-1", "1.5", "text", "4294967296"] {
+            let mut args = base("sub");
+            args.extend(["--total-timeout-seconds".into(), value.into()]);
+            assert!(parse(args).is_err());
+        }
+        let mut args = base("sub");
+        args.push("--total-timeout-seconds".into());
+        assert!(parse(args).is_err());
     }
 
     #[test]

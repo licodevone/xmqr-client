@@ -31,16 +31,17 @@ async fn main() {
             std::process::exit(2);
         };
         let first = tokio::select! {
+            biased;
+            signal = signals::shutdown() => {
+                if signal.is_err() { std::process::exit(1); }
+                eprintln!("Cancelado por sinal de encerramento");
+                return;
+            },
             result = input.next() => match result {
                 Ok(Some(bytes)) => bytes,
                 Ok(None) => return, // Empty line input does not connect or publish.
                 Err(error) => { eprintln!("Erro: {error}"); std::process::exit(2); }
             },
-            signal = signals::shutdown() => {
-                if signal.is_err() { std::process::exit(1); }
-                eprintln!("Cancelado por sinal de encerramento");
-                return;
-            }
         };
         Some(payload::Publication { input, first })
     } else {

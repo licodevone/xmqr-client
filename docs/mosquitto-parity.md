@@ -1,5 +1,14 @@
 # Paridade do mqtt-client com Mosquitto
 
+## Fase3 — C45 / C07, 2026-10-13
+
+[Robustez](client-robustness.md): totalmonotônico opcional1..86400,
+protocolo/idle/input/cancelamento separados, jitter80..100% da base exponencial,
+retrybudget0..10semreset e cancelamento prioritário. QoS1duplicata legítima e
+QoS2recebido incerto mantêm suas limitações; nenhuma persistência local nova.
+O [registroC45](../prompts/registros/C45-robustez-reconexao.md) separa fixtures/gates
+de interop externaP91, publicação e aceitedafase3 global.
+
 ## Fase2 — C43, 2026-10-13
 
 [Checklist próprio](phase2-acceptance.md):59cenários reais mTLS com
