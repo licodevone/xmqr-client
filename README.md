@@ -1,5 +1,10 @@
 # xmqr-client
 
+Marco de distribuição atual: **0.8.1**, com imagem
+`lepinheiro100/xmqr-client:0.8.1`, .deb Ubuntu26 amd64 e manifesto/checksums.
+Mantém o comportamento da 0.8.0. O [plano detalhado de paridade](https://github.com/licodevone/xmqr/blob/main/docs/plano-paridade-mosquitto.md)
+está concluído como planejamento, sem implementar fases futuras nesta entrega.
+
 Projeto Rust independente, extraído do cliente XMQR. Pacote `xmqr-client`,
 binário compatível `mqtt-client`. A versão **v0.8.0** acrescenta filtros retained
 na saída do assinante. O marco **v0.7.0** concluiu a fase1 com timeout, keepalive e limites;
@@ -33,9 +38,9 @@ cd ~/xmqr-pacotes
 3. Baixe o pacote e confira sua integridade:
 
 ```bash
-wget -O xmqr-client_0.8.0-1_amd64.deb https://github.com/licodevone/xmqr-client/releases/download/v0.8.0/xmqr-client_0.8.0-1_amd64.deb
-wget -O xmqr-client_0.8.0-1_amd64.deb.sha256 https://github.com/licodevone/xmqr-client/releases/download/v0.8.0/xmqr-client_0.8.0-1_amd64.deb.sha256
-sha256sum -c xmqr-client_0.8.0-1_amd64.deb.sha256
+wget -O xmqr-client_0.8.1-1_amd64.deb https://github.com/licodevone/xmqr-client/releases/download/v0.8.1/xmqr-client_0.8.1-1_amd64.deb
+wget -O xmqr-client_0.8.1-1_amd64.deb.sha256 https://github.com/licodevone/xmqr-client/releases/download/v0.8.1/xmqr-client_0.8.1-1_amd64.deb.sha256
+sha256sum -c xmqr-client_0.8.1-1_amd64.deb.sha256
 ```
 
 Prossiga somente se a verificação mostrar `OK`.
@@ -43,7 +48,7 @@ Prossiga somente se a verificação mostrar `OK`.
 4. Instale e confirme o pacote, o executável e a conta de serviço:
 
 ```bash
-sudo apt install ./xmqr-client_0.8.0-1_amd64.deb
+sudo apt install ./xmqr-client_0.8.1-1_amd64.deb
 dpkg-query -W -f='${Status}\n' xmqr-client
 mqtt-client --version
 id xmqr-client
@@ -482,6 +487,6 @@ resultados Windows, Ubuntu24, arm64 ou MSRV1.88 exato.
 
 ## Docker — distribuição P63/C40
 
-Imagem xmqr-client:0.7.1 paraLinux/amd64 com imagem tar.gz eSHA-256 na release; também inclui
+Imagem lepinheiro100/xmqr-client:0.8.1 para Linux/amd64 com tar.gz/SHA-256 e manifesto na prerelease; também inclui
 .debUbuntu26amd64. [Build/load, configuração e execução](docs/docker.md).
 Sem chaves/estado na imagem; usuário10001, mTLS e volumes externos.

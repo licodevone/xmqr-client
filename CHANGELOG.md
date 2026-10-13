@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.8.1 — distribuição Docker Hub
+
+- Corrige label Docker que ainda identificava 0.7.1; verifica a versão real no build.
+- Contexto allowlist, artefatos/checksums/proveniência de commit aceito.
+- .deb Ubuntu26 amd64 e imagem Bookworm amd64 distribuídos separadamente.
+- Plano compartilhado concluído; sem mudança funcional do client 0.8.0.
+
 ## 0.8.0 — filtros retained na saída
 
 - `sub --ignore-retained` e `sub --retained-only`, exclusivos e opcionais.

@@ -1,5 +1,14 @@
 # Paridade do mqtt-client com Mosquitto
 
+## Planejamento concluído e distribuição — C42, 2026-10-13
+
+Client 0.8.1 é um patch de distribuição: contexto Docker com allowlist,
+conferência da versão real/labels e artefatos/proveniência para Docker Hub.
+Sem mudança nas opções, filtros retained, wire, limites ou credenciais da 0.8.0.
+O [plano detalhado compartilhado](https://github.com/licodevone/xmqr/blob/main/docs/plano-paridade-mosquitto.md)
+define C01–C08, MQTT5, transports e distribuição com dependências e aceite;
+as fases futuras não foram implementadas nesta entrega.
+
 Atualizado em C41, 2026-10-12: client 0.8.0, independente MQTT3.1.1/rumqttc.
 Filtros retained aceitos em fixtures e integração própria QoS0/1/2. As tabelas
 de validação C36 abaixo são históricas; aceite posterior da fase1 é P61/C39.

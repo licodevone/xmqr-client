@@ -11,7 +11,7 @@ COPY src ./src
 RUN cargo build --locked --release --bin mqtt-client
 
 FROM debian:bookworm-slim AS runtime
-ARG VERSION=0.7.1
+ARG VERSION=0.8.1
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="XMQR Client" \
       org.opencontainers.image.version="${VERSION}" \
@@ -28,4 +28,5 @@ COPY --chown=10001:10001 LICENSE /usr/share/licenses/xmqr-client/LICENSE
 COPY --chown=10001:10001 docs/third-party-licenses.md /usr/share/licenses/xmqr-client/third-party-licenses.md
 USER 10001:10001
 STOPSIGNAL SIGTERM
+RUN test "$(/usr/local/bin/mqtt-client --version)" = "mqtt-client ${VERSION}"
 ENTRYPOINT ["/usr/local/bin/mqtt-client"]

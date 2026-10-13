@@ -1,5 +1,34 @@
 # Imagem Docker do cliente MQTT
 
+## Marco 0.8.1 — Docker Hub
+
+Imagem Linux/amd64 no namespace autorizado, mantendo os filtros retained da
+0.8.0. Nenhuma opção MQTT, credencial, limite ou dependência foi alterada.
+Comandos abaixo pressupõem o aceite/publicação; conferir a tag/digest e
+o manifesto da prerelease v0.8.1 antes de usar.
+
+```sh
+docker pull lepinheiro100/xmqr-client:0.8.1
+docker run --rm --network none --read-only --cap-drop=ALL lepinheiro100/xmqr-client:0.8.1 --version
+docker build --platform linux/amd64 --build-arg VERSION=0.8.1 --build-arg VCS_REF="$(git rev-parse HEAD)" -t lepinheiro100/xmqr-client:0.8.1 .
+```
+
+O build verifica a versão real do binário, corrigindo o label antigo 0.7.1.
+O contexto allowlist exclui arquivos locais, snapshots, fixtures e chaves.
+UID10001, SIGTERM, CA/SAN e secret-file privado continuam obrigatórios.
+Use a imagem completa do Hub nos exemplos de configuração abaixo.
+
+O .deb é Ubuntu26 amd64; o runtime da imagem é DebianBookworm com compilação
+própria. Não instalar o .deb Ubuntu no Bookworm. .deb/checksums, imagem
+tar.gz e manifesto de proveniência acompanham a prerelease. A exportação
+scripts/release_assets.py exige fontes commitadas e labels/version/revision
+coerentes, sem publicar automaticamente. Tags antigas/latest não são movidas.
+
+Veja o [plano detalhado de paridade](https://github.com/licodevone/xmqr/blob/main/docs/plano-paridade-mosquitto.md).
+As seções C40 abaixo são histórico, não indicam ausência de publicação atual.
+
+## Histórico de distribuição local C40
+
 A imagem é independente do broker, construída a partir deste repositório e do
 `Cargo.lock`. Rust 1.99.0 corresponde à validação Linux atual. A imagem final
 Debian slim contém o `mqtt-client`, certificados públicos do sistema e os
