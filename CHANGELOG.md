@@ -1,6 +1,6 @@
 # Histórico de versões
 
-## 0.9.0 — robustez de sessão, aceite técnico experimental
+## 0.9.0 — robustez de sessão e distribuição experimental
 
 - C45: `--total-timeout-seconds` 1..86400 opcional, monotônico, sem reset por tráfego/retry.
 - Jitter 80..100% no backoff exponencial, orçamento 0..10 total sem reset.
@@ -11,9 +11,14 @@
 - Aceite técnico coordenado em 2026-10-13: 63 testes do client, interop 87/87,
   ensaio do broker 6/6 (três repetições TCP/mTLS >=600s), QA de cinco payloads
   e 14 negativos, ciclo Ubuntu26 com execução real dos ELFs instalados.
-- C46: fonte exata `e688c75a3779803e8f1868792dcc5e7a36f2dd6e`, `.deb`
-  Ubuntu26 amd64 e imagem Bookworm amd64 aceitos tecnicamente. Publicação
-  v0.9.0 no GitHub/Docker Hub e verificações remotas ainda pendentes.
+- C46: fonte e tag v0.9.0 em `e688c75a3779803e8f1868792dcc5e7a36f2dd6e`;
+  [prerelease publicada](https://github.com/licodevone/xmqr-client/releases/tag/v0.9.0)
+  em 2026-10-13, com 18 anexos conferidos por nome/tamanho/SHA.
+- `.deb` Ubuntu26 amd64 e imagem Bookworm Linux/amd64 distribuídos. O tar.gz
+  é export Docker para `docker load`, não pacote de executáveis nativos.
+- Docker Hub `lepinheiro100/xmqr-client:0.9.0` verificado remotamente por digest,
+  pull/run, versão real e revision; downloads de `.deb`/manifest e sidecars
+  coincidem com os locais. Não altera latest nem tags/assets anteriores.
 - MQTT 3.1.1 e MIT preservados; sem novas dependências ou relaxamento de
   TLS/SAN/credenciais/limites. Não declara produção, SLA ou conformidade integral.
 - Evidências e limitações: [registro C46](prompts/registros/C46-release-fase3.md).

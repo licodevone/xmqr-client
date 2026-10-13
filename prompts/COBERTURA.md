@@ -2,10 +2,12 @@
 
 ## C45/C46 — aceite técnico da fase 3, 2026-10-13
 
-Client **0.9.0 aceito tecnicamente no recorte experimental** por C46/P92 v1.7.
+Client **0.9.0 aceito tecnicamente e distribuído no recorte experimental**
+por C46/P92 v1.7–v1.9.
 Fonte dos artefatos: `e688c75a3779803e8f1868792dcc5e7a36f2dd6e`, clone clean.
-Publicação nova e verificação remota de tags/releases/digests ainda pendentes;
-commits documentais posteriores não mudam a fonte atribuída ao pacote.
+Tag v0.9.0, prerelease/18 anexos e Hub numerado verificados remotamente;
+downloads de `.deb`/manifest e sidecars coincidem com os locais. Commits
+documentais posteriores não mudam a fonte atribuída ao pacote.
 
 | Contrato atual | Evidência coordenada final | Limite |
 | --- | --- | --- |
@@ -14,11 +16,12 @@ commits documentais posteriores não mudam a fonte atribuída ao pacote.
 | Pressão/recuperação do broker integrado | 6/6, três repetições TCP/mTLS >=600s; 1808,946s de parede | Ensaio do broker, não benchmark do client ou estabilidade ilimitada |
 | Fonte e distribuição local | Oito gates do clone clean e688; `.deb` Ubuntu26 amd64; ciclo install/upgrade/rollback/remove/purge com ELFs realmente executados | Não homologa Ubuntu24/arm64/Windows nativo/MSRV1.88 exato |
 | Licenças e payloads | QA 5/5 +14 negativos; client 81 pacotes/158 textos originais preservados, MIT própria canônica | Superset do lock, não composição completa do ELF ou auditoria jurídica |
+| Publicação C46/P92 | [Prerelease v0.9.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.9.0), 18 anexos conferidos; Hub 0.9.0 por digest/pull/run/revision; downloads reais conferidos | Sem latest/overwrite; tar.gz é imagem para docker load, não ELF nativo |
 
 MQTT 3.1.1/MIT e os limites existentes permanecem. MQTT 5 é planejamento da
 fase 6, não iniciado; fases 4/5 não foram implementadas por este fechamento.
 Veja o [registro C46](registros/C46-release-fase3.md) para fontes, hashes,
-falhas históricas preservadas e pendências de publicação.
+falhas históricas preservadas e verificação da publicação.
 
 ## Snapshot histórico preservado
 

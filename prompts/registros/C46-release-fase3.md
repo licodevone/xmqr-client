@@ -1,10 +1,11 @@
-# Registro C46 — aceite técnico experimental 0.9.0
+# Registro C46 — aceite e distribuição experimental 0.9.0
 
 2026-10-13. Prompt C46 v1/v1.1 e revisões P92 preparados antes das mudanças
 de versão, embalagem e correções. A skill local xmqr-client-development
 orientou a preservação do contrato e os gates. C46/P92 v1.7 encerram o aceite
 técnico da fase 3 no recorte finito validado. Publicação coordenada pelo
-agente raiz **ainda pendente**; aceite técnico não significa release publicada.
+agente raiz concluída e verificada conforme P92 v1.9, na seção própria abaixo.
+Aceite técnico isolado não foi usado como prova de publicação remota.
 
 ## Fonte exata e resultado nativo
 
@@ -37,7 +38,7 @@ Duração total do driver: **434,906s**. Esses tempos não são benchmark nem SL
 Logs/JSON reais em `.artifacts/phase3-p92-20261013/xmqr-client/dist/`, no
 agrupador local, não no Git: c46-native-gates.log e c46-native-final.json.
 
-## Artefatos candidatos
+## Artefatos aceitos
 
 - Executável `dist/native/mqtt-client`: 6.116.272 bytes; versão retornada
   `mqtt-client 0.9.0`; SHA-256
@@ -140,7 +141,7 @@ revision abbe. IDs locais de imagem não são digests remotos do Docker Hub.
 O soak conserva HEAD 3a5e29d/dirty=true do início; as 26 entradas src/Cargo
 ficaram estáveis e o ELF executado coincide com o rebuild clean abbe.
 Não apresentar esse ensaio original como checkout clean. Seus 1698 probes
-incluem quatro ready0 transitórios, recuperação máxima1,659s dentro do
+incluem quatro ready0 transitórios, recuperação máxima 1,659s dentro do
 prazo quiescente 15s. Isso não é SLA instantâneo de readiness/throughput.
 As causas exatas dos dois FAIL intermediários de readiness externa não foram
 recuperadas; Will 6/contratos 21 e a matriz completa final reforçam a evidência
@@ -150,21 +151,46 @@ Relatórios finais no agrupador local, fora do Git:
 `p91-soak-candidate-6.json` SHA
 `6bdc2c71c276723a0c4ad782643752aad243816e5d8283a386d63678951826c1`;
 `p91-interop-candidate-4.json` SHA
-`809719cd60c24e8a97c53506b813719125470c3b1494275e164c06e3aaabdddaf`.
+`809719cd60c24e8a97c53506b813719125470c3b1494275e164c06e3aaabddaf`.
 QA conjunto: broker/dist/p92-notices-final.json SHA
 `60b392dec0593f8e8994573a5d25b9f8dfc64ff624e10ff8860efa4c1d32d0ae`.
 Contexto público da coordenação:
 [aceite dos três sistemas](https://github.com/licodevone/xmqr/blob/main/docs/phase3-acceptance.md)
 e [registro P92](https://github.com/licodevone/xmqr/blob/main/prompts/registros/P92-aceitacao-distribuicao-fase3.md).
 
-## Pendências de publicação e limites
+## Publicação coordenada verificada — P92 v1.9
 
-Aceite técnico experimental da fase 3 concluído; tag imutável v0.9.0, GitHub
-prerelease, publicação Docker Hub numerada e conferência remota de assets/
-digests permanecem pendentes do coordenador. Não anunciar distribuição nova
-antes dessas verificações, nem mover latest/tags antigas. README e instruções
-da distribuição publicada não são alterados por esta atualização documental.
-Os tar/checksum 0.7.1 locais e commits do mantenedor foram preservados.
+- Tag anotada **v0.9.0** aponta para a fonte exata
+  `e688c75a3779803e8f1868792dcc5e7a36f2dd6e`; `git ls-remote` confirmou
+  esse destino peeled. Não foi criada ou movida por esta atualização documental.
+- [GitHub prerelease v0.9.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.9.0)
+  publicada em **2026-10-13T22:23:52Z**. O coordenador conferiu nome, tamanho
+  e SHA dos **18 arquivos anexados** por API antes de retirar o draft.
+  A página publicada foi consultada nesta revisão; arquivos de fonte
+  automáticos do GitHub não integram essa contagem de anexos do projeto.
+- Docker Hub **lepinheiro100/xmqr-client:0.9.0**, digest remoto
+  `sha256:e1c56183bd98fbe33c9fade58f81d61b2f60eb960c3704747528ec7f471a11ed`.
+  O coordenador confirmou inspect remoto, pull/run por digest, `--version`
+  e revision e688. O fato de coincidir com o ID de imagem registrado acima
+  foi verificado, não presumido como regra geral do Docker.
+- Downloads reais de `.deb`, seu sidecar, manifest e seu sidecar: quatro
+  assets por release, **bytes idênticos aos locais**, exit0. O client `.deb`
+  conserva SHA `04eb2830dc67fa086f327555f58d027f8f4e4c1654f72ddc000589ab90c05396`.
+- A release coordenada do broker v0.11.6 também foi publicada, com 42 anexos
+  e tag abbe; o admin independente permanece 0.1.0 sem repin/novo runtime.
+
+O `.deb` é nativo **Ubuntu26.04 amd64**. Os exports `.tar.gz` são imagens
+Docker **Bookworm Linux/amd64**, destinadas a `docker load`; não são pacotes
+de executáveis nativos. Latest, tags/releases anteriores, assets originais e
+os tar/checksum 0.7.1 do mantenedor foram preservados. Esta tarefa alterou
+somente CHANGELOG, COBERTURA e este registro; README/guias ficam com a
+coordenação, sem reconstruir ou substituir artefatos por commits documentais.
+
+P92 v1.8 corrigiu a transcrição anterior do SHA da matriz (um 'd' extra,
+65 caracteres). Este registro agora usa o SHA real de 64 caracteres,
+conferido nos bytes do JSON, sem editar a evidência original ou alterar o gate.
+
+## Limites do aceite e da distribuição
 
 MQTT 3.1.1 continua o protocolo entregue. MQTT 5 é planejamento da fase 6,
 não iniciado; fases 4/5 não foram implementadas neste fechamento. Sem nova
