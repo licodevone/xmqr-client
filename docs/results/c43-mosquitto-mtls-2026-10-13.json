@@ -1,0 +1,493 @@
+{
+  "status": "PASS",
+  "completed_utc": "2026-10-13T05:22:54.907225+00:00",
+  "images": {
+    "broker": {
+      "id": "sha256:ce70000ac6a5896c3c9c7ffc05d8fe71ecd894a190b625fc967a62d00fdd54b0",
+      "repo_digests": [
+        "lepinheiro100/xmqr-broker@sha256:ce70000ac6a5896c3c9c7ffc05d8fe71ecd894a190b625fc967a62d00fdd54b0"
+      ],
+      "labels": {
+        "org.opencontainers.image.licenses": "MIT",
+        "org.opencontainers.image.revision": "4e199b2244cc7758414531425dc1f1f483ac40ba",
+        "org.opencontainers.image.source": "https://github.com/licodevone/xmqr",
+        "org.opencontainers.image.title": "XMQR Broker",
+        "org.opencontainers.image.version": "0.11.3"
+      }
+    },
+    "client": {
+      "id": "sha256:dc81d9dace3ad3f2a94a6a52ea37da1009c44ad8d26aa48fba77842e138ec191",
+      "repo_digests": [
+        "lepinheiro100/xmqr-client@sha256:dc81d9dace3ad3f2a94a6a52ea37da1009c44ad8d26aa48fba77842e138ec191"
+      ],
+      "labels": {
+        "org.opencontainers.image.licenses": "MIT",
+        "org.opencontainers.image.revision": "bc94bd04d36f2bf5e61f3d60391bae142d9407b6",
+        "org.opencontainers.image.source": "https://github.com/licodevone/xmqr-client",
+        "org.opencontainers.image.title": "XMQR Client",
+        "org.opencontainers.image.version": "0.8.1"
+      }
+    },
+    "mosquitto": {
+      "id": "sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21",
+      "repo_digests": [
+        "eclipse-mosquitto@sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21"
+      ],
+      "labels": {
+        "org.opencontainers.image.authors": "Roger Light <roger@atchoo.org>",
+        "org.opencontainers.image.description": "Eclipse Mosquitto MQTT Broker",
+        "org.opencontainers.image.documentation": "https://mosquitto.org/documentation/",
+        "org.opencontainers.image.licenses": "EPL-2.0 OR BSD-3-Clause",
+        "org.opencontainers.image.source": "https://github.com/eclipse-mosquitto/mosquitto",
+        "org.opencontainers.image.title": "eclipse-mosquitto",
+        "org.opencontainers.image.url": "https://mosquitto.org/",
+        "org.opencontainers.image.version": "2.0.22"
+      }
+    }
+  },
+  "client_source_head": "bc94bd04d36f2bf5e61f3d60391bae142d9407b6",
+  "harness_sha256": "4b2507099b364942df2a57a88ad37bccdd3313246eea1a9262703492554f0c17",
+  "scenarios": [
+    {
+      "server": "xmqr",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 0,
+      "scenario": "live_binary_mtls",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 0,
+      "scenario": "retained_binary_replay",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 0,
+      "scenario": "retained_delete_then_live",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 0,
+      "scenario": "live_binary_mtls",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 0,
+      "scenario": "retained_binary_replay",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 0,
+      "scenario": "retained_delete_then_live",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 1,
+      "scenario": "live_binary_mtls",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 1,
+      "scenario": "retained_binary_replay",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 1,
+      "scenario": "retained_delete_then_live",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 1,
+      "scenario": "live_binary_mtls",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 1,
+      "scenario": "retained_binary_replay",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 1,
+      "scenario": "retained_delete_then_live",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 2,
+      "scenario": "live_binary_mtls",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 2,
+      "scenario": "retained_binary_replay",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 2,
+      "scenario": "retained_delete_then_live",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 2,
+      "scenario": "live_binary_mtls",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 2,
+      "scenario": "retained_binary_replay",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 2,
+      "scenario": "retained_delete_then_live",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "scenario": "will_after_test_process_kill",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "scenario": "persistent_offline_resume",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "scenario": "will_after_test_process_kill",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "scenario": "persistent_offline_resume",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "client": "xmqr",
+      "scenario": "reject_ca",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "client": "xmqr",
+      "scenario": "reject_password",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "client": "mosquitto",
+      "scenario": "reject_ca",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "client": "mosquitto",
+      "scenario": "reject_password",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "client": "xmqr",
+      "scenario": "reject_publish_acl",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "client": "mosquitto",
+      "scenario": "reject_publish_acl",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "client": "xmqr",
+      "scenario": "reject_subscribe_acl",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "client": "xmqr",
+      "scenario": "reject_server_san",
+      "status": "PASS"
+    },
+    {
+      "server": "xmqr",
+      "client": "mosquitto",
+      "scenario": "reject_server_san",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 0,
+      "scenario": "live_binary_mtls",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 0,
+      "scenario": "retained_binary_replay",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 0,
+      "scenario": "retained_delete_then_live",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 0,
+      "scenario": "live_binary_mtls",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 0,
+      "scenario": "retained_binary_replay",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 0,
+      "scenario": "retained_delete_then_live",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 1,
+      "scenario": "live_binary_mtls",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 1,
+      "scenario": "retained_binary_replay",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 1,
+      "scenario": "retained_delete_then_live",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 1,
+      "scenario": "live_binary_mtls",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 1,
+      "scenario": "retained_binary_replay",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 1,
+      "scenario": "retained_delete_then_live",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 2,
+      "scenario": "live_binary_mtls",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 2,
+      "scenario": "retained_binary_replay",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "qos": 2,
+      "scenario": "retained_delete_then_live",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 2,
+      "scenario": "live_binary_mtls",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 2,
+      "scenario": "retained_binary_replay",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "qos": 2,
+      "scenario": "retained_delete_then_live",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "scenario": "will_after_test_process_kill",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "xmqr",
+      "subscriber": "mosquitto",
+      "scenario": "persistent_offline_resume",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "scenario": "will_after_test_process_kill",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "publisher": "mosquitto",
+      "subscriber": "xmqr",
+      "scenario": "persistent_offline_resume",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "client": "xmqr",
+      "scenario": "reject_ca",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "client": "xmqr",
+      "scenario": "reject_password",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "client": "mosquitto",
+      "scenario": "reject_ca",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "client": "mosquitto",
+      "scenario": "reject_password",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "client": "xmqr",
+      "scenario": "reject_server_san",
+      "status": "PASS"
+    },
+    {
+      "server": "mosquitto",
+      "client": "mosquitto",
+      "scenario": "reject_server_san",
+      "status": "PASS"
+    }
+  ],
+  "network": "test-owned loopback namespaces, no published host ports",
+  "limitations": [
+    "Not exhaustive MQTT3.1.1 conformance",
+    "No MQTT5",
+    "Physical ESP32 NOT_RUN",
+    "Power-loss, reconnect faults and certificate rotation belong to later campaigns"
+  ]
+}

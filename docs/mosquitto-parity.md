@@ -1,5 +1,12 @@
 # Paridade do mqtt-client com Mosquitto
 
+## Fase2 — C43, 2026-10-13
+
+[Checklist próprio](phase2-acceptance.md):59cenários reais mTLS com
+Mosquitto2.0.22 pinado PASS. Clientruntime0.8.1 preservado. Fase compartilhada
+validada no software, BLOCKED paraE01 físico. Tabelas históricasC36 abaixo
+não substituem resultados novos de C43.
+
 ## Planejamento concluído e distribuição — C42, 2026-10-13
 
 Client 0.8.1 é um patch de distribuição: contexto Docker com allowlist,
