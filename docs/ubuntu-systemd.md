@@ -4,7 +4,7 @@ Alvo: Ubuntu26.04 amd64. Construção requer Rust, Python3 e dpkg-dev:
 
 ```sh
 python3 scripts/build_deb.py
-sudo apt install ./dist/xmqr-client_0.5.0-1_amd64.deb
+sudo apt install ./dist/xmqr-client_0.9.0-1_amd64.deb
 mqtt-client --version
 ```
 

@@ -3,15 +3,20 @@
 C45 acrescenta prazo total monotônico opcional e jitter limitado de reconexão,
 separa CONNACK de reconexão do idle e prioriza cancelamentoSIGINT/SIGTERM.
 Veja [robustez da sessão](docs/client-robustness.md) e [registroC45](prompts/registros/C45-robustez-reconexao.md).
-O marco de release será registrado somente após os gates coordenados.
+O marco0.9.0 passou os gates coordenados e está publicado;
+veja [C46](prompts/registros/C46-release-fase3.md) e o
+[aceite da fase3](https://github.com/licodevone/xmqr/blob/main/docs/phase3-acceptance.md).
+MQTT5 continua planejado, não implementado.
 
 O client participa do [checklist da fase2](docs/phase2-acceptance.md).
 C43 amplia interop externa sem mudar runtime0.8.1; P85/C44 completaram
 o aceite físico ESP32 e encerraram a fase2 no escopo validado, sem declarar produção.
 
-Marco de distribuição atual: **0.8.1**, com imagem
-`lepinheiro100/xmqr-client:0.8.1`, .deb Ubuntu26 amd64 e manifesto/checksums.
-Mantém o comportamento da 0.8.0. O [plano detalhado de paridade](https://github.com/licodevone/xmqr/blob/main/docs/plano-paridade-mosquitto.md)
+Marco de distribuição atual: **0.9.0**, com imagem
+`lepinheiro100/xmqr-client:0.9.0`, .deb Ubuntu26amd64 e manifesto/checksums na
+[prerelease](https://github.com/licodevone/xmqr-client/releases/tag/v0.9.0).
+Acrescenta a robustez C45 e preserva as versões anteriores.
+O [plano detalhado de paridade](https://github.com/licodevone/xmqr/blob/main/docs/plano-paridade-mosquitto.md)
 está concluído como planejamento, sem implementar fases futuras nesta entrega.
 
 Projeto Rust independente, extraído do cliente XMQR. Pacote `xmqr-client`,
@@ -47,9 +52,9 @@ cd ~/xmqr-pacotes
 3. Baixe o pacote e confira sua integridade:
 
 ```bash
-wget -O xmqr-client_0.8.1-1_amd64.deb https://github.com/licodevone/xmqr-client/releases/download/v0.8.1/xmqr-client_0.8.1-1_amd64.deb
-wget -O xmqr-client_0.8.1-1_amd64.deb.sha256 https://github.com/licodevone/xmqr-client/releases/download/v0.8.1/xmqr-client_0.8.1-1_amd64.deb.sha256
-sha256sum -c xmqr-client_0.8.1-1_amd64.deb.sha256
+wget -O xmqr-client_0.9.0-1_amd64.deb https://github.com/licodevone/xmqr-client/releases/download/v0.9.0/xmqr-client_0.9.0-1_amd64.deb
+wget -O xmqr-client_0.9.0-1_amd64.deb.sha256 https://github.com/licodevone/xmqr-client/releases/download/v0.9.0/xmqr-client_0.9.0-1_amd64.deb.sha256
+sha256sum -c xmqr-client_0.9.0-1_amd64.deb.sha256
 ```
 
 Prossiga somente se a verificação mostrar `OK`.
@@ -57,7 +62,7 @@ Prossiga somente se a verificação mostrar `OK`.
 4. Instale e confirme o pacote, o executável e a conta de serviço:
 
 ```bash
-sudo apt install ./xmqr-client_0.8.1-1_amd64.deb
+sudo apt install ./xmqr-client_0.9.0-1_amd64.deb
 dpkg-query -W -f='${Status}\n' xmqr-client
 mqtt-client --version
 id xmqr-client
@@ -508,6 +513,6 @@ resultados Windows, Ubuntu24, arm64 ou MSRV1.88 exato.
 
 ## Docker — distribuição P63/C40
 
-Imagem lepinheiro100/xmqr-client:0.8.1 para Linux/amd64 com tar.gz/SHA-256 e manifesto na prerelease; também inclui
+Imagem lepinheiro100/xmqr-client:0.9.0 para Linux/amd64 com export Docker tar.gz/SHA-256 e manifesto na prerelease; também inclui
 .debUbuntu26amd64. [Build/load, configuração e execução](docs/docker.md).
 Sem chaves/estado na imagem; usuário10001, mTLS e volumes externos.

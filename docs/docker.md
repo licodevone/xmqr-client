@@ -1,6 +1,37 @@
 # Imagem Docker do cliente MQTT
 
-## Marco 0.8.1 — Docker Hub
+## Distribuição atual 0.9.0 — robustez da sessão
+
+Imagem publicada e conferida por manifest, pull/run por digest, versão real
+e source revision `e688c75a3779803e8f1868792dcc5e7a36f2dd6e`.
+MQTT3.1.1 e robustez C45; MQTT5 não implementado.
+
+```sh
+docker pull lepinheiro100/xmqr-client:0.9.0
+docker run --rm --network none --read-only --cap-drop=ALL lepinheiro100/xmqr-client:0.9.0 --version
+```
+
+Digest OCI publicado:
+`sha256:e1c56183bd98fbe33c9fade58f81d61b2f60eb960c3704747528ec7f471a11ed`.
+A [prerelease0.9.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.9.0)
+inclui .debUbuntu26amd64, export Docker tar.gz, manifest/checksums e evidências.
+Confira SHA antes de `docker load -i ARQUIVO.tar.gz`; o export não é pacote
+de ELF nativo. Runtime da imagem Bookworm, independente do .debUbuntu.
+
+Rebuild do checkout atual usa somente tag LOCAL ainda inexistente, nunca
+substitui uma tag publicada. Revision de HEAD documental não é a fonte e688
+atribuída ao artefato publicado.
+
+```sh
+docker build --platform linux/amd64 --build-arg VERSION=0.9.0 --build-arg VCS_REF="$(git rev-parse HEAD)" -t xmqr-client:0.9.0-local .
+```
+
+UID10001, credenciais/estado externos, CA/SAN e segredo privado preservados.
+Limites e resultados em [C46](../prompts/registros/C46-release-fase3.md).
+Comandos de build das seções históricas abaixo não servem no HEAD atual
+e não devem sobrepor tags publicadas.
+
+## Histórico do marco 0.8.1 — Docker Hub
 
 Imagem Linux/amd64 no namespace autorizado, mantendo os filtros retained da
 0.8.0. Nenhuma opção MQTT, credencial, limite ou dependência foi alterada.
