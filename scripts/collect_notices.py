@@ -62,6 +62,21 @@ def notice_paths(package):
 
 def supplement_paths(root, package, packages):
     key = package['name'], package['version']
+    if key == ('rumqttc', '0.25.1'):
+        vcs = json.loads((Path(package['manifest_path']).parent / '.cargo_vcs_info.json').read_text())
+        commit = 'f1e9e8d558783f942993046679cdf3c8c3a3d36b'
+        repository = 'https://github.com/bytebeamio/rumqtt'
+        if (vcs['git']['sha1'] != commit or vcs.get('path_in_vcs') != 'rumqttc'
+                or package.get('license') != 'Apache-2.0' or package.get('repository') != repository):
+            raise ValueError('rumqttc supplement source/license does not match locked crate')
+        base = root / 'packaging/notices/rumqttc-0.25.1'
+        selected = [base / 'LICENSE']
+        if selected[0].is_symlink() or digest(selected[0]) != 'cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30':
+            raise ValueError('rumqttc original license hash mismatch')
+        return base, selected, {'source_revision': commit, 'repository': repository,
+                                'url': repository + '/blob/' + commit + '/LICENSE',
+                                'license_git_blob': 'd645695673349e3947e8e5ae42332d0ac3164cd7',
+                                'scope': 'original monorepo LICENSE; crate omits file; no NOTICE in reviewed tree'}
     if key == ('valuable', '0.1.1'):
         vcs = json.loads((Path(package['manifest_path']).parent / '.cargo_vcs_info.json').read_text())
         commit = '9efc29b6e58cef28f6566a47aa7e142a55fead77'

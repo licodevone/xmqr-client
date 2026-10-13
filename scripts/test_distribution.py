@@ -3,8 +3,10 @@
 """P78/C42: packaging contracts, without Docker/network/publication."""
 import copy
 import importlib.util
+import json
 from pathlib import Path
 import re
+import tempfile
 import tomllib
 import unittest
 
@@ -12,6 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('release_assets', ROOT / 'scripts/release_assets.py')
 RELEASE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RELEASE)
+NOTICE_SPEC = importlib.util.spec_from_file_location('collect_notices', ROOT / 'scripts/collect_notices.py')
+NOTICES = importlib.util.module_from_spec(NOTICE_SPEC)
+NOTICE_SPEC.loader.exec_module(NOTICES)
 
 
 class DistributionContract(unittest.TestCase):
@@ -49,7 +54,8 @@ class DistributionContract(unittest.TestCase):
             '!src/', '!src/**', '!docs/', '!docs/third-party-licenses.md',
             '!scripts/', '!scripts/collect_notices.py', '!packaging/',
             '!packaging/notices/', '!packaging/notices/valuable-0.1.1/',
-            '!packaging/notices/valuable-0.1.1/LICENSE'})
+            '!packaging/notices/valuable-0.1.1/LICENSE',
+            '!packaging/notices/rumqttc-0.25.1/', '!packaging/notices/rumqttc-0.25.1/LICENSE'})
         for pattern in ['**/.env*', '**/*.key', '**/*.pem', '**/*.crt', '**/*.wal', '**/*.db']:
             self.assertIn(pattern, rules)
             self.assertGreater(rules.index(pattern), rules.index('!src/**'))
@@ -82,6 +88,28 @@ class DistributionContract(unittest.TestCase):
         self.assertIn("/ 'third-party')", package_script)
         self.assertIn('python3 scripts/collect_notices.py --output /third-party-notices', self.dockerfile)
         self.assertIn('COPY --from=build --chown=10001:10001 /third-party-notices', self.dockerfile)
+
+    def test_rumqttc_original_license_is_pinned_and_wrong_metadata_fails(self):
+        with tempfile.TemporaryDirectory(prefix='xmqr-c46-notice-test-') as temporary:
+            path = Path(temporary).resolve(strict=True)
+            self.assertTrue(path.is_relative_to(Path(tempfile.gettempdir()).resolve()))
+            manifest = path / 'Cargo.toml'
+            manifest.write_text('')
+            vcs_file = path / '.cargo_vcs_info.json'
+            vcs = {'git': {'sha1': 'f1e9e8d558783f942993046679cdf3c8c3a3d36b'}, 'path_in_vcs': 'rumqttc'}
+            vcs_file.write_text(json.dumps(vcs))
+            package = dict(name='rumqttc', version='0.25.1', license='Apache-2.0',
+                           repository='https://github.com/bytebeamio/rumqtt', manifest_path=str(manifest))
+            _, files, provenance = NOTICES.supplement_paths(ROOT, package, [])
+            self.assertEqual(files[0].stat().st_size, 11358)
+            self.assertEqual(provenance['license_git_blob'], 'd645695673349e3947e8e5ae42332d0ac3164cd7')
+            for field, wrong in [('license', 'MIT'), ('repository', 'https://example.invalid')]:
+                with self.assertRaises(ValueError):
+                    NOTICES.supplement_paths(ROOT, {**package, field: wrong}, [])
+            vcs['git']['sha1'] = '0' * 40
+            vcs_file.write_text(json.dumps(vcs))
+            with self.assertRaises(ValueError):
+                NOTICES.supplement_paths(ROOT, package, [])
 
 
 if __name__ == '__main__':
