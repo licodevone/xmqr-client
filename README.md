@@ -1,8 +1,8 @@
 # xmqr-client
 
 O client participa do [checklist da fase2](docs/phase2-acceptance.md).
-C43 amplia interop externa sem mudar runtime0.8.1;
-o aceite físico ESP32 continua pendente no plano compartilhado.
+C43 amplia interop externa sem mudar runtime0.8.1; P85/C44 completaram
+o aceite físico ESP32 e encerraram a fase2 no escopo validado, sem declarar produção.
 
 Marco de distribuição atual: **0.8.1**, com imagem
 `lepinheiro100/xmqr-client:0.8.1`, .deb Ubuntu26 amd64 e manifesto/checksums.
