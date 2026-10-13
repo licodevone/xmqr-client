@@ -27,3 +27,10 @@ de cache privado, cp target// ao invés de subpaths escolhidos. Encerrar só
 jobCP/Bash próprio previamente identificado, preservar original/soak/clone;
 repetir cache com paths explícitos sem variáveis. Não é falhaRust nem autoriza
 reiniciar WSL/Docker ou apagar coleção ampla de dados.
+
+P92rev1.3 ANTES mover/limpar cache próprio: /tmp tmpfs3.9GiB100%, buildfalhou
+ENOSPC. /var/tmp ext4 livre. Validar paths/PIDs/args, encerrar sójobs próprios,
+preferir movercache exato recuperável para novo destino próprio/var/tmp;
+novoCargoTarget/TMPDIR=/var/tmp,-j1. Sem exclusãobroad, originais/clone/operator
+intocados. Gateexato e688 deverárepetir após reparoambiental. RelatóriosFAIL
+anteriores preservados, não convertidos emPASS nem falhaRust atribuída.
