@@ -1,14 +1,22 @@
 # Histórico de versões
 
-## C45 — robustez de sessão (candidato; versão pelo marco coordenado)
+## 0.9.0 — robustez de sessão, aceite técnico experimental
 
-- --total-timeout-seconds1..86400 opcional, monotônico, sem reset por tráfego/retry.
-- Jitter80..100% no backoff exponencial, orçamento0..10 total sem reset.
-- CONNACK de reconexão limitado pelo protocolo, SUBACK/idle deadlineabsoluto;
-  PINGRESP/ACKs não renovam os90s de ausência de PUBLISH.
-- SIGINT/SIGTERM prioritários; não reconectar/republicar no cancelamento ou total.
-- QoS1duplicata continua legítima; recepçãoQoS2interrompida falha explicitamente.
-- Sem novas dependências, sem relaxarTLS/SAN/credenciais/limites.
+- C45: `--total-timeout-seconds` 1..86400 opcional, monotônico, sem reset por tráfego/retry.
+- Jitter 80..100% no backoff exponencial, orçamento 0..10 total sem reset.
+- CONNACK de reconexão limitado pelo protocolo; SUBACK/idle com deadline absoluto.
+  PINGRESP/ACKs não renovam os 90s de ausência de PUBLISH.
+- SIGINT/SIGTERM prioritários; não reconectar/republicar no cancelamento ou prazo total.
+- Duplicata QoS1 continua legítima; recepção QoS2 interrompida falha explicitamente.
+- Aceite técnico coordenado em 2026-10-13: 63 testes do client, interop 87/87,
+  ensaio do broker 6/6 (três repetições TCP/mTLS >=600s), QA de cinco payloads
+  e 14 negativos, ciclo Ubuntu26 com execução real dos ELFs instalados.
+- C46: fonte exata `e688c75a3779803e8f1868792dcc5e7a36f2dd6e`, `.deb`
+  Ubuntu26 amd64 e imagem Bookworm amd64 aceitos tecnicamente. Publicação
+  v0.9.0 no GitHub/Docker Hub e verificações remotas ainda pendentes.
+- MQTT 3.1.1 e MIT preservados; sem novas dependências ou relaxamento de
+  TLS/SAN/credenciais/limites. Não declara produção, SLA ou conformidade integral.
+- Evidências e limitações: [registro C46](prompts/registros/C46-release-fase3.md).
 
 ## 0.8.1 — distribuição Docker Hub
 

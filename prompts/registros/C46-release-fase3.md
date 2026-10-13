@@ -1,9 +1,10 @@
-# Registro C46 — candidato de distribuição 0.9.0
+# Registro C46 — aceite técnico experimental 0.9.0
 
 2026-10-13. Prompt C46 v1/v1.1 e revisões P92 preparados antes das mudanças
 de versão, embalagem e correções. A skill local xmqr-client-development
-orientou a preservação do contrato e os gates. Publicação coordenada pelo
-agente raiz; este registro não declara que a fase 3 ou a release foi encerrada.
+orientou a preservação do contrato e os gates. C46/P92 v1.7 encerram o aceite
+técnico da fase 3 no recorte finito validado. Publicação coordenada pelo
+agente raiz **ainda pendente**; aceite técnico não significa release publicada.
 
 ## Fonte exata e resultado nativo
 
@@ -11,7 +12,9 @@ Fonte de distribuição: **e688c75a3779803e8f1868792dcc5e7a36f2dd6e**, versão
 **0.9.0**, clone detached e clean antes/depois dos gates. O primeiro clone
 6254d066 foi atualizado para e688 após o suplemento original do rumqttc.
 O main posteriormente avançou, externamente a esta execução, para 03d2447
-(documentação/artefato antigo); isso não troca a fonte identificada do pacote.
+(documentação/artefato antigo) e bf81396 (registro C46). Esses checkpoints
+documentais não trocam a fonte identificada do pacote. Neste fechamento,
+src/Cargo/Dockerfile foram conferidos iguais ao checkpoint e688.
 
 Ambiente: Ubuntu 26.04/WSL, Rust 1.99.0, build nativo amd64; execução direta
 WSL, PATH explícito do Rust, TMPDIR e CARGO_TARGET_DIR privados em **/var/tmp
@@ -49,8 +52,9 @@ agrupador local, não no Git: c46-native-gates.log e c46-native-final.json.
   libgcc-s1>=4.2, adduser e init-system-helpers.
 
 dpkg-shlibdeps emitiu advertência de diversion do loader por usr-merge, sem
-erro do build; o ciclo de instalação/upgrade/rollback e execução do pacote
-permanece gate separado do coordenador. Não inferir suporte Ubuntu24/arm64.
+erro do build. O ciclo de instalação/upgrade/rollback e execução do pacote
+foi validado separadamente pelo coordenador, conforme fechamento abaixo;
+não foi inferido desse aviso. Não inferir suporte Ubuntu24/arm64.
 
 O coordenador também confirmou QA read-only dos textos no payload desse
 `.deb`: 81 pacotes / 158 textos, bytes estrangeiros estritos e MIT/copyright
@@ -85,7 +89,8 @@ Suplementos originais preservados byte a byte:
    do que o previsto para diretório próprio em /tmp. Não alterou o original.
 2. /tmp era tmpfs de 3,9GiB e ficou sem espaço; inicialização da dependência
    libc no primeiro gate nativo falhou com ENOSPC. O ensaio prolongado P91
-   concomitante foi invalidado e deve ser repetido; não é PASS de robustez.
+   concomitante foi invalidado e exigiu repetição; não é PASS de robustez.
+   O novo ensaio aprovado abaixo não modifica esse resultado histórico.
 3. Várias invocações/kill escopado por WSL falharam com Service0x8007274c.
    Foram encerrados **apenas** os launchers Windows do job próprio,
    PID25596/42664, identificados por commandline, e a sessão83201 terminou
@@ -102,11 +107,66 @@ Histórico factual local: clone/dist/c46-native-progress.json. Nada desse cache
 amplo entrou em pacote/imagem ou foi publicado. Arquivos locais antigos0.7.1
 não foram removidos, alterados ou republicados por esta execução.
 
-## Pendências coordenadas
+## Fechamento técnico coordenado — C46/P92 v1.7
 
-P91 nos dois brokers e ensaios ampliados, B06/B07 final, ciclo dos pacotes,
-Docker/digests/manifest completo, tag imutável v0.9.0, GitHub prerelease e
-Docker Hub serão registrados pelo coordenador **após** os gates respectivos.
-Não foram feitos commit/push/tag/publicação por este agente. Não iniciar
-fase4 ou MQTT5 para concluir esta entrega. Sem nova homologação Windows
-nativo, MSRV1.88 exato, arm64, produção ou conformidade MQTT integral.
+Resultados executados pelos responsáveis dos gates e reconciliados neste
+registro; esta atualização documental não é uma nova execução funcional.
+Os JSONs finais e o QA foram lidos, sem reescrever os relatórios históricos.
+
+| Gate final | Resultado observado |
+| --- | --- |
+| C07 / client | 63 testes e oito gates no clone clean; ELF nativo igual ao C45, idle 90s real e cancelamento já validados |
+| P91 / interop independente | PASS 87/87 (59 C43 +28 extensões), 346,063s; XMQR/Mosquitto 2.0.22 em ambos os brokers/sentidos, mTLS/ACL/reconexão/crash/idle; cleanup 202 containers/2 volumes PASS |
+| P91 / pressão e recuperação do broker | PASS 6/6, TCP/mTLS paralelos em três repetições >=600s, 1808,946s de parede; 40512 publicações de 1024 bytes/162048 entregas, 90 SIGKILL/30 SIGTERM |
+| Broker final / B06+B07+B08 | 54 casos de armazenamento, 18 processos P90, 19 wire e 12 TLS PASS; correções P93/P95 vinculadas ao ELF final |
+| Compatibilidade do admin independente | PASS 18/18 contra broker final; versão 0.1.0 e pin/distribuição anteriores mantidos |
+| QA de artefatos | PASS 5/5 payloads (dois .deb, três imagens) e 14 negativos; no client 81 pacotes/158 textos, bytes de terceiros estritos e MIT/copyright preservados |
+| Ciclo Ubuntu26 privado | Install 0.11.5/0.8.1, upgrade 0.11.6/0.9.0, rollback/remove/purge PASS; os três ELFs instalados executaram --version real, sem autoenable e com fixtures/configurações preservadas |
+
+Fonte broker de distribuição `abbe38ca6c041f7328e85054506a4eed22c74c41`;
+ELF nativo broker
+`e57b1e2d26de50d09bb6bdadb74e4c0531dcac15399ece4369f4e0a0824e2987`.
+Fonte client continua **e688c75a3779803e8f1868792dcc5e7a36f2dd6e** e o
+`.deb` continua SHA-256
+**04eb2830dc67fa086f327555f58d027f8f4e4c1654f72ddc000589ab90c05396**,
+sem rebuild, alteração de versão ou substituição do artefato por estes docs.
+
+Interop usou imagem client ID
+`sha256:e1c56183bd98fbe33c9fade58f81d61b2f60eb960c3704747528ec7f471a11ed`,
+revision e688; broker ID
+`sha256:576de5ddc2dc2f74cbb2f243126d8c36668784f110ed0da03a05df8435352f97`,
+revision abbe. IDs locais de imagem não são digests remotos do Docker Hub.
+
+O soak conserva HEAD 3a5e29d/dirty=true do início; as 26 entradas src/Cargo
+ficaram estáveis e o ELF executado coincide com o rebuild clean abbe.
+Não apresentar esse ensaio original como checkout clean. Seus 1698 probes
+incluem quatro ready0 transitórios, recuperação máxima1,659s dentro do
+prazo quiescente 15s. Isso não é SLA instantâneo de readiness/throughput.
+As causas exatas dos dois FAIL intermediários de readiness externa não foram
+recuperadas; Will 6/contratos 21 e a matriz completa final reforçam a evidência
+sem promover os FAIL antigos por simples retry ou ampliar -W8.
+
+Relatórios finais no agrupador local, fora do Git:
+`p91-soak-candidate-6.json` SHA
+`6bdc2c71c276723a0c4ad782643752aad243816e5d8283a386d63678951826c1`;
+`p91-interop-candidate-4.json` SHA
+`809719cd60c24e8a97c53506b813719125470c3b1494275e164c06e3aaabdddaf`.
+QA conjunto: broker/dist/p92-notices-final.json SHA
+`60b392dec0593f8e8994573a5d25b9f8dfc64ff624e10ff8860efa4c1d32d0ae`.
+Contexto público da coordenação:
+[aceite dos três sistemas](https://github.com/licodevone/xmqr/blob/main/docs/phase3-acceptance.md)
+e [registro P92](https://github.com/licodevone/xmqr/blob/main/prompts/registros/P92-aceitacao-distribuicao-fase3.md).
+
+## Pendências de publicação e limites
+
+Aceite técnico experimental da fase 3 concluído; tag imutável v0.9.0, GitHub
+prerelease, publicação Docker Hub numerada e conferência remota de assets/
+digests permanecem pendentes do coordenador. Não anunciar distribuição nova
+antes dessas verificações, nem mover latest/tags antigas. README e instruções
+da distribuição publicada não são alterados por esta atualização documental.
+Os tar/checksum 0.7.1 locais e commits do mantenedor foram preservados.
+
+MQTT 3.1.1 continua o protocolo entregue. MQTT 5 é planejamento da fase 6,
+não iniciado; fases 4/5 não foram implementadas neste fechamento. Sem nova
+homologação Windows nativo, MSRV1.88 exato, arm64, ESP32 físico, produção,
+SLA, conformidade integral, estabilidade de dias ou perda física de energia.

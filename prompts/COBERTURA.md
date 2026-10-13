@@ -1,10 +1,29 @@
 # Cobertura atual dos prompts do cliente
 
-AtualizaçãoC45,2026-10-13: promptprévio cobre totalmonotônico opcional,
-jitterlimitado/budgetúnico e cancelamentoSIGINT/SIGTERM, separação de
-CONNACK/protocolo/idle e QoSincerto. Veja [registroC45](registros/C45-robustez-reconexao.md)
-para gates reais; nenhum aceite externo ou release inferido da existência do código.
-Snapshot histórico abaixo preservado; C43/C44 encerraram fase2 no recorte aceito.
+## C45/C46 — aceite técnico da fase 3, 2026-10-13
+
+Client **0.9.0 aceito tecnicamente no recorte experimental** por C46/P92 v1.7.
+Fonte dos artefatos: `e688c75a3779803e8f1868792dcc5e7a36f2dd6e`, clone clean.
+Publicação nova e verificação remota de tags/releases/digests ainda pendentes;
+commits documentais posteriores não mudam a fonte atribuída ao pacote.
+
+| Contrato atual | Evidência coordenada final | Limite |
+| --- | --- | --- |
+| Robustez C07 | 63 testes do client, idle 90s real, SIGINT/SIGTERM, jitter/budget e prazo total monotônico opcional; [C45](registros/C45-robustez-reconexao.md) | Sem replay de publicação incerta; recepção QoS2 interrompida falha explicitamente |
+| Interoperabilidade mTLS/ACL | 87/87 com XMQR/Mosquitto 2.0.22, dois brokers e sentidos, reconexão/crash/idle; [C46](registros/C46-release-fase3.md) | Cenários finitos; não conformidade integral ou SLA |
+| Pressão/recuperação do broker integrado | 6/6, três repetições TCP/mTLS >=600s; 1808,946s de parede | Ensaio do broker, não benchmark do client ou estabilidade ilimitada |
+| Fonte e distribuição local | Oito gates do clone clean e688; `.deb` Ubuntu26 amd64; ciclo install/upgrade/rollback/remove/purge com ELFs realmente executados | Não homologa Ubuntu24/arm64/Windows nativo/MSRV1.88 exato |
+| Licenças e payloads | QA 5/5 +14 negativos; client 81 pacotes/158 textos originais preservados, MIT própria canônica | Superset do lock, não composição completa do ELF ou auditoria jurídica |
+
+MQTT 3.1.1/MIT e os limites existentes permanecem. MQTT 5 é planejamento da
+fase 6, não iniciado; fases 4/5 não foram implementadas por este fechamento.
+Veja o [registro C46](registros/C46-release-fase3.md) para fontes, hashes,
+falhas históricas preservadas e pendências de publicação.
+
+## Snapshot histórico preservado
+
+C43/C44 encerraram a fase2 no recorte aceito. A tabela seguinte descreve o
+snapshot C29/C28/C27/C26; suas lacunas antigas não substituem o aceite atual.
 
 Snapshot C29/C28/C27/C26, 2026-10-10. Código presente não equivale a validação externa.
 Pacote/binário independentes, Rust2024/MSRV1.88, MIT, manifest0.4.0 candidato independente sem nova release.
