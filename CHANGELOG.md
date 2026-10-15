@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## 0.12.0 — perfis reutilizáveis completos, experimental
+
+- C50/C05: adiciona `clean_session`, `reconnect_attempts` e
+  `total_timeout_seconds` ao TOML v1, com tipos estritos e precedência
+  flag CLI > ambiente explícito > perfil > default.
+- Variáveis `MQTT_CLIENT_*` cobrem conexão, identidade, prazo e reconexão;
+  `MQTT_CA_CERT`/`MQTT_DEVICE_CERT`/`MQTT_DEVICE_KEY` também vencem o perfil.
+  Caminhos de ambiente e flags seguem relativos ao cwd; senha só por prompt
+  oculto ou arquivo privado no Linux.
+- Integração real mTLS e TLS-senha com broker P101/P97, negativos de valor e
+  schema, sem mudança no wire MQTT.
+
 ## 0.11.1 — correção de distribuição do C48
 
 - C49: alinha `ARG VERSION` padrão do Dockerfile ao Cargo. Nenhuma alteração

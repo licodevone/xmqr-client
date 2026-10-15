@@ -1,6 +1,24 @@
 //! Bounded, opt-in connection profiles. Never accept inline credentials or payloads.
 use serde::Deserialize;
-use std::{collections::BTreeMap, fs::File, io::Read, path::Path};
+use std::{collections::BTreeMap, env, fs::File, io::Read, path::Path};
+
+const ENV_FIELDS: &[(&str, &str)] = &[
+    ("host", "MQTT_CLIENT_HOST"),
+    ("port", "MQTT_CLIENT_PORT"),
+    ("username", "MQTT_CLIENT_USERNAME"),
+    ("password_file", "MQTT_CLIENT_PASSWORD_FILE"),
+    ("client_id", "MQTT_CLIENT_ID"),
+    ("output", "MQTT_CLIENT_OUTPUT"),
+    ("qos", "MQTT_CLIENT_QOS"),
+    ("keepalive_seconds", "MQTT_CLIENT_KEEPALIVE_SECONDS"),
+    ("timeout_seconds", "MQTT_CLIENT_TIMEOUT_SECONDS"),
+    ("total_timeout_seconds", "MQTT_CLIENT_TOTAL_TIMEOUT_SECONDS"),
+    ("reconnect_attempts", "MQTT_CLIENT_RECONNECT_ATTEMPTS"),
+    ("clean_session", "MQTT_CLIENT_CLEAN_SESSION"),
+    ("ca", "MQTT_CA_CERT"),
+    ("cert", "MQTT_DEVICE_CERT"),
+    ("key", "MQTT_DEVICE_KEY"),
+];
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -10,6 +28,17 @@ struct Profile {
 }
 
 pub fn expand(args: Vec<String>) -> Result<Vec<String>, String> {
+    expand_with(args, |key| match env::var(key) {
+        Ok(value) => Ok(Some(value)),
+        Err(env::VarError::NotPresent) => Ok(None),
+        Err(env::VarError::NotUnicode(_)) => Err("variavel de perfil nao e Unicode".into()),
+    })
+}
+
+fn expand_with(
+    args: Vec<String>,
+    mut lookup: impl FnMut(&str) -> Result<Option<String>, String>,
+) -> Result<Vec<String>, String> {
     let mut positions = Vec::new();
     let mut explicit = std::collections::BTreeSet::new();
     let mut cursor = 1;
@@ -77,6 +106,7 @@ pub fn expand(args: Vec<String>) -> Result<Vec<String>, String> {
         return Err("versao de perfil invalida".into());
     }
     let mut expanded = vec![args[0].clone()];
+    let environment = environment_overrides(&explicit, &mut lookup)?;
     for (key, value) in profile.connection {
         if key == "tls_password" {
             if value.as_bool() != Some(true) {
@@ -89,9 +119,12 @@ pub fn expand(args: Vec<String>) -> Result<Vec<String>, String> {
         }
         let (flag, string) = setting(&key, &value, path)?;
         // Existing CLI validation checks the effective values after precedence.
-        if !explicit.contains(&flag) {
+        if !explicit.contains(&flag) && !environment.contains_key(key.as_str()) {
             expanded.extend([flag, string]);
         }
+    }
+    for (key, value) in environment {
+        expanded.extend([format!("--{}", key.replace('_', "-")), value]);
     }
     expanded.extend(
         args.into_iter()
@@ -103,6 +136,25 @@ pub fn expand(args: Vec<String>) -> Result<Vec<String>, String> {
     Ok(expanded)
 }
 
+fn environment_overrides(
+    explicit: &std::collections::BTreeSet<String>,
+    lookup: &mut impl FnMut(&str) -> Result<Option<String>, String>,
+) -> Result<BTreeMap<&'static str, String>, String> {
+    let mut environment = BTreeMap::new();
+    for &(key, variable) in ENV_FIELDS {
+        let flag = format!("--{}", key.replace('_', "-"));
+        if !explicit.contains(&flag)
+            && let Some(value) = lookup(variable)?
+        {
+            if value.is_empty() {
+                return Err("variavel de perfil vazia".into());
+            }
+            environment.insert(key, value);
+        }
+    }
+    Ok(environment)
+}
+
 fn setting(
     key: &str,
     value: &toml::Value,
@@ -111,9 +163,13 @@ fn setting(
     let (string, is_path) = match key {
         "host" | "client_id" | "username" | "output" => (value.as_str().map(str::to_owned), false),
         "ca" | "cert" | "key" | "password_file" => (value.as_str().map(str::to_owned), true),
-        "port" | "qos" | "keepalive_seconds" | "timeout_seconds" => {
-            (value.as_integer().map(|number| number.to_string()), false)
-        }
+        "port"
+        | "qos"
+        | "keepalive_seconds"
+        | "timeout_seconds"
+        | "total_timeout_seconds"
+        | "reconnect_attempts" => (value.as_integer().map(|number| number.to_string()), false),
+        "clean_session" => (value.as_bool().map(|boolean| boolean.to_string()), false),
         _ => return Err("campo de perfil nao permitido".into()),
     };
     let mut string = string
@@ -136,6 +192,8 @@ fn setting(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     fn parse_profile(text: &str, extra: &[&str]) -> Result<crate::cli::Cli, String> {
         let root = tempfile::tempdir().unwrap();
         let path = root.path().join("connection.toml");
@@ -194,5 +252,101 @@ mod tests {
         ]
         .map(str::to_owned);
         assert!(crate::cli::parse(args).is_ok());
+    }
+
+    #[test]
+    fn environment_precedence_and_extended_fields() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("connection.toml");
+        std::fs::write(&path, "version=1\n[connection]\nhost='file-host'\nport=8883\nusername='device'\nca='ca.crt'\ncert='client.crt'\nkey='client.key'\npassword_file='secret'\nclean_session=false\nreconnect_attempts=2\ntotal_timeout_seconds=90\n").unwrap();
+        let mut environment = BTreeMap::from([
+            ("MQTT_CLIENT_HOST", "env-host"),
+            ("MQTT_CLIENT_PORT", "8884"),
+            ("MQTT_CLIENT_PASSWORD_FILE", "relative-env-secret"),
+            ("MQTT_CLIENT_RECONNECT_ATTEMPTS", "3"),
+            ("MQTT_CA_CERT", "env-ca.crt"),
+        ]);
+        let args = vec![
+            "sub",
+            "--topic",
+            "sensor/#",
+            "--profile",
+            path.to_str().unwrap(),
+            "--host",
+            "cli-host",
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+        let expanded = super::expand_with(args, |key| {
+            Ok(environment.get(key).map(ToString::to_string))
+        })
+        .unwrap();
+        let cli = crate::cli::parse(expanded).unwrap();
+        assert_eq!(cli.host, "cli-host");
+        assert_eq!(cli.port, 8884);
+        assert_eq!(cli.ca.unwrap(), std::path::PathBuf::from("env-ca.crt"));
+        assert_eq!(
+            cli.password_file.unwrap(),
+            std::path::PathBuf::from("relative-env-secret")
+        );
+        assert!(!cli.clean_session);
+        assert_eq!(cli.reconnect_attempts, 3);
+        assert_eq!(cli.total_timeout_seconds, Some(90));
+        environment.insert("MQTT_CLIENT_PORT", "invalid-private-value");
+        let args = vec![
+            "sub",
+            "--topic",
+            "sensor/#",
+            "--profile",
+            path.to_str().unwrap(),
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+        let expanded = super::expand_with(args, |key| {
+            Ok(environment.get(key).map(ToString::to_string))
+        })
+        .unwrap();
+        let error = crate::cli::parse(expanded).unwrap_err();
+        assert!(!error.contains("invalid-private-value"));
+    }
+
+    #[test]
+    fn environment_errors_do_not_expose_values_or_override_explicit_flags() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("connection.toml");
+        std::fs::write(&path, "version=1\n[connection]\nhost='file-host'\nusername='device'\nca='ca.crt'\ncert='client.crt'\nkey='client.key'\n").unwrap();
+        let base = vec![
+            "sub",
+            "--topic",
+            "sensor/#",
+            "--profile",
+            path.to_str().unwrap(),
+        ];
+        let args = base.iter().map(|s| (*s).to_owned()).collect();
+        let error = super::expand_with(args, |key| {
+            if key == "MQTT_CLIENT_HOST" {
+                Err("variavel de perfil nao e Unicode".into())
+            } else {
+                Ok(None)
+            }
+        })
+        .unwrap_err();
+        assert!(!error.contains("file-host"));
+        let args = base
+            .into_iter()
+            .chain(["--host", "cli-host"])
+            .map(str::to_owned)
+            .collect();
+        let expanded = super::expand_with(args, |key| {
+            assert!(
+                key != "MQTT_CLIENT_HOST",
+                "explicit host must bypass environment"
+            );
+            Ok(None)
+        })
+        .unwrap();
+        assert_eq!(crate::cli::parse(expanded).unwrap().host, "cli-host");
     }
 }

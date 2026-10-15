@@ -1,5 +1,18 @@
 # xmqr-client
 
+O marco experimental 0.12.0 completa perfis C05: `clean_session`,
+`reconnect_attempts` e `total_timeout_seconds` passam a ser reutilizáveis no
+TOML v1. Com `--profile`, a precedência é flag CLI > ambiente explícito >
+perfil > default. Variáveis `MQTT_CLIENT_HOST`, `MQTT_CLIENT_PORT`,
+`MQTT_CLIENT_USERNAME`, `MQTT_CLIENT_PASSWORD_FILE`, `MQTT_CLIENT_ID`,
+`MQTT_CLIENT_OUTPUT`, `MQTT_CLIENT_QOS`, `MQTT_CLIENT_KEEPALIVE_SECONDS`,
+`MQTT_CLIENT_TIMEOUT_SECONDS`, `MQTT_CLIENT_TOTAL_TIMEOUT_SECONDS`,
+`MQTT_CLIENT_RECONNECT_ATTEMPTS` e `MQTT_CLIENT_CLEAN_SESSION` são aceitas,
+além de `MQTT_CA_CERT`/`MQTT_DEVICE_CERT`/`MQTT_DEVICE_KEY`. Caminhos do
+ambiente são relativos ao cwd; caminhos do perfil, à pasta do arquivo. Erro
+de variável explícita recusa a operação sem usar o valor do perfil. O arquivo
+de senha mantém a exigência de dono e modo 0600 no Linux.
+
 O marco experimental 0.11.1 acrescenta `--tls-password` (C48/B10) e corrige
 o default da imagem Docker (C49). A tag de código 0.11.0 foi substituída antes
 da distribuição; consulte o changelog.
@@ -25,7 +38,8 @@ Use `mqtt-client sub --profile connection.toml --topic 'sensor/#'` ou
 Paths relativos partem da pasta do perfil; flags explícitas substituem campos
 do perfil. Mantenha o arquivo de senha privado (0600 no Linux). O perfil aceita
 somente parâmetros de conexão, até 64 KiB; payload, senha inline e modos de
-laboratório não são aceitos. Rotação de certificado continua planejada.
+laboratório não são aceitos. A rotação TLS pertence ao broker e é observada
+pelo client em novas conexões.
 
 C48 acrescenta `--tls-password` para usar CA e validar SAN/validade do servidor
 sem certificado de cliente. Exige usuário e senha oculta ou arquivo privado.
