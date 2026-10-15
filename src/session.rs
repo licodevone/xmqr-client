@@ -34,7 +34,10 @@ pub async fn run(
         .total_timeout_seconds
         .map(|seconds| Instant::now() + Duration::from_secs(u64::from(seconds)));
     let mut options = MqttOptions::new(&cli.client_id, &cli.host, cli.port);
-    if cli.transport_mode == TransportMode::Secure {
+    if matches!(
+        cli.transport_mode,
+        TransportMode::Secure | TransportMode::TlsPassword
+    ) {
         let tls_config = tls::build_client_config(&cli)?;
         options.set_transport(Transport::tls_with_config(tls_config.into()));
     } else {

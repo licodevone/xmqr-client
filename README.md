@@ -23,6 +23,12 @@ do perfil. Mantenha o arquivo de senha privado (0600 no Linux). O perfil aceita
 somente parâmetros de conexão, até 64 KiB; payload, senha inline e modos de
 laboratório não são aceitos. Rotação de certificado continua planejada.
 
+C48 acrescenta `--tls-password` para usar CA e validar SAN/validade do servidor
+sem certificado de cliente. Exige usuário e senha oculta ou arquivo privado.
+Rejeita `--cert`, `--key` e variáveis de identidade de dispositivo nesse modo.
+O perfil TOML v1 pode usar `tls_password = true` em `[connection]`, sem campos
+`cert`/`key`; flags explícitas continuam tendo precedência. O mTLS segue padrão.
+
 C45 acrescenta prazo total monotônico opcional e jitter limitado de reconexão,
 separa CONNACK de reconexão do idle e prioriza cancelamentoSIGINT/SIGTERM.
 Veja [robustez da sessão](docs/client-robustness.md) e [registroC45](prompts/registros/C45-robustez-reconexao.md).

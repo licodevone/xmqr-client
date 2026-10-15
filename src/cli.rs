@@ -26,6 +26,7 @@ pub enum Mode {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TransportMode {
     Secure,
+    TlsPassword,
     OpenLab,
     PlainAuthLab,
 }
@@ -80,7 +81,7 @@ pub struct Cli {
     pub transport_mode: TransportMode,
 }
 
-pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl, --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
+pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\nTLS com senha, sem certificado de cliente:\n  mqtt-client pub|sub --tls-password --topic TOPICO --username USUARIO --ca CA.crt [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl, --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -148,6 +149,12 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         if flag == "--open-lab" {
             if transport_mode.replace(TransportMode::OpenLab).is_some() {
                 return Err("use somente um modo de laboratorio".into());
+            }
+            continue;
+        }
+        if flag == "--tls-password" {
+            if transport_mode.replace(TransportMode::TlsPassword).is_some() {
+                return Err("use somente um modo de transporte".into());
             }
             continue;
         }
@@ -223,7 +230,10 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     )?;
 
     let transport_mode = transport_mode.unwrap_or(TransportMode::Secure);
-    let lab_mode = transport_mode != TransportMode::Secure;
+    let lab_mode = matches!(
+        transport_mode,
+        TransportMode::OpenLab | TransportMode::PlainAuthLab
+    );
     let host = host.unwrap_or_else(|| "127.0.0.1".into());
     if host.is_empty() || host.chars().any(char::is_whitespace) {
         return Err("--host invalido".into());
@@ -253,6 +263,14 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     {
         return Err("--plain-auth-lab nao aceita certificados".into());
     }
+    if transport_mode == TransportMode::TlsPassword
+        && (cert.is_some()
+            || key.is_some()
+            || env::var_os("MQTT_DEVICE_CERT").is_some()
+            || env::var_os("MQTT_DEVICE_KEY").is_some())
+    {
+        return Err("--tls-password nao aceita certificado ou chave de cliente".into());
+    }
     let secure_mode = !lab_mode;
     let ca = secure_mode
         .then(|| {
@@ -261,14 +279,14 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                 .ok_or("informe --ca ou MQTT_CA_CERT")
         })
         .transpose()?;
-    let cert = secure_mode
+    let cert = (transport_mode == TransportMode::Secure)
         .then(|| {
             cert.map(PathBuf::from)
                 .or_else(|| env::var_os("MQTT_DEVICE_CERT").map(PathBuf::from))
                 .ok_or("informe --cert ou MQTT_DEVICE_CERT")
         })
         .transpose()?;
-    let key = secure_mode
+    let key = (transport_mode == TransportMode::Secure)
         .then(|| {
             key.map(PathBuf::from)
                 .or_else(|| env::var_os("MQTT_DEVICE_KEY").map(PathBuf::from))
@@ -890,6 +908,35 @@ mod tests {
         .into_iter()
         .map(str::to_owned);
         assert!(parse(with_cert).is_err());
+    }
+
+    #[test]
+    fn tls_password_requires_ca_and_rejects_client_identity() {
+        let base = [
+            "sub",
+            "--tls-password",
+            "--topic",
+            "test/message",
+            "--username",
+            "student",
+        ];
+        assert!(parse(base.into_iter().map(str::to_owned)).is_err());
+        let mut args = base
+            .iter()
+            .map(|value| (*value).to_owned())
+            .collect::<Vec<_>>();
+        args.extend(["--ca".into(), "ca.crt".into()]);
+        let parsed = parse(args.clone()).unwrap();
+        assert_eq!(parsed.transport_mode, TransportMode::TlsPassword);
+        assert!(parsed.cert.is_none() && parsed.key.is_none());
+        args.extend(["--cert".into(), "client.crt".into()]);
+        assert!(parse(args).is_err());
+        let mut mixed = base
+            .iter()
+            .map(|value| (*value).to_owned())
+            .collect::<Vec<_>>();
+        mixed.push("--open-lab".into());
+        assert!(parse(mixed).is_err());
     }
 
     #[test]

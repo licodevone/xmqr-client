@@ -10,25 +10,15 @@ use rustls::{
     version::{TLS12, TLS13},
 };
 
-use super::cli::Cli;
+use super::cli::{Cli, TransportMode};
 
 const MAX_PEM_BYTES: u64 = 1024 * 1024;
 
-/// Trust only the explicitly supplied CA, and always present the device identity.
+/// Trust only the explicitly supplied CA. Present a device identity in mTLS mode.
 pub fn build_client_config(
     cli: &Cli,
 ) -> Result<ClientConfig, Box<dyn std::error::Error + Send + Sync>> {
     let ca_pem = read_limited(cli.ca.as_deref().ok_or("CA ausente no modo seguro")?)?;
-    let cert_pem = read_limited(
-        cli.cert
-            .as_deref()
-            .ok_or("certificado ausente no modo seguro")?,
-    )?;
-    let key_pem = read_limited(
-        cli.key
-            .as_deref()
-            .ok_or("chave privada ausente no modo seguro")?,
-    )?;
 
     let mut roots = RootCertStore::empty();
     let ca_certs =
@@ -40,21 +30,38 @@ pub fn build_client_config(
         roots.add(ca)?;
     }
 
-    let client_certs =
-        rustls_pemfile::certs(&mut Cursor::new(&cert_pem)).collect::<Result<Vec<_>, _>>()?;
-    if client_certs.is_empty() {
-        return Err(
-            io::Error::new(io::ErrorKind::InvalidData, "certificado do cliente ausente").into(),
-        );
-    }
-    let private_key = rustls_pemfile::private_key(&mut Cursor::new(&key_pem))?
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "chave privada PEM ausente"))?;
-
     let provider = Arc::new(rustls::crypto::aws_lc_rs::default_provider());
-    let config = ClientConfig::builder_with_provider(provider)
+    let builder = ClientConfig::builder_with_provider(provider)
         .with_protocol_versions(&[&TLS13, &TLS12])?
-        .with_root_certificates(roots)
-        .with_client_auth_cert(client_certs, private_key)?;
+        .with_root_certificates(roots);
+    let config = if cli.transport_mode == TransportMode::TlsPassword {
+        builder.with_no_client_auth()
+    } else {
+        let cert_pem = read_limited(
+            cli.cert
+                .as_deref()
+                .ok_or("certificado ausente no modo seguro")?,
+        )?;
+        let key_pem = read_limited(
+            cli.key
+                .as_deref()
+                .ok_or("chave privada ausente no modo seguro")?,
+        )?;
+        let client_certs =
+            rustls_pemfile::certs(&mut Cursor::new(&cert_pem)).collect::<Result<Vec<_>, _>>()?;
+        if client_certs.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "certificado do cliente ausente",
+            )
+            .into());
+        }
+        let private_key =
+            rustls_pemfile::private_key(&mut Cursor::new(&key_pem))?.ok_or_else(|| {
+                io::Error::new(io::ErrorKind::InvalidData, "chave privada PEM ausente")
+            })?;
+        builder.with_client_auth_cert(client_certs, private_key)?
+    };
     Ok(config)
 }
 

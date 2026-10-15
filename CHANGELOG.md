@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.11.0 — TLS com senha sem certificado de cliente, experimental
+
+- C48/B10: `--tls-password` e `tls_password = true` no perfil TOML v1.
+  CA/SAN/validade continuam obrigatórios; cert/key e identidade implícita são
+  recusados nesse modo. Senha permanece privada; mTLS continua padrão.
+- Integração com broker P97: QoS0/1/2, negativas de CA/SAN/senha/ACL.
+
 ## 0.10.0 — perfis de conexão, experimental
 
 - C47: `--profile PATH` carrega TOML v1 para parâmetros de conexão mTLS.

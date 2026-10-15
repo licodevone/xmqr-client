@@ -27,6 +27,7 @@ pub fn expand(args: Vec<String>) -> Result<Vec<String>, String> {
                 | "--retained-only"
                 | "--open-lab"
                 | "--plain-auth-lab"
+                | "--tls-password"
         ) {
             1
         } else {
@@ -77,6 +78,15 @@ pub fn expand(args: Vec<String>) -> Result<Vec<String>, String> {
     }
     let mut expanded = vec![args[0].clone()];
     for (key, value) in profile.connection {
+        if key == "tls_password" {
+            if value.as_bool() != Some(true) {
+                return Err("tls_password exige true".into());
+            }
+            if !explicit.contains("--tls-password") {
+                expanded.push("--tls-password".into());
+            }
+            continue;
+        }
         let (flag, string) = setting(&key, &value, path)?;
         // Existing CLI validation checks the effective values after precedence.
         if !explicit.contains(&flag) {
@@ -151,6 +161,16 @@ mod tests {
         assert!(parse_profile(text, &["--host", "a", "--host", "b"]).is_err());
         assert!(parse_profile(text, &["--profile", "other.toml"]).is_err());
         assert!(parse_profile(text, &["--open-lab"]).is_err());
+    }
+
+    #[test]
+    fn tls_password_profile_selects_no_client_certificate() {
+        let text = "version=1\n[connection]\ntls_password=true\nusername='device'\nca='ca.crt'\n";
+        let cli = parse_profile(text, &[]).unwrap();
+        assert_eq!(cli.transport_mode, crate::cli::TransportMode::TlsPassword);
+        assert!(cli.cert.is_none() && cli.key.is_none());
+        assert!(parse_profile(&text.replace("true", "false"), &[]).is_err());
+        assert!(parse_profile(text, &["--plain-auth-lab"]).is_err());
     }
     #[test]
     fn unknown_secrets_schema_and_size_never_leak_contents() {
