@@ -1,6 +1,6 @@
 # xmqr-client
 
-O marco experimental 0.13.0 acrescenta `sub --exclude-topic FILTRO` (repetível,
+O [marco experimental 0.13.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.13.0) acrescenta `sub --exclude-topic FILTRO` (repetível,
 aplicado somente à saída), `pub --repeat N --repeat-interval-ms M`, saídas
 `hex`/`raw` em `sub` e `--will-message-file PATH` para Will binário. `raw` exige
 `--count 1`; repetição exige `--message` ou `--message-file` e não reenvia
