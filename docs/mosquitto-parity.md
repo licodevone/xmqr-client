@@ -36,12 +36,12 @@ Esta matriz não declara conformidade integral ou paridade exaustiva.
 | Capacidade | XMQR atual | Lacuna/próximo incremento | Evidência |
 | --- | --- | --- | --- |
 | pub/sub QoS0/1/2 | --qos | Interop externa ampliada | src/session.rs; tests/wire.rs |
-| Payload texto/binário/stdin | --message, --message-file, --stdin, --line-mode | Repetição com intervalo | src/payload.rs; src/cli.rs |
-| Assinaturas múltiplas | --topic repetido, --count; --ignore-retained/--retained-only na saída | Exclusão de tópicos e outros formatos | src/cli.rs; tests/wire.rs; C41 |
-| Retained e Will | --retain, --will-*; filtros locais pela flag RETAIN | Will binário conforme demanda | src/cli.rs; src/session.rs; C41 |
+| Payload texto/binário/stdin | --message, --message-file, --stdin, --line-mode; --repeat/--repeat-interval-ms para fonte única | Sem replay de resultado desconhecido | src/payload.rs; src/cli.rs; C53 |
+| Assinaturas múltiplas | --topic repetido, --count; filtros retained e --exclude-topic na saída | Filtragem local não altera ACL ou assinatura | src/cli.rs; tests/wire.rs; C52 |
+| Retained e Will | --retain, --will-message e --will-message-file binário | Limite 4096 bytes; MQTT5 fora do escopo | src/cli.rs; src/session.rs; C55 |
 | Sessão/reconexão | --clean-session, --client-id, --reconnect-attempts | Persistência local/reconexão avançada exige contrato | src/session.rs; tests/wire.rs |
 | TLS/mTLS | CA/cert/chave e senha; SAN validado | TLS sem certificado cliente | src/tls.rs; src/credentials.rs |
-| Diagnóstico e saída | text/jsonl e erros estáticos | Filtros/formatos conforme demanda | src/output.rs; registroC35 |
+| Diagnóstico e saída | text/jsonl/hex/raw; raw exige --count 1 | Sem timestamp de publicação fabricado | src/output.rs; C54 |
 | Keepalive | --keepalive-seconds 1..65535, default30 | Zero fora do contrato | src/session.rs; tests/wire.rs |
 | Timeouts | --timeout-seconds 1..300, default8; idle90s preservado | Não é timeout total/espera de aplicação | src/session.rs; registroC37 |
 | Perfis reutilizáveis | CLI/algumas variáveis, configuração systemd | Prompt próprio de perfis | README; packaging |

@@ -1,5 +1,11 @@
 # xmqr-client
 
+O marco experimental 0.13.0 acrescenta `sub --exclude-topic FILTRO` (repetível,
+aplicado somente à saída), `pub --repeat N --repeat-interval-ms M`, saídas
+`hex`/`raw` em `sub` e `--will-message-file PATH` para Will binário. `raw` exige
+`--count 1`; repetição exige `--message` ou `--message-file` e não reenvia
+publicações de resultado desconhecido. Veja C52–C55 em `prompts/registros`.
+
 O [marco experimental 0.12.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.12.0)
 completa perfis C05: `clean_session`,
 `reconnect_attempts` e `total_timeout_seconds` passam a ser reutilizáveis no

@@ -19,6 +19,7 @@ pub enum Mode {
     },
     Sub {
         filters: Vec<String>,
+        exclusions: Vec<String>,
         count: Option<u64>,
     },
 }
@@ -51,7 +52,7 @@ impl RetainedFilter {
 #[derive(Debug)]
 pub struct Will {
     pub topic: String,
-    pub message: String,
+    pub message: Vec<u8>,
     pub qos: QoS,
     pub retain: bool,
 }
@@ -62,6 +63,8 @@ pub struct Cli {
     pub retained_filter: RetainedFilter,
     pub output: crate::output::Output,
     pub reconnect_attempts: u8,
+    pub repeat: u16,
+    pub repeat_interval_ms: Option<u32>,
     pub keepalive_seconds: u16,
     pub timeout_seconds: u16,
     pub total_timeout_seconds: Option<u32>,
@@ -81,7 +84,7 @@ pub struct Cli {
     pub transport_mode: TransportMode,
 }
 
-pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\nTLS com senha, sem certificado de cliente:\n  mqtt-client pub|sub --tls-password --topic TOPICO --username USUARIO --ca CA.crt [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl, --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
+pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\nTLS com senha, sem certificado de cliente:\n  mqtt-client pub|sub --tls-password --topic TOPICO --username USUARIO --ca CA.crt [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO | --will-message-file PATH [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl|hex|raw (hex/raw apenas sub; raw exige --count 1), --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --repeat 1..1000 --repeat-interval-ms 1..60000 (pub, fonte unica), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --exclude-topic FILTRO (sub, repetivel), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -94,6 +97,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut output = None;
     let mut retained_filter = None;
     let mut reconnect_attempts = None;
+    let mut repeat = None;
+    let mut repeat_interval_ms = None;
     let mut keepalive_seconds = None;
     let mut timeout_seconds = None;
     let mut total_timeout_seconds = None;
@@ -101,6 +106,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut stdin = false;
     let mut line_mode = false;
     let mut topics = Vec::new();
+    let mut exclusions = Vec::new();
     let mut message = None;
     let mut count = None;
     let mut host = None;
@@ -117,6 +123,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut transport_mode = None;
     let mut will_topic = None;
     let mut will_message = None;
+    let mut will_message_file = None;
     let mut will_qos = None;
     let mut will_retain = None;
 
@@ -174,14 +181,21 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             topics.push(value);
             continue;
         }
+        if flag == "--exclude-topic" {
+            exclusions.push(value);
+            continue;
+        }
         let slot = match flag.as_str() {
             "--output" => &mut output,
             "--reconnect-attempts" => &mut reconnect_attempts,
+            "--repeat" => &mut repeat,
+            "--repeat-interval-ms" => &mut repeat_interval_ms,
             "--keepalive-seconds" => &mut keepalive_seconds,
             "--timeout-seconds" => &mut timeout_seconds,
             "--total-timeout-seconds" => &mut total_timeout_seconds,
             "--will-topic" => &mut will_topic,
             "--will-message" => &mut will_message,
+            "--will-message-file" => &mut will_message_file,
             "--will-qos" => &mut will_qos,
             "--will-retain" => &mut will_retain,
             "--message-file" => &mut message_file,
@@ -208,12 +222,46 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mode = parse_mode(
         &command,
         topics,
+        exclusions,
         message,
         message_file,
         stdin,
         line_mode,
         count,
     )?;
+    let repeat_count = repeat
+        .as_deref()
+        .map(|value| {
+            value
+                .parse::<u16>()
+                .ok()
+                .filter(|count| (1..=1000).contains(count))
+                .ok_or("--repeat deve ser 1..1000")
+        })
+        .transpose()?
+        .unwrap_or(1);
+    let interval = repeat_interval_ms
+        .as_deref()
+        .map(|value| {
+            value
+                .parse::<u32>()
+                .ok()
+                .filter(|ms| (1..=60_000).contains(ms))
+                .ok_or("--repeat-interval-ms deve ser 1..60000")
+        })
+        .transpose()?;
+    if repeat_count > 1 && interval.is_none() || repeat_count <= 1 && interval.is_some() {
+        return Err("intervalo exige --repeat maior que 1".into());
+    }
+    if repeat.is_some() || interval.is_some() {
+        match &mode {
+            Mode::Pub {
+                message: crate::payload::Source::Text(_) | crate::payload::Source::File(_),
+                ..
+            } if !line_mode => {}
+            _ => return Err("repeticao exige pub de mensagem ou arquivo sem --line-mode".into()),
+        }
+    }
     let qos = match qos.as_deref().unwrap_or("0") {
         "0" => QoS::AtMostOnce,
         "1" => QoS::AtLeastOnce,
@@ -318,8 +366,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         Some(username)
     };
 
-    let will = match (will_topic, will_message) {
-        (Some(topic), Some(message)) => {
+    let will_from_file = will_message_file.is_some();
+    let will = match (will_topic, will_message, will_message_file) {
+        (Some(topic), Some(message), None) | (Some(topic), None, Some(message)) => {
             if topic.is_empty()
                 || topic.len() > MAX_TOPIC_BYTES
                 || topic.contains('\0')
@@ -327,9 +376,15 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             {
                 return Err("--will-topic invalido ou acima de 1024 bytes".into());
             }
-            if message.len() > MAX_MESSAGE_BYTES {
-                return Err("--will-message acima de 4096 bytes".into());
-            }
+            let message = if will_from_file {
+                crate::payload::read_will_file(std::path::Path::new(&message))
+                    .map_err(str::to_owned)?
+            } else {
+                if message.len() > MAX_MESSAGE_BYTES {
+                    return Err("--will-message acima de 4096 bytes".into());
+                }
+                message.into_bytes()
+            };
             let qos = match will_qos.as_deref().unwrap_or("0") {
                 "0" => QoS::AtMostOnce,
                 "1" => QoS::AtLeastOnce,
@@ -344,14 +399,26 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                 retain,
             })
         }
-        (None, None) if will_qos.is_none() && will_retain.is_none() => None,
-        _ => return Err("Will exige --will-topic e --will-message".into()),
+        (None, None, None) if will_qos.is_none() && will_retain.is_none() => None,
+        _ => return Err("Will exige --will-topic e uma unica fonte de mensagem".into()),
     };
     let output = match output.as_deref().unwrap_or("text") {
         "text" => crate::output::Output::Text,
         "jsonl" => crate::output::Output::Jsonl,
-        _ => return Err("--output deve ser text ou jsonl".into()),
+        "hex" => crate::output::Output::Hex,
+        "raw" => crate::output::Output::Raw,
+        _ => return Err("--output deve ser text, jsonl, hex ou raw".into()),
     };
+    if matches!(
+        output,
+        crate::output::Output::Hex | crate::output::Output::Raw
+    ) {
+        match &mode {
+            Mode::Sub { count: Some(1), .. } => {}
+            Mode::Sub { .. } if output == crate::output::Output::Hex => {}
+            _ => return Err("--output raw exige sub --count 1; hex exige sub".into()),
+        }
+    }
     let reconnect_attempts = reconnect_attempts
         .map(|value| {
             value
@@ -384,6 +451,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         retained_filter: retained_filter.unwrap_or(RetainedFilter::All),
         output,
         reconnect_attempts,
+        repeat: repeat_count,
+        repeat_interval_ms: interval,
         keepalive_seconds,
         timeout_seconds,
         total_timeout_seconds,
@@ -438,6 +507,7 @@ pub fn validate_password(password: &str) -> Result<(), &'static str> {
 fn parse_mode(
     command: &str,
     topics: Vec<String>,
+    exclusions: Vec<String>,
     message: Option<String>,
     message_file: Option<String>,
     stdin: bool,
@@ -445,6 +515,9 @@ fn parse_mode(
     count: Option<String>,
 ) -> Result<Mode, String> {
     if command == "pub" {
+        if !exclusions.is_empty() {
+            return Err("--exclude-topic somente vale para sub".into());
+        }
         if topics.len() != 1 {
             return Err(if topics.is_empty() {
                 "informe --topic"
@@ -507,6 +580,7 @@ fn parse_mode(
                 return Err("filtros de assinatura duplicados".into());
             }
         }
+        validate_exclusions(&exclusions)?;
         let packet_size =
             subscribe_packet_size(&topics).ok_or("pacote SUBSCRIBE excede o limite de tamanho")?;
         if packet_size > MAX_PACKET_BYTES {
@@ -524,8 +598,45 @@ fn parse_mode(
         }
         Ok(Mode::Sub {
             filters: topics,
+            exclusions,
             count,
         })
+    }
+}
+
+fn validate_exclusions(exclusions: &[String]) -> Result<(), String> {
+    if exclusions.len() > MAX_SUBSCRIPTION_FILTERS {
+        return Err(format!(
+            "sub aceita no maximo {MAX_SUBSCRIPTION_FILTERS} exclusoes"
+        ));
+    }
+    let mut unique = HashSet::with_capacity(exclusions.len());
+    for filter in exclusions {
+        validate_topic(filter)?;
+        if !valid_filter(filter) {
+            return Err("filtro de exclusao invalido".into());
+        }
+        if !unique.insert(filter) {
+            return Err("filtros de exclusao duplicados".into());
+        }
+    }
+    Ok(())
+}
+
+/// Match only validated MQTT topic filters and concrete topic names.
+pub fn matches_filter(filter: &str, topic: &str) -> bool {
+    if topic.starts_with('$') && matches!(filter.split('/').next(), Some("+" | "#")) {
+        return false;
+    }
+    let mut filters = filter.split('/');
+    let mut topics = topic.split('/');
+    loop {
+        match (filters.next(), topics.next()) {
+            (Some("#"), _) | (None, None) => return true,
+            (Some("+"), Some(_)) => {}
+            (Some(expected), Some(actual)) if expected == actual => {}
+            _ => return false,
+        }
     }
 }
 
@@ -672,6 +783,118 @@ mod tests {
             Mode::Pub { .. }
         ));
         args[2] = "test/#".into();
+        assert!(parse(args).is_err());
+    }
+
+    #[test]
+    fn exclusions_are_validated_before_network_and_match_mqtt_levels() {
+        let mut args = base("sub");
+        args.extend(["--exclude-topic".into(), "test/+".into()]);
+        assert!(matches!(parse(args.clone()).unwrap().mode,
+            Mode::Sub { exclusions, .. } if exclusions == ["test/+" ]));
+        for invalid in ["test/#/extra", "test+", "", "a\0b", &"é".repeat(513)] {
+            let mut candidate = base("sub");
+            candidate.extend(["--exclude-topic".into(), invalid.into()]);
+            assert!(parse(candidate).is_err());
+        }
+        args.extend(["--exclude-topic".into(), "test/+".into()]);
+        assert!(parse(args).is_err());
+        let mut args = base("pub");
+        args.extend([
+            "--message".into(),
+            "x".into(),
+            "--exclude-topic".into(),
+            "#".into(),
+        ]);
+        assert!(parse(args).is_err());
+        let mut args = base("sub");
+        for index in 0..257 {
+            args.extend(["--exclude-topic".into(), format!("x/{index}")]);
+        }
+        assert!(parse(args).is_err());
+
+        for (filter, topic, expected) in [
+            ("a/+", "a/", true),
+            ("a/#", "a", true),
+            ("a/+", "a/b/c", false),
+            ("#", "$SYS/status", false),
+            ("+/status", "$SYS/status", false),
+            ("$SYS/#", "$SYS/status", true),
+            ("é/+", "é/valor", true),
+        ] {
+            assert_eq!(super::matches_filter(filter, topic), expected);
+        }
+    }
+
+    #[test]
+    fn repeat_is_finite_and_only_accepts_single_message_sources() {
+        let mut args = base("pub");
+        args.extend([
+            "--message".into(),
+            "x".into(),
+            "--repeat".into(),
+            "3".into(),
+            "--repeat-interval-ms".into(),
+            "25".into(),
+        ]);
+        let cli = parse(args).unwrap();
+        assert_eq!((cli.repeat, cli.repeat_interval_ms), (3, Some(25)));
+        for tail in [
+            vec!["--repeat", "0"],
+            vec!["--repeat", "1001"],
+            vec!["--repeat", "x"],
+            vec!["--repeat", "2"],
+            vec!["--repeat-interval-ms", "20"],
+            vec!["--repeat", "2", "--repeat-interval-ms", "0"],
+            vec!["--repeat", "2", "--repeat-interval-ms", "60001"],
+        ] {
+            let mut args = base("pub");
+            args.extend(["--message".into(), "x".into()]);
+            args.extend(tail.into_iter().map(str::to_owned));
+            assert!(parse(args).is_err());
+        }
+        let mut args = base("sub");
+        args.extend([
+            "--repeat".into(),
+            "2".into(),
+            "--repeat-interval-ms".into(),
+            "10".into(),
+        ]);
+        assert!(parse(args).is_err());
+        let mut args = base("pub");
+        args.extend([
+            "--stdin".into(),
+            "--repeat".into(),
+            "2".into(),
+            "--repeat-interval-ms".into(),
+            "10".into(),
+        ]);
+        assert!(parse(args).is_err());
+    }
+
+    #[test]
+    fn binary_output_modes_require_sub_and_raw_single_message() {
+        let mut args = base("sub");
+        args.extend(["--output".into(), "hex".into()]);
+        assert_eq!(parse(args).unwrap().output, crate::output::Output::Hex);
+        let mut args = base("sub");
+        args.extend(["--output".into(), "raw".into()]);
+        assert!(parse(args).is_err());
+        let mut args = base("sub");
+        args.extend([
+            "--output".into(),
+            "raw".into(),
+            "--count".into(),
+            "1".into(),
+        ]);
+        assert_eq!(parse(args).unwrap().output, crate::output::Output::Raw);
+        let mut args = base("pub");
+        args.extend([
+            "--message".into(),
+            "x".into(),
+            "--output".into(),
+            "hex".into(),
+        ]);
         assert!(parse(args).is_err());
     }
 
@@ -992,6 +1215,30 @@ mod tests {
         ] {
             assert!(parse(base.iter().chain(tail.iter()).map(|s| (*s).to_owned())).is_err());
         }
+    }
+
+    #[test]
+    fn will_file_is_exclusive_and_validated_before_network() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("private-will");
+        std::fs::write(&path, [0_u8, 255, 10]).unwrap();
+        let base = ["sub", "--open-lab", "--topic", "test/state"];
+        let mut args: Vec<String> = base.iter().map(|s| (*s).to_owned()).collect();
+        args.extend([
+            "--will-topic".into(),
+            "will/state".into(),
+            "--will-message-file".into(),
+            path.to_str().unwrap().into(),
+        ]);
+        assert_eq!(
+            parse(args.clone()).unwrap().will.unwrap().message,
+            [0, 255, 10]
+        );
+        args.extend(["--will-message".into(), "text".into()]);
+        assert!(parse(args).is_err());
+        let mut args: Vec<String> = base.iter().map(|s| (*s).to_owned()).collect();
+        args.extend(["--will-message-file".into(), path.to_str().unwrap().into()]);
+        assert!(parse(args).is_err());
     }
 }
 

@@ -97,6 +97,11 @@ fn open_regular(path: &std::path::Path) -> io::Result<File> {
     Ok(file)
 }
 
+pub fn read_will_file(path: &std::path::Path) -> Result<Vec<u8>, &'static str> {
+    let file = open_regular(path).map_err(|_| "arquivo Will indisponivel")?;
+    raw(file).map_err(|_| "arquivo Will invalido ou acima de 4096 bytes")
+}
+
 fn validate_size(size: usize) -> io::Result<()> {
     if size > MAX_BYTES {
         Err(io::Error::new(
@@ -224,5 +229,20 @@ mod tests {
                 .kind(),
             io::ErrorKind::TimedOut
         );
+    }
+
+    #[test]
+    fn will_file_is_bounded_and_binary_preserved() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("will-data");
+        let bytes = [0_u8, 255, 10, 34];
+        std::fs::write(&path, bytes).unwrap();
+        assert_eq!(read_will_file(&path).unwrap(), bytes);
+        std::fs::write(&path, vec![42; 4096]).unwrap();
+        assert_eq!(read_will_file(&path).unwrap().len(), 4096);
+        std::fs::write(&path, vec![42; 4097]).unwrap();
+        assert!(read_will_file(&path).is_err());
+        assert!(read_will_file(dir.path()).is_err());
+        assert!(read_will_file(&dir.path().join("missing")).is_err());
     }
 }

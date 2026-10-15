@@ -46,7 +46,7 @@ pub async fn run(
     if let Some(will) = &cli.will {
         options.set_last_will(rumqttc::LastWill::new(
             &will.topic,
-            will.message.as_bytes(),
+            will.message.as_slice(),
             will.qos,
             will.retain,
         ));
@@ -139,12 +139,17 @@ async fn run_connected(
                 publication.ok_or_else(|| invalid_data("entrada de publicacao ausente"))?;
             publish_input(cli, client, events, topic, publication).await?;
         }
-        Mode::Sub { filters, count } => {
+        Mode::Sub {
+            filters,
+            exclusions,
+            count,
+        } => {
             subscribe(
                 client,
                 events,
                 &mut retry,
                 filters,
+                exclusions,
                 requested_qos,
                 *count,
                 cli.output,
@@ -165,6 +170,23 @@ async fn publish_input(
     publication: crate::payload::Publication,
 ) -> AppResult<()> {
     let crate::payload::Publication { mut input, first } = publication;
+    if cli.repeat > 1 {
+        for index in 0..cli.repeat {
+            if index > 0 {
+                wait_repeat_interval(
+                    events,
+                    Duration::from_millis(u64::from(cli.repeat_interval_ms.unwrap())),
+                )
+                .await?;
+            }
+            client
+                .publish(topic, cli.qos, cli.retain, first.clone())
+                .await?;
+            await_publish_complete(events, cli.qos, protocol_timeout(cli)).await?;
+            cli.output.complete(cli.qos);
+        }
+        return graceful_disconnect(client, events, protocol_timeout(cli)).await;
+    }
     let mut payload = Some(first);
     while let Some(bytes) = payload {
         client.publish(topic, cli.qos, cli.retain, bytes).await?;
@@ -193,6 +215,22 @@ async fn publish_input(
         cli.output.complete(cli.qos);
     }
     Ok(())
+}
+
+async fn wait_repeat_interval(events: &mut EventLoop, interval: Duration) -> AppResult<()> {
+    let deadline = Instant::now() + interval;
+    loop {
+        tokio::select! {
+            biased;
+            () = tokio::time::sleep_until(deadline) => return Ok(()),
+            event = events.poll() => match event {
+                Ok(Event::Outgoing(_) | Event::Incoming(Incoming::PingResp)) => {},
+                Ok(_) => return Err(invalid_data("resposta MQTT inesperada entre publicacoes").into()),
+                Err(_) => return Err(io::Error::new(io::ErrorKind::ConnectionAborted,
+                    "conexao interrompida entre publicacoes; lote parcial, nao reenviado").into()),
+            },
+        }
+    }
 }
 
 async fn await_connack(
@@ -401,6 +439,7 @@ async fn subscribe(
     events: &mut EventLoop,
     retry: &mut Retry,
     filters: &[String],
+    exclusions: &[String],
     qos: QoS,
     count: Option<u64>,
     output: crate::output::Output,
@@ -488,9 +527,12 @@ async fn subscribe(
                     incoming_qos2.insert(publish.pkid);
                 }
                 if retained_filter.accepts(publish.retain)
+                    && !exclusions
+                        .iter()
+                        .any(|filter| crate::cli::matches_filter(filter, &publish.topic))
                     && count.is_none_or(|limit| received < limit)
                 {
-                    output.publish(&publish);
+                    output.publish(&publish)?;
                     received += 1;
                 }
                 if !waiting_ack {

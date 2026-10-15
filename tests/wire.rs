@@ -163,6 +163,168 @@ fn retained_filters_count_only_displayed_messages_and_ack_filtered_qos() {
     }
 }
 
+#[test]
+fn excluded_topics_still_complete_qos_handshakes_and_count_displayed_only() {
+    for qos in 0..=2_u8 {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            connect(&mut stream, false);
+            subscribe(&mut stream, qos);
+            for (identifier, topic, retained) in
+                [(7_u8, "t/hidden", true), (8_u8, "t/visible", false)]
+            {
+                let mut body = vec![0, u8::try_from(topic.len()).unwrap()];
+                body.extend(topic.as_bytes());
+                if qos > 0 {
+                    body.extend([0, identifier]);
+                }
+                body.push(identifier);
+                let header = 0x30 | (qos << 1) | u8::from(retained);
+                let mut frame = vec![header, u8::try_from(body.len()).unwrap()];
+                frame.extend(body);
+                stream.write_all(&frame).unwrap();
+                if qos == 1 {
+                    assert_eq!(packet(&mut stream), (0x40, vec![0, identifier]));
+                } else if qos == 2 {
+                    assert_eq!(packet(&mut stream), (0x50, vec![0, identifier]));
+                    stream.write_all(&[0x62, 2, 0, identifier]).unwrap();
+                    assert_eq!(packet(&mut stream), (0x70, vec![0, identifier]));
+                }
+            }
+            assert_eq!(packet(&mut stream), (0xe0, vec![]));
+        });
+        let qos_text = qos.to_string();
+        let output = finish(
+            Command::new(env!("CARGO_BIN_EXE_mqtt-client"))
+                .args([
+                    "sub",
+                    "--open-lab",
+                    "--topic",
+                    "t/#",
+                    "--port",
+                    &port.to_string(),
+                    "--client-id",
+                    "exclude-id",
+                    "--output",
+                    "jsonl",
+                    "--qos",
+                    &qos_text,
+                    "--exclude-topic",
+                    "t/hidden",
+                    "--count",
+                    "1",
+                ])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap(),
+        );
+        server.join().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert_eq!(stdout.lines().count(), 1);
+        assert!(stdout.contains("t/visible"));
+        assert!(!stdout.contains("t/hidden"));
+        assert!(stdout.contains("\"payload_bytes\":[8]"));
+    }
+}
+
+#[test]
+fn raw_and_hex_outputs_preserve_binary_payload() {
+    for (format, expected) in [
+        ("raw", vec![0, 255, 10, 34]),
+        (
+            "hex",
+            b"topic_hex=74 payload_hex=00ff0a22 qos=0 retain=true\n".to_vec(),
+        ),
+    ] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            connect(&mut stream, false);
+            subscribe(&mut stream, 0);
+            publish(&mut stream);
+            assert_eq!(packet(&mut stream), (0xe0, vec![]));
+        });
+        let output = finish(
+            Command::new(env!("CARGO_BIN_EXE_mqtt-client"))
+                .args([
+                    "sub",
+                    "--open-lab",
+                    "--topic",
+                    "t",
+                    "--port",
+                    &port.to_string(),
+                    "--output",
+                    format,
+                    "--count",
+                    "1",
+                ])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap(),
+        );
+        server.join().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(output.stdout, expected);
+    }
+}
+
+#[test]
+fn binary_will_file_is_sent_as_exact_connect_bytes() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("will-private-data");
+    let expected = [0_u8, 255, 10, 34];
+    std::fs::write(&path, expected).unwrap();
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        let body = connect(&mut stream, false);
+        assert_ne!(body[7] & 0x04, 0);
+        let mut cursor = 10;
+        for field in [b"stable-id".as_slice(), b"will/topic", expected.as_slice()] {
+            let length = usize::from(u16::from_be_bytes([body[cursor], body[cursor + 1]]));
+            cursor += 2;
+            assert_eq!(&body[cursor..cursor + length], field);
+            cursor += length;
+        }
+        assert_eq!(cursor, body.len());
+        assert_eq!(packet(&mut stream).0, 0x30);
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(
+        port,
+        "pub",
+        &[
+            "--message",
+            "x",
+            "--will-topic",
+            "will/topic",
+            "--will-message-file",
+            path.to_str().unwrap(),
+        ],
+    ));
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
 fn child(port: u16, command: &str, extra: &[&str]) -> Child {
     Command::new(env!("CARGO_BIN_EXE_mqtt-client"))
         .args([
@@ -378,6 +540,61 @@ fn publish_completion_matches_qos_protocol() {
                 "{{\"event\":\"publish_complete\",\"qos\":{qos},\"confirmation\":\"{confirmation}\"}}"
             )
         );
+    }
+}
+
+#[test]
+fn repeated_publish_waits_for_ack_and_interval_without_queuing_batch() {
+    for qos in 0..=2_u8 {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            connect(&mut stream, false);
+            let mut previous = None;
+            for _ in 0..3 {
+                let (header, body) = packet(&mut stream);
+                let now = Instant::now();
+                if let Some(before) = previous {
+                    assert!(now.duration_since(before) >= Duration::from_millis(30));
+                }
+                previous = Some(now);
+                assert_eq!(header, 0x30 | (qos << 1));
+                assert_eq!(body.last(), Some(&b'x'));
+                if qos > 0 {
+                    let id = [body[3], body[4]];
+                    stream
+                        .write_all(&[if qos == 1 { 0x40 } else { 0x50 }, 2, id[0], id[1]])
+                        .unwrap();
+                    if qos == 2 {
+                        assert_eq!(packet(&mut stream), (0x62, id.to_vec()));
+                        stream.write_all(&[0x70, 2, id[0], id[1]]).unwrap();
+                    }
+                }
+            }
+            assert_eq!(packet(&mut stream), (0xe0, vec![]));
+        });
+        let output = finish(child(
+            port,
+            "pub",
+            &[
+                "--message",
+                "x",
+                "--qos",
+                &qos.to_string(),
+                "--repeat",
+                "3",
+                "--repeat-interval-ms",
+                "40",
+            ],
+        ));
+        server.join().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(String::from_utf8(output.stdout).unwrap().lines().count(), 3);
     }
 }
 

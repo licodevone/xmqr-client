@@ -1,4 +1,7 @@
-use std::fmt::Write;
+use std::{
+    fmt::Write as _,
+    io::{self, Write as _},
+};
 
 use rumqttc::{QoS, mqttbytes::v4::Publish};
 
@@ -6,17 +9,26 @@ use rumqttc::{QoS, mqttbytes::v4::Publish};
 pub enum Output {
     Text,
     Jsonl,
+    Hex,
+    Raw,
 }
 
 impl Output {
-    pub fn publish(self, publish: &Publish) {
-        println!("{}", self.render_publish(publish));
+    pub fn publish(self, publish: &Publish) -> io::Result<()> {
+        let mut stdout = io::stdout().lock();
+        if self == Self::Raw {
+            stdout.write_all(&publish.payload)?;
+        } else {
+            stdout.write_all(self.render_publish(publish).as_bytes())?;
+            stdout.write_all(b"\n")?;
+        }
+        stdout.flush()
     }
 
     pub fn status(self, message: &str) {
         match self {
             Self::Text => println!("{message}"),
-            Self::Jsonl => eprintln!("{message}"),
+            Self::Jsonl | Self::Hex | Self::Raw => eprintln!("{message}"),
         }
     }
 
@@ -38,6 +50,7 @@ impl Output {
                 "Publicacao confirmada pelo broker em QoS {}.",
                 qos_number(qos)
             ),
+            Self::Hex | Self::Raw => eprintln!("Publicacao confirmada pelo broker."),
         }
     }
 
@@ -51,6 +64,22 @@ impl Output {
                 String::from_utf8_lossy(&publish.payload)
             );
         }
+        if self == Self::Hex {
+            let mut topic = String::with_capacity(publish.topic.len() * 2);
+            let mut payload = String::with_capacity(publish.payload.len() * 2);
+            for byte in publish.topic.as_bytes() {
+                write!(topic, "{byte:02x}").unwrap();
+            }
+            for byte in &publish.payload {
+                write!(payload, "{byte:02x}").unwrap();
+            }
+            return format!(
+                "topic_hex={topic} payload_hex={payload} qos={} retain={}",
+                qos_number(publish.qos),
+                publish.retain
+            );
+        }
+        assert_ne!(self, Self::Raw, "raw output does not render text");
         let bytes = publish
             .payload
             .iter()
@@ -118,6 +147,16 @@ mod tests {
         assert_eq!(
             Output::Text.render_publish(&publish),
             "topico=\"t\" qos=0 retain=false mensagem=\"\""
+        );
+    }
+
+    #[test]
+    fn hex_is_reversible_for_topic_and_binary_payload() {
+        let mut publish = Publish::new("é/valor", QoS::AtLeastOnce, [0, 255, 10, 34]);
+        publish.retain = true;
+        assert_eq!(
+            Output::Hex.render_publish(&publish),
+            "topic_hex=c3a92f76616c6f72 payload_hex=00ff0a22 qos=1 retain=true"
         );
     }
 }

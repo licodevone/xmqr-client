@@ -1,5 +1,17 @@
 # Histórico de versões
 
+## 0.13.0 — opções pub/sub da fase 5, experimental
+
+- C52/C03: `--exclude-topic` filtra a saída por tópico, inclusive com `+/#`;
+  `--count` considera apenas mensagens exibidas, mantendo ACKs QoS1/2.
+- C53/C04: `--repeat` com intervalo finito monotônico para uma fonte de
+  publicação; aguarda o protocolo antes da próxima e não repete resultado
+  desconhecido.
+- C54/C06: saída `hex` reversível e `raw` binária para uma mensagem, com
+  status fora do stdout; text/jsonl preservados.
+- C55/C08: Will binário por arquivo regular até 4096 bytes, validado antes
+  da rede, sem expor caminho ou conteúdo nos erros.
+
 ## 0.12.0 — perfis reutilizáveis completos, experimental
 
 - C50/C05: adiciona `clean_session`, `reconnect_attempts` e
