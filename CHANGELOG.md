@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.11.1 — correção de distribuição do C48
+
+- C49: alinha `ARG VERSION` padrão do Dockerfile ao Cargo. Nenhuma alteração
+  de TLS/MQTT. A tag0.11.0 de código não teve release por falha no contrato de
+  distribuição; a publicação usa este patch com novo commit e tag.
+
 ## 0.11.0 — TLS com senha sem certificado de cliente, experimental
 
 - C48/B10: `--tls-password` e `tls_password = true` no perfil TOML v1.

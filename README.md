@@ -1,5 +1,9 @@
 # xmqr-client
 
+O marco experimental 0.11.1 acrescenta `--tls-password` (C48/B10) e corrige
+o default da imagem Docker (C49). A tag de código 0.11.0 foi substituída antes
+da distribuição; consulte o changelog.
+
 O marco experimental 0.10.0 acrescenta perfis de conexão mTLS opt-in (C47).
 Exemplo `connection.toml` junto dos certificados e do arquivo de senha:
 
