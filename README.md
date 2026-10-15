@@ -1,6 +1,7 @@
 # xmqr-client
 
-O marco experimental 0.12.0 completa perfis C05: `clean_session`,
+O [marco experimental 0.12.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.12.0)
+completa perfis C05: `clean_session`,
 `reconnect_attempts` e `total_timeout_seconds` passam a ser reutilizáveis no
 TOML v1. Com `--profile`, a precedência é flag CLI > ambiente explícito >
 perfil > default. Variáveis `MQTT_CLIENT_HOST`, `MQTT_CLIENT_PORT`,
