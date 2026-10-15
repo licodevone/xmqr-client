@@ -1,5 +1,28 @@
 # xmqr-client
 
+O marco experimental 0.10.0 acrescenta perfis de conexão mTLS opt-in (C47).
+Exemplo `connection.toml` junto dos certificados e do arquivo de senha:
+
+```toml
+version = 1
+[connection]
+host = "127.0.0.1"
+port = 8883
+username = "device"
+ca = "ca.crt"
+cert = "client.crt"
+key = "client.key"
+password_file = "password"
+qos = 1
+```
+
+Use `mqtt-client sub --profile connection.toml --topic 'sensor/#'` ou
+`mqtt-client pub --profile connection.toml --topic sensor/value --message leitura`.
+Paths relativos partem da pasta do perfil; flags explícitas substituem campos
+do perfil. Mantenha o arquivo de senha privado (0600 no Linux). O perfil aceita
+somente parâmetros de conexão, até 64 KiB; payload, senha inline e modos de
+laboratório não são aceitos. Rotação de certificado continua planejada.
+
 C45 acrescenta prazo total monotônico opcional e jitter limitado de reconexão,
 separa CONNACK de reconexão do idle e prioriza cancelamentoSIGINT/SIGTERM.
 Veja [robustez da sessão](docs/client-robustness.md) e [registroC45](prompts/registros/C45-robustez-reconexao.md).

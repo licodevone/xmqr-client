@@ -2,6 +2,7 @@ mod cli;
 mod credentials;
 mod output;
 mod payload;
+mod profile;
 mod session;
 mod signals;
 mod tls;

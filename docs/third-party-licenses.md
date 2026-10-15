@@ -18,6 +18,7 @@ Este inventário não substitui esses textos nem uma revisão de licença dos fo
 | core-foundation | 0.10.1 | `MIT OR Apache-2.0` |
 | core-foundation-sys | 0.8.7 | `MIT OR Apache-2.0` |
 | dunce | 1.0.5 | `CC0-1.0 OR MIT-0 OR Apache-2.0` |
+| equivalent | 1.0.2 | `Apache-2.0 OR MIT` |
 | errno | 0.3.14 | `MIT OR Apache-2.0` |
 | fastrand | 2.5.0 | `Apache-2.0 OR MIT` |
 | find-msvc-tools | 0.1.13 | `MIT OR Apache-2.0` |
@@ -30,6 +31,8 @@ Este inventário não substitui esses textos nem uma revisão de licença dos fo
 | futures-util | 0.3.34 | `MIT OR Apache-2.0` |
 | getrandom | 0.2.17 | `MIT OR Apache-2.0` |
 | getrandom | 0.4.3 | `MIT OR Apache-2.0` |
+| hashbrown | 0.17.1 | `MIT OR Apache-2.0` |
+| indexmap | 2.14.2 | `Apache-2.0 OR MIT` |
 | jobserver | 0.1.35 | `MIT OR Apache-2.0` |
 | libc | 0.2.189 | `MIT OR Apache-2.0` |
 | linux-raw-sys | 0.12.1 | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
@@ -58,6 +61,10 @@ Este inventário não substitui esses textos nem uma revisão de licença dos fo
 | scopeguard | 1.2.0 | `MIT OR Apache-2.0` |
 | security-framework | 3.7.0 | `MIT OR Apache-2.0` |
 | security-framework-sys | 2.17.0 | `MIT OR Apache-2.0` |
+| serde | 1.0.229 | `MIT OR Apache-2.0` |
+| serde_core | 1.0.229 | `MIT OR Apache-2.0` |
+| serde_derive | 1.0.229 | `MIT OR Apache-2.0` |
+| serde_spanned | 1.1.2 | `MIT OR Apache-2.0` |
 | shlex | 2.0.1 | `MIT OR Apache-2.0` |
 | signal-hook-registry | 1.4.8 | `MIT OR Apache-2.0` |
 | slab | 0.4.12 | `MIT` |
@@ -73,6 +80,10 @@ Este inventário não substitui esses textos nem uma revisão de licença dos fo
 | tokio-rustls | 0.26.5 | `MIT OR Apache-2.0` |
 | tokio-stream | 0.1.19 | `MIT` |
 | tokio-util | 0.7.19 | `MIT` |
+| toml | 0.9.12+spec-1.1.0 | `MIT OR Apache-2.0` |
+| toml_datetime | 0.7.5+spec-1.1.0 | `MIT OR Apache-2.0` |
+| toml_parser | 1.1.5+spec-1.1.0 | `MIT OR Apache-2.0` |
+| toml_writer | 1.1.3+spec-1.1.0 | `MIT OR Apache-2.0` |
 | unicode-ident | 1.0.26 | `(MIT OR Apache-2.0) AND Unicode-3.0` |
 | untrusted | 0.9.0 | `ISC` |
 | wasi | 0.11.1+wasi-snapshot-preview1 | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
@@ -88,4 +99,6 @@ Este inventário não substitui esses textos nem uma revisão de licença dos fo
 | windows_x86_64_gnu | 0.52.6 | `MIT OR Apache-2.0` |
 | windows_x86_64_gnullvm | 0.52.6 | `MIT OR Apache-2.0` |
 | windows_x86_64_msvc | 0.52.6 | `MIT OR Apache-2.0` |
+| winnow | 0.7.15 | `MIT` |
+| winnow | 1.0.4 | `MIT` |
 | zeroize | 1.9.0 | `Apache-2.0 OR MIT` |

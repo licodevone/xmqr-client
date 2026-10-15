@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 0.10.0 — perfis de conexão, experimental
+
+- C47: `--profile PATH` carrega TOML v1 para parâmetros de conexão mTLS.
+  Flags explícitas prevalecem; certificados, chave e senha relativos ao perfil
+  resolvem a partir de sua pasta. Sem perfil, a CLI mantém o contrato anterior.
+- Perfis limitados a 64 KiB e schema fechado; não aceitam segredo inline,
+  payload nem modo de laboratório. Integração real com dois endpoints do broker,
+  QoS0/1/2 e negativos de CA/credenciais.
+- Rotação de certificados e opções de TLS sem certificado seguem pendentes.
+
 ## 0.9.0 — robustez de sessão e distribuição experimental
 
 - C45: `--total-timeout-seconds` 1..86400 opcional, monotônico, sem reset por tráfego/retry.
