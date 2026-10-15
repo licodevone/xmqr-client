@@ -9,5 +9,5 @@
   integração externa mTLS/TLS-senha, com perfil/ambiente/flag e senha privada.
 - Publicação: pendente neste checkpoint; preencher commit/tag, .deb, imagem,
   checksums, assets e confirmação remota após o ciclo de distribuição.
-- E02 físico na COM4 permanece bloqueado pelo Wi-Fi privado indisponível;
-  a fase4 global não é declarada completa por esta release.
+- E02 físico na COM4 passou com seis rotações, conforme P102 no repositório do
+  broker. O aceite da fase4 tem escopo finito e limites explícitos.

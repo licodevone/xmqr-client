@@ -11,3 +11,9 @@ integrações mTLS/TLS-senha e distribuição .deb/Docker do commit exato.
 Commit/push/tag imutável, assets/checksums e imagem Docker Hub numérica; não
 mover `latest`, não publicar senhas ou artefatos privados. Broker tem sua
 própria versão; E02 físico da fase4 permanece aberto até Wi-Fi recuperado.
+
+## rev2 — resultado físico consolidado
+
+O broker registrou E02 físico PASS na COM4 antes desta publicação. Descrever
+client0.12.0 como parte do aceite finito da fase 4, sem ampliar seus limites e
+sem alterar a independência do versionamento ou as exigências de distribuição.
