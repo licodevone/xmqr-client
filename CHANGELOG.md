@@ -1,12 +1,12 @@
 # Histórico de versões
 
-## Em desenvolvimento — início da fase 6A
+## 0.14.0 — MQTT 5 inicial, experimental
 
 - C58: `sub --protocol-version 5` com filtros QoS0/1, SUBACK validado,
   mensagens retidas/vivas e `--count`; sem propriedades avançadas ou QoS2.
 - C57: `--protocol-version 5` para publicação QoS0/1 com Clean Start, sem
   Will, lote ou reconexão; aceita a mesma escolha em perfil/ambiente. O padrão
-  MQTT3.1.1 e os seus recursos permanecem. Sem tag isolada.
+  MQTT3.1.1 e os seus recursos permanecem. A fase 6A integral continua aberta.
 
 ## 0.13.0 — opções pub/sub da fase 5, experimental
 
