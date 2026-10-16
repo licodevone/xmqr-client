@@ -1,4 +1,4 @@
-//! Initial MQTT 5 publish-only path. No retransmission after an uncertain send.
+//! Initial MQTT 5 pub/sub path. No retransmission after an uncertain send.
 use std::{error::Error, io, time::Duration};
 
 use rumqttc::v5::mqttbytes::v5::{ConnectReturnCode, Filter, PubAckReason, SubscribeReasonCode};

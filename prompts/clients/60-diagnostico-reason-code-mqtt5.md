@@ -19,3 +19,5 @@ Rev3: a primeira execução da integração real falhou antes da rede porque o i
 Rev4: Clippy all-targets falhou em dois avisos novos: `assert_is_empty` no teste e `trivially_copy_pass_by_ref` na função de SUBACK. Usar assert com bytes esperados e passar o enum pequeno por valor; repetir os gates. O teste funcional e a integração real já passaram.
 
 Rev5: revisão do diagnóstico identificou que um SUBACK de sucesso com QoS diferente é alteração de QoS, não recusa. Distinguir os textos e testar o downgrade separadamente.
+
+Rev6: revisão final achou ajuda CLI e comentário do módulo ainda dizendo que MQTT 5 era somente `pub`, apesar de C58 já ter entregue `sub`. Corrigir o texto de ajuda e o comentário, validar `--help` e repetir os gates afetados antes do aceite.
