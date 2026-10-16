@@ -1,12 +1,14 @@
 //! Initial MQTT 5 pub/sub path. No retransmission after an uncertain send.
 use std::{error::Error, io, time::Duration};
 
-use rumqttc::v5::mqttbytes::v5::{ConnectReturnCode, Filter, PubAckReason, SubscribeReasonCode};
+use rumqttc::v5::mqttbytes::v5::{
+    ConnectReturnCode, Filter, PubAckReason, SubscribeReasonCode, UnsubAckReason,
+};
 use rumqttc::{
     Outgoing, QoS, Transport,
     v5::{AsyncClient, ConnectionError, Event, Incoming, MqttOptions},
 };
-use tokio::time::timeout;
+use tokio::time::{Instant, timeout, timeout_at};
 
 use crate::{
     cli::{Cli, Mode, TransportMode},
@@ -97,6 +99,65 @@ fn suback_refusal(index: usize, reason: SubscribeReasonCode) -> io::Error {
             index + 1
         ),
     )
+}
+
+fn unsuback_refusal(index: usize, reason: UnsubAckReason) -> io::Error {
+    let code = match reason {
+        UnsubAckReason::Success => 0x00,
+        UnsubAckReason::NoSubscriptionExisted => 0x11,
+        UnsubAckReason::UnspecifiedError => 0x80,
+        UnsubAckReason::ImplementationSpecificError => 0x83,
+        UnsubAckReason::NotAuthorized => 0x87,
+        UnsubAckReason::TopicFilterInvalid => 0x8f,
+        UnsubAckReason::PacketIdentifierInUse => 0x91,
+    };
+    io::Error::new(
+        io::ErrorKind::InvalidData,
+        format!(
+            "UNSUBACK MQTT 5 recusou filtro {}: {reason:?} (0x{code:02X})",
+            index + 1
+        ),
+    )
+}
+
+async fn unsubscribe_after_count(
+    client: &AsyncClient,
+    events: &mut rumqttc::v5::EventLoop,
+    filters: &[String],
+    limit: Duration,
+) -> AppResult<()> {
+    for (index, filter) in filters.iter().enumerate() {
+        client.try_unsubscribe(filter.clone())?;
+        let deadline = Instant::now() + limit;
+        loop {
+            let event = timeout_at(deadline, events.poll())
+                .await
+                .map_err(|_| protocol_error("tempo esgotado aguardando UNSUBACK MQTT 5"))??;
+            match event {
+                Event::Incoming(Incoming::UnsubAck(ack)) => {
+                    let [reason] = ack.reasons.as_slice() else {
+                        return Err(protocol_error(
+                            "UNSUBACK MQTT 5 retornou quantidade incorreta de motivos",
+                        )
+                        .into());
+                    };
+                    if *reason != UnsubAckReason::Success {
+                        return Err(unsuback_refusal(index, *reason).into());
+                    }
+                    break;
+                }
+                Event::Incoming(Incoming::Publish(_) | Incoming::PingResp(_))
+                | Event::Outgoing(_) => {}
+                Event::Incoming(_) => {
+                    return Err(protocol_error(
+                        "resposta MQTT 5 inesperada ao cancelar assinatura",
+                    )
+                    .into());
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 pub async fn run(
@@ -242,6 +303,7 @@ async fn subscribe(
     let mut received = 0_u64;
     loop {
         if acknowledged && count.is_some_and(|target| received >= target) {
+            unsubscribe_after_count(client, events, filters, limit).await?;
             client.try_disconnect()?;
             loop {
                 let event = timeout(limit, events.poll())

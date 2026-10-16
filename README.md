@@ -6,6 +6,8 @@ O padrão segue MQTT 3.1.1; QoS2, lotes e reconexão nessa versão
 ainda não estão disponíveis. Exemplo local:
 `mqtt-client pub --open-lab --protocol-version 5 --topic teste --message ola`.
 `mqtt-client sub --open-lab --protocol-version 5 --topic teste --count 1`.
+Ao atingir `--count` em MQTT 5, o client aguarda UNSUBACK de cada filtro antes
+de enviar DISCONNECT; recusa ou timeout encerra com erro.
 Na evolução C60/C61 ainda não publicada, recusas CONNACK/PUBACK/SUBACK MQTT 5 exibem
 o motivo e o código, por exemplo `BadUserNamePassword (0x86)` e `NotAuthorized (0x87)`. Um PUBACK de sucesso
 confirma aceitação pelo broker, sem atestar processamento pela aplicação consumidora.

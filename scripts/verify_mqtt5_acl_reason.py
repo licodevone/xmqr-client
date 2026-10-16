@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""P119/P120/C60/C61: isolated broker/client MQTT 5 ACL reason-code contract."""
+"""P119-P121/C60-C62: isolated broker/client MQTT 5 reason-code contract."""
 
 import argparse
+import json
 import os
 from pathlib import Path
 import re
+import select
 import shlex
 import socket
 import subprocess
@@ -30,7 +32,7 @@ def private_file(path: Path, content: str) -> None:
     path.chmod(0o600)
 
 
-def run_client(client: Path, port: int, password: Path, mode: str, topic: str):
+def client_command(client: Path, port: int, password: Path, mode: str, topic: str):
     command = [str(client), mode, "--plain-auth-lab", "--username", "fixture",
                "--password-file", str(password), "--protocol-version", "5",
                "--host", "127.0.0.1", "--port", str(port), "--client-id",
@@ -39,8 +41,13 @@ def run_client(client: Path, port: int, password: Path, mode: str, topic: str):
     if mode == "pub":
         command += ["--message", "fixture-message"]
     else:
-        command += ["--count", "1"]
-    return subprocess.run(command, capture_output=True, text=True, timeout=8)
+        command += ["--count", "1", "--output", "jsonl"]
+    return command
+
+
+def run_client(client: Path, port: int, password: Path, mode: str, topic: str):
+    return subprocess.run(client_command(client, port, password, mode, topic),
+                          capture_output=True, text=True, timeout=8)
 
 
 def main() -> None:
@@ -102,7 +109,27 @@ def main() -> None:
             assert sub.returncode != 0, "denied subscribe succeeded"
             assert "SUBACK MQTT 5 recusou filtro 1" in sub.stderr, sub.stderr
             assert "NotAuthorized (0x87)" in sub.stderr, sub.stderr
-            print("PASS: denied PUBACK/SUBACK 0x87, CONNACK 0x86 and allowed publish")
+            subscriber = subprocess.Popen(
+                client_command(client, port, password, "sub", "allowed/topic"),
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            try:
+                ready, _, _ = select.select([subscriber.stderr], [], [], 4)
+                assert ready, "subscriber did not report active subscription"
+                status = subscriber.stderr.readline()
+                assert "Assinatura ativa" in status, status
+                delivered = run_client(client, port, password, "pub", "allowed/topic")
+                assert delivered.returncode == 0, delivered.stderr
+                output, errors = subscriber.communicate(timeout=8)
+                assert subscriber.returncode == 0, errors
+                events = [json.loads(line) for line in output.splitlines()]
+                assert any(event.get("topic") == "allowed/topic" and
+                           event.get("payload_bytes") == list(b"fixture-message")
+                           for event in events), output
+            finally:
+                if subscriber.poll() is None:
+                    subscriber.kill()
+                    subscriber.wait(timeout=5)
+            print("PASS: denied PUBACK/SUBACK 0x87, CONNACK 0x86, delivery and UNSUBACK")
         finally:
             if process.poll() is None:
                 process.terminate()

@@ -2,6 +2,7 @@
 
 ## Não publicado — fase 6A em evolução
 
+- C62: após `sub --protocol-version 5 --count`, cancela cada filtro, valida UNSUBACK e só então envia DISCONNECT; recusa ou timeout causa erro.
 - C61: CONNACK MQTT 5 recusado mostra motivo e código hexadecimal, incluindo `BadUserNamePassword (0x86)`; integração real confirma SUBACK ACL `NotAuthorized (0x87)` do broker P120.
 - C60: erros de PUBACK/SUBACK MQTT 5 mostram motivo e código hexadecimal, incluindo `NotAuthorized (0x87)`; teste cruzado com broker P119, sem reenvio automático.
 

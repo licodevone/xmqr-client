@@ -494,6 +494,12 @@ fn mqtt5_subscribe_checks_suback_and_acknowledges_qos1_before_disconnect() {
                     .write_all(&[0x32, 8, 0, 1, b't', 0, 2, 0, b'h', b'i'])
                     .unwrap();
                 assert_eq!(packet(&mut stream), (0x40, vec![0, 2]));
+                let (header, body) = packet(&mut stream);
+                assert_eq!(header, 0xa2);
+                assert_eq!(&body[2..], &[0, 0, 1, b't']);
+                stream
+                    .write_all(&[0xb0, 4, body[0], body[1], 0, 0])
+                    .unwrap();
                 assert_eq!(packet(&mut stream), (0xe0, vec![]));
             } else {
                 let mut probe = [0];
@@ -523,6 +529,68 @@ fn mqtt5_subscribe_checks_suback_and_acknowledges_qos1_before_disconnect() {
             };
             assert!(stderr.contains(expected), "{stderr}");
             assert!(stderr.contains(&format!("0x{reason:02X}")), "{stderr}");
+        }
+    }
+}
+
+#[test]
+fn mqtt5_unsuback_refusal_and_timeout_fail_the_subscription_command() {
+    for reason in [Some(0x11_u8), Some(0x87), None] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            assert_eq!(packet(&mut stream).0, 0x10);
+            stream
+                .write_all(&[0x20, 10, 0, 0, 7, 0x24, 1, 0x27, 0, 1, 0, 0])
+                .unwrap();
+            let (header, body) = packet(&mut stream);
+            assert_eq!(header, 0x82);
+            stream
+                .write_all(&[0x90, 4, body[0], body[1], 0, 0])
+                .unwrap();
+            stream
+                .write_all(&[0x30, 6, 0, 1, b't', 0, b'h', b'i'])
+                .unwrap();
+            let (header, body) = packet(&mut stream);
+            assert_eq!(header, 0xa2);
+            assert_eq!(&body[2..], &[0, 0, 1, b't']);
+            if let Some(reason) = reason {
+                stream
+                    .write_all(&[0xb0, 4, body[0], body[1], 0, reason])
+                    .unwrap();
+                let mut probe = [0];
+                assert_eq!(stream.read(&mut probe).unwrap(), 0);
+            } else {
+                thread::sleep(Duration::from_millis(1300));
+            }
+        });
+        let output = finish(child(
+            port,
+            "sub",
+            &[
+                "--protocol-version",
+                "5",
+                "--count",
+                "1",
+                "--timeout-seconds",
+                "1",
+            ],
+        ));
+        server.join().unwrap();
+        assert!(!output.status.success());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if let Some(reason) = reason {
+            assert!(
+                stderr.contains("UNSUBACK MQTT 5 recusou filtro 1"),
+                "{stderr}"
+            );
+            assert!(stderr.contains(&format!("0x{reason:02X}")), "{stderr}");
+        } else {
+            assert!(
+                stderr.contains("tempo esgotado aguardando UNSUBACK MQTT 5"),
+                "{stderr}"
+            );
         }
     }
 }
