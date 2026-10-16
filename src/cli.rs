@@ -282,6 +282,12 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         "5" => ProtocolVersion::Mqtt5,
         _ => return Err("--protocol-version deve ser 3.1.1 ou 5".into()),
     };
+    if protocol_version == ProtocolVersion::Mqtt5
+        && let Mode::Sub { filters, .. } = &mode
+        && subscribe_packet_size(filters).is_none_or(|size| size + 1 > MAX_PACKET_BYTES)
+    {
+        return Err("pacote SUBSCRIBE MQTT 5 excede 64 KiB completos".into());
+    }
     if command == "sub" && retain.is_some() {
         return Err("--retain somente vale para pub".into());
     }
@@ -461,8 +467,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         })
         .transpose()?;
     if protocol_version == ProtocolVersion::Mqtt5
-        && (!matches!(mode, Mode::Pub { .. })
-            || qos == QoS::ExactlyOnce
+        && (qos == QoS::ExactlyOnce
             || will.is_some()
             || !clean_session
             || line_mode
@@ -470,7 +475,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             || reconnect_attempts != 0
             || keepalive_seconds < 5)
     {
-        return Err("MQTT 5 inicial exige pub QoS 0/1, Clean Start, sem Will, lotes ou reconexao; keepalive >= 5".into());
+        return Err("MQTT 5 inicial exige QoS 0/1, Clean Start, sem Will, lotes ou reconexao; keepalive >= 5".into());
     }
     Ok(Cli {
         protocol_version,
@@ -727,7 +732,10 @@ mod tests {
             "--protocol-version",
             "5",
         ];
-        assert!(parse(sub.into_iter().map(str::to_owned)).is_err());
+        assert!(matches!(
+            parse(sub.into_iter().map(str::to_owned)).unwrap().mode,
+            Mode::Sub { .. }
+        ));
         assert!(matches!(
             parse(arguments(&["--protocol-version", "5"])).unwrap().mode,
             Mode::Pub { .. }

@@ -433,6 +433,58 @@ fn mqtt5_publish_qos0_qos1_and_refusal_wire() {
 }
 
 #[test]
+fn mqtt5_subscribe_checks_suback_and_acknowledges_qos1_before_disconnect() {
+    for reason in [1_u8, 0x80] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            assert_eq!(packet(&mut stream).0, 0x10);
+            stream
+                .write_all(&[0x20, 10, 0, 0, 7, 0x24, 1, 0x27, 0, 1, 0, 0])
+                .unwrap();
+            let (header, body) = packet(&mut stream);
+            assert_eq!(header, 0x82);
+            assert_eq!(&body[2..], &[0, 0, 1, b't', 1]);
+            stream
+                .write_all(&[0x90, 4, body[0], body[1], 0, reason])
+                .unwrap();
+            if reason == 1 {
+                stream
+                    .write_all(&[0x32, 8, 0, 1, b't', 0, 2, 0, b'h', b'i'])
+                    .unwrap();
+                assert_eq!(packet(&mut stream), (0x40, vec![0, 2]));
+                assert_eq!(packet(&mut stream), (0xe0, vec![]));
+            } else {
+                let mut probe = [0];
+                let _ = stream.read(&mut probe);
+            }
+        });
+        let output = finish(child(
+            port,
+            "sub",
+            &["--protocol-version", "5", "--qos", "1", "--count", "1"],
+        ));
+        server.join().unwrap();
+        if reason == 1 {
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(String::from_utf8_lossy(&output.stdout).contains("104,105"));
+        } else {
+            assert!(!output.status.success());
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains("SUBACK MQTT 5 recusou"),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+}
+
+#[test]
 fn reconnect_preserves_id_and_resubscribes_only_without_session() {
     for session_present in [false, true] {
         let listener = listener();

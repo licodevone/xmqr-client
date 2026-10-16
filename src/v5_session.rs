@@ -1,7 +1,7 @@
 //! Initial MQTT 5 publish-only path. No retransmission after an uncertain send.
 use std::{error::Error, io, time::Duration};
 
-use rumqttc::v5::mqttbytes::v5::{ConnectReturnCode, PubAckReason};
+use rumqttc::v5::mqttbytes::v5::{ConnectReturnCode, Filter, PubAckReason, SubscribeReasonCode};
 use rumqttc::{
     Outgoing, QoS, Transport,
     v5::{AsyncClient, ConnectionError, Event, Incoming, MqttOptions},
@@ -63,8 +63,7 @@ async fn run_inner(
     if let (Some(username), Some(password)) = (cli.username.clone(), password) {
         options.set_credentials(username, password);
     }
-    // No CONNECT properties in the initial broker subset. Its incoming default
-    // (10 KiB) safely exceeds the CONNACK/PUBACK responses used here.
+    // CONNECT stays property-free in the broker's initial MQTT 5 subset.
     let (client, mut events) = AsyncClient::new(options, 8);
     let limit = Duration::from_secs(u64::from(cli.timeout_seconds));
     loop {
@@ -91,7 +90,7 @@ async fn run_inner(
         }
     }
     let Mode::Pub { topic, .. } = &cli.mode else {
-        return Err(protocol_error("MQTT 5 sub indisponivel").into());
+        return subscribe(cli, &client, &mut events, limit).await;
     };
     let publication = publication.ok_or_else(|| protocol_error("payload ausente"))?;
     let v5_qos = match cli.qos {
@@ -133,4 +132,98 @@ async fn run_inner(
     }
     cli.output.complete(cli.qos);
     Ok(())
+}
+
+async fn subscribe(
+    cli: &Cli,
+    client: &AsyncClient,
+    events: &mut rumqttc::v5::EventLoop,
+    limit: Duration,
+) -> AppResult<()> {
+    let Mode::Sub {
+        filters,
+        exclusions,
+        count,
+    } = &cli.mode
+    else {
+        return Err(protocol_error("modo de assinatura esperado").into());
+    };
+    let qos = match cli.qos {
+        QoS::AtMostOnce => rumqttc::v5::mqttbytes::QoS::AtMostOnce,
+        QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
+        QoS::ExactlyOnce => return Err(protocol_error("MQTT 5 QoS 2 indisponivel").into()),
+    };
+    client
+        .subscribe_many(
+            filters
+                .iter()
+                .cloned()
+                .map(|filter| Filter::new(filter, qos)),
+        )
+        .await?;
+    let mut acknowledged = false;
+    let mut received = 0_u64;
+    loop {
+        if acknowledged && count.is_some_and(|target| received >= target) {
+            client.try_disconnect()?;
+            loop {
+                let event = timeout(limit, events.poll())
+                    .await
+                    .map_err(|_| protocol_error("tempo esgotado enviando DISCONNECT MQTT 5"))??;
+                if matches!(event, Event::Outgoing(Outgoing::Disconnect)) {
+                    break;
+                }
+            }
+            return Ok(());
+        }
+        let wait = if acknowledged {
+            Duration::from_secs(90)
+        } else {
+            limit
+        };
+        let event = timeout(wait, events.poll())
+            .await
+            .map_err(|_| protocol_error("tempo esgotado aguardando SUBACK/mensagem MQTT 5"))??;
+        match event {
+            Event::Incoming(Incoming::SubAck(ack)) if !acknowledged => {
+                if ack.return_codes.len() != filters.len()
+                    || ack.return_codes.iter().any(|code| !matches!(code, SubscribeReasonCode::Success(granted) if *granted == qos)) {
+                    return Err(protocol_error("SUBACK MQTT 5 recusou ou alterou QoS solicitado").into());
+                }
+                acknowledged = true;
+                cli.output
+                    .status("Assinatura ativa (MQTT 5). Aguardando mensagens; Ctrl+C para sair.");
+            }
+            Event::Incoming(Incoming::Publish(publish)) => {
+                let topic = std::str::from_utf8(&publish.topic)
+                    .map_err(|_| protocol_error("topico MQTT 5 invalido"))?;
+                if publish.payload.len() > 4096 || topic.len() > 1024 {
+                    return Err(protocol_error("PUBLISH MQTT 5 excede limites XMQR").into());
+                }
+                if cli.retained_filter.accepts(publish.retain)
+                    && !exclusions
+                        .iter()
+                        .any(|filter| crate::cli::matches_filter(filter, topic))
+                    && count.is_none_or(|target| received < target)
+                {
+                    let qos = match publish.qos {
+                        rumqttc::v5::mqttbytes::QoS::AtMostOnce => QoS::AtMostOnce,
+                        rumqttc::v5::mqttbytes::QoS::AtLeastOnce => QoS::AtLeastOnce,
+                        rumqttc::v5::mqttbytes::QoS::ExactlyOnce => {
+                            return Err(protocol_error("PUBLISH MQTT 5 QoS 2 indisponivel").into());
+                        }
+                    };
+                    let mut display =
+                        rumqttc::mqttbytes::v4::Publish::new(topic, qos, publish.payload.clone());
+                    display.retain = publish.retain;
+                    cli.output.publish(&display)?;
+                    received += 1;
+                }
+            }
+            Event::Outgoing(_) | Event::Incoming(Incoming::PingResp(_)) => {}
+            Event::Incoming(_) => {
+                return Err(protocol_error("resposta MQTT 5 inesperada na assinatura").into());
+            }
+        }
+    }
 }

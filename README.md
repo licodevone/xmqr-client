@@ -1,10 +1,11 @@
 # xmqr-client
 
-Em desenvolvimento, C57 permite `mqtt-client pub --protocol-version 5` para
-uma publicação QoS0/1 com Clean Start, sem Will/propriedades avançadas.
-O padrão segue MQTT 3.1.1; `sub` MQTT 5, QoS2, lotes e reconexão nessa versão
+Em desenvolvimento, C57/C58 permitem `mqtt-client pub|sub --protocol-version 5`
+em QoS0/1 com Clean Start, sem Will/propriedades avançadas.
+O padrão segue MQTT 3.1.1; QoS2, lotes e reconexão nessa versão
 ainda não estão disponíveis. Exemplo local:
 `mqtt-client pub --open-lab --protocol-version 5 --topic teste --message ola`.
+`mqtt-client sub --open-lab --protocol-version 5 --topic teste --count 1`.
 Com perfil TOML, use
 `protocol_version = "5"` ou `MQTT_CLIENT_PROTOCOL_VERSION=5`.
 
@@ -68,7 +69,7 @@ Veja [robustez da sessão](docs/client-robustness.md) e [registroC45](prompts/re
 O marco0.9.0 passou os gates coordenados e está publicado;
 veja [C46](prompts/registros/C46-release-fase3.md) e o
 [aceite da fase3](https://github.com/licodevone/xmqr/blob/main/docs/phase3-acceptance.md).
-MQTT5 completo continua planejado; C57 cobre somente a publicação inicial.
+MQTT5 completo continua planejado; C57/C58 cobrem publicação e assinatura iniciais.
 
 O client participa do [checklist da fase2](docs/phase2-acceptance.md).
 C43 amplia interop externa sem mudar runtime0.8.1; P85/C44 completaram
