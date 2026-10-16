@@ -2,7 +2,8 @@
 use std::{error::Error, io, time::Duration};
 
 use rumqttc::v5::mqttbytes::v5::{
-    ConnectReturnCode, Filter, PubAckReason, SubscribeReasonCode, UnsubAckReason,
+    ConnectReturnCode, Filter, PubAckReason, PubCompReason, PubRecReason, SubscribeReasonCode,
+    UnsubAckReason,
 };
 use rumqttc::{
     Outgoing, QoS, Transport,
@@ -71,6 +72,35 @@ fn puback_refusal(reason: PubAckReason) -> io::Error {
     io::Error::new(
         io::ErrorKind::InvalidData,
         format!("broker recusou PUBLISH MQTT 5: {reason:?} (0x{code:02X})"),
+    )
+}
+
+fn pubrec_refusal(reason: PubRecReason) -> io::Error {
+    let code = match reason {
+        PubRecReason::Success => 0x00,
+        PubRecReason::NoMatchingSubscribers => 0x10,
+        PubRecReason::UnspecifiedError => 0x80,
+        PubRecReason::ImplementationSpecificError => 0x83,
+        PubRecReason::NotAuthorized => 0x87,
+        PubRecReason::TopicNameInvalid => 0x90,
+        PubRecReason::PacketIdentifierInUse => 0x91,
+        PubRecReason::QuotaExceeded => 0x97,
+        PubRecReason::PayloadFormatInvalid => 0x99,
+    };
+    io::Error::new(
+        io::ErrorKind::InvalidData,
+        format!("broker recusou PUBLISH MQTT 5 em PUBREC: {reason:?} (0x{code:02X})"),
+    )
+}
+
+fn pubcomp_refusal(reason: PubCompReason) -> io::Error {
+    let code = match reason {
+        PubCompReason::Success => 0x00,
+        PubCompReason::PacketIdentifierNotFound => 0x92,
+    };
+    io::Error::new(
+        io::ErrorKind::InvalidData,
+        format!("broker recusou PUBLISH MQTT 5 em PUBCOMP: {reason:?} (0x{code:02X})"),
     )
 }
 
@@ -146,7 +176,9 @@ async fn unsubscribe_after_count(
                     }
                     break;
                 }
-                Event::Incoming(Incoming::Publish(_) | Incoming::PingResp(_))
+                Event::Incoming(
+                    Incoming::Publish(_) | Incoming::PubRel(_) | Incoming::PingResp(_),
+                )
                 | Event::Outgoing(_) => {}
                 Event::Incoming(_) => {
                     return Err(protocol_error(
@@ -234,7 +266,7 @@ async fn run_inner(
     let v5_qos = match cli.qos {
         QoS::AtMostOnce => rumqttc::v5::mqttbytes::QoS::AtMostOnce,
         QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
-        QoS::ExactlyOnce => return Err(protocol_error("MQTT 5 QoS 2 indisponivel").into()),
+        QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
     };
     client
         .publish(topic, v5_qos, cli.retain, publication.first)
@@ -248,6 +280,20 @@ async fn run_inner(
             Event::Incoming(Incoming::PubAck(ack)) if cli.qos == QoS::AtLeastOnce => {
                 if ack.reason != PubAckReason::Success {
                     return Err(puback_refusal(ack.reason).into());
+                }
+                break;
+            }
+            Event::Incoming(Incoming::PubRec(ack)) if cli.qos == QoS::ExactlyOnce => {
+                if !matches!(
+                    ack.reason,
+                    PubRecReason::Success | PubRecReason::NoMatchingSubscribers
+                ) {
+                    return Err(pubrec_refusal(ack.reason).into());
+                }
+            }
+            Event::Incoming(Incoming::PubComp(ack)) if cli.qos == QoS::ExactlyOnce => {
+                if ack.reason != PubCompReason::Success {
+                    return Err(pubcomp_refusal(ack.reason).into());
                 }
                 break;
             }
@@ -289,7 +335,7 @@ async fn subscribe(
     let qos = match cli.qos {
         QoS::AtMostOnce => rumqttc::v5::mqttbytes::QoS::AtMostOnce,
         QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
-        QoS::ExactlyOnce => return Err(protocol_error("MQTT 5 QoS 2 indisponivel").into()),
+        QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
     };
     client
         .subscribe_many(
@@ -355,9 +401,7 @@ async fn subscribe(
                     let qos = match publish.qos {
                         rumqttc::v5::mqttbytes::QoS::AtMostOnce => QoS::AtMostOnce,
                         rumqttc::v5::mqttbytes::QoS::AtLeastOnce => QoS::AtLeastOnce,
-                        rumqttc::v5::mqttbytes::QoS::ExactlyOnce => {
-                            return Err(protocol_error("PUBLISH MQTT 5 QoS 2 indisponivel").into());
-                        }
+                        rumqttc::v5::mqttbytes::QoS::ExactlyOnce => QoS::ExactlyOnce,
                     };
                     let mut display =
                         rumqttc::mqttbytes::v4::Publish::new(topic, qos, publish.payload.clone());

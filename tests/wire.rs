@@ -365,8 +365,8 @@ fn finish(mut child: Child) -> Output {
 }
 
 #[test]
-fn mqtt5_publish_qos0_qos1_and_refusal_wire() {
-    for qos in [0_u8, 1] {
+fn mqtt5_publish_qos0_qos1_qos2_and_refusal_wire() {
+    for qos in [0_u8, 1, 2] {
         let listener = listener();
         let port = listener.local_addr().unwrap().port();
         let server = thread::spawn(move || {
@@ -375,7 +375,7 @@ fn mqtt5_publish_qos0_qos1_and_refusal_wire() {
             assert_eq!(header, 0x10);
             assert_eq!(&body[..11], &[0, 4, b'M', b'Q', b'T', b'T', 5, 2, 0, 30, 0]);
             stream
-                .write_all(&[0x20, 10, 0, 0, 7, 0x24, 1, 0x27, 0, 1, 0, 0])
+                .write_all(&[0x20, 8, 0, 0, 5, 0x27, 0, 1, 0, 0])
                 .unwrap();
             let (header, body) = packet(&mut stream);
             assert_eq!(header, 0x30 | (qos << 1));
@@ -385,6 +385,10 @@ fn mqtt5_publish_qos0_qos1_and_refusal_wire() {
             assert_eq!(&body[offset + 1..], b"hello");
             if qos == 1 {
                 stream.write_all(&[0x40, 2, body[3], body[4]]).unwrap();
+            } else if qos == 2 {
+                stream.write_all(&[0x50, 2, body[3], body[4]]).unwrap();
+                assert_eq!(packet(&mut stream), (0x62, vec![body[3], body[4]]));
+                stream.write_all(&[0x70, 2, body[3], body[4]]).unwrap();
             }
             assert_eq!(packet(&mut stream), (0xe0, vec![]));
         });
@@ -470,6 +474,55 @@ fn mqtt5_puback_not_authorized_is_reported_without_success_output() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("NotAuthorized (0x87)"), "{stderr}");
     assert!(!stderr.contains("hello"));
+}
+
+#[test]
+fn mqtt5_qos2_refused_pubrec_or_pubcomp_never_reports_success() {
+    for refuse_at_pubrec in [true, false] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            assert_eq!(packet(&mut stream).0, 0x10);
+            stream
+                .write_all(&[0x20, 8, 0, 0, 5, 0x27, 0, 1, 0, 0])
+                .unwrap();
+            let (header, body) = packet(&mut stream);
+            assert_eq!(header, 0x34);
+            let id = [body[3], body[4]];
+            if refuse_at_pubrec {
+                stream.write_all(&[0x50, 4, id[0], id[1], 0x87, 0]).unwrap();
+            } else {
+                stream.write_all(&[0x50, 2, id[0], id[1]]).unwrap();
+                assert_eq!(packet(&mut stream), (0x62, id.to_vec()));
+                stream.write_all(&[0x70, 4, id[0], id[1], 0x92, 0]).unwrap();
+            }
+            let mut probe = [0];
+            assert_eq!(stream.read(&mut probe).unwrap(), 0);
+        });
+        let output = finish(child(
+            port,
+            "pub",
+            &[
+                "--protocol-version",
+                "5",
+                "--qos",
+                "2",
+                "--message",
+                "hello",
+            ],
+        ));
+        server.join().unwrap();
+        assert!(!output.status.success());
+        assert_eq!(output.stdout, [] as [u8; 0]);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let expected = if refuse_at_pubrec {
+            "PUBREC: NotAuthorized (0x87)"
+        } else {
+            "PUBCOMP: PacketIdentifierNotFound (0x92)"
+        };
+        assert!(stderr.contains(expected), "{stderr}");
+    }
 }
 
 #[test]
@@ -593,6 +646,66 @@ fn mqtt5_unsuback_refusal_and_timeout_fail_the_subscription_command() {
             );
         }
     }
+}
+
+#[test]
+fn mqtt5_subscriber_qos2_completes_handshake_before_disconnect() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream
+            .write_all(&[0x20, 8, 0, 0, 5, 0x27, 0, 1, 0, 0])
+            .unwrap();
+        let (header, subscribe) = packet(&mut stream);
+        assert_eq!(header, 0x82);
+        assert_eq!(*subscribe.last().unwrap(), 2);
+        stream
+            .write_all(&[0x90, 4, subscribe[0], subscribe[1], 0, 2])
+            .unwrap();
+        stream
+            .write_all(&[0x34, 8, 0, 1, b't', 0, 9, 0, b'h', b'i'])
+            .unwrap();
+        let mut pubrec = false;
+        let mut pubcomp = false;
+        let mut unsuback = false;
+        while !(pubrec && pubcomp && unsuback) {
+            let (header, body) = packet(&mut stream);
+            match header {
+                0x50 => {
+                    assert_eq!(body, [0, 9]);
+                    pubrec = true;
+                    stream.write_all(&[0x62, 2, 0, 9]).unwrap();
+                }
+                0x70 => {
+                    assert_eq!(body, [0, 9]);
+                    pubcomp = true;
+                }
+                0xa2 => {
+                    assert_eq!(&body[2..], &[0, 0, 1, b't']);
+                    unsuback = true;
+                    stream
+                        .write_all(&[0xb0, 4, body[0], body[1], 0, 0])
+                        .unwrap();
+                }
+                _ => panic!("unexpected MQTT 5 packet {header:#x}"),
+            }
+        }
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(
+        port,
+        "sub",
+        &["--protocol-version", "5", "--qos", "2", "--count", "1"],
+    ));
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("104,105"));
 }
 
 #[test]

@@ -11,6 +11,8 @@ de enviar DISCONNECT; recusa ou timeout encerra com erro.
 Na evolução C60/C61 ainda não publicada, recusas CONNACK/PUBACK/SUBACK MQTT 5 exibem
 o motivo e o código, por exemplo `BadUserNamePassword (0x86)` e `NotAuthorized (0x87)`. Um PUBACK de sucesso
 confirma aceitação pelo broker, sem atestar processamento pela aplicação consumidora.
+Na árvore atual, C63 amplia `pub` e `sub --protocol-version 5 --qos 2` para
+o ciclo QoS2 completo; `pub` aguarda PUBCOMP e mostra recusas PUBREC/PUBCOMP.
 Com perfil TOML, use
 `protocol_version = "5"` ou `MQTT_CLIENT_PROTOCOL_VERSION=5`.
 
