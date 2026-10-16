@@ -5,4 +5,4 @@
 - Ubuntu26/WSL: fmt PASS, 47 unitários PASS, 35 wire PASS, Clippy `-D warnings` PASS e build PASS. Teste wire próprio cobre SUBACK sucesso/falha, PUBLISH5 QoS1, PUBACK e DISCONNECT.
 - Integração com broker P116: `scripts/verify_mqtt5_cross.py` PASS para retained e publicação viva de cliente MQTT3.1.1 em assinante MQTT5, além da direção inversa.
 - Rev2 corrigiu CONNECT com propriedade extra; rev3 aceita PUBLISH antes de SUBACK conforme OASIS §3.8.4; rev4–5 corrigiram apenas fixtures de wire. Sem migração de estado ou alteração do padrão 3.1.1.
-- Aceite local PASS para este subconjunto. CI do commit remoto será registrada separadamente; fase6A integral permanece aberta.
+- Aceite PASS: commit `9aa86ae` e [CI](https://github.com/licodevone/xmqr-client/actions/runs/38951630275) concluída com sucesso, incluindo pacote Ubuntu26. Fase6A integral permanece aberta.

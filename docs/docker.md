@@ -1,6 +1,13 @@
 # Imagem Docker do cliente MQTT
 
-## Distribuição atual 0.9.0 — robustez da sessão
+## Distribuição atual 0.14.0 — MQTT 5 inicial experimental
+
+Imagem numerada `lepinheiro100/xmqr-client:0.14.0` publicada com fonte,
+digest e hashes registrados em [C59](../prompts/registros/C59-release-0.14.0.md).
+A [prerelease](https://github.com/licodevone/xmqr-client/releases/tag/v0.14.0)
+contém o export e checksums. Nenhum `latest` foi movido.
+
+## Histórico 0.9.0 — robustez da sessão
 
 Imagem publicada e conferida por manifest, pull/run por digest, versão real
 e source revision `e688c75a3779803e8f1868792dcc5e7a36f2dd6e`.
