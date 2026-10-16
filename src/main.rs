@@ -6,6 +6,7 @@ mod profile;
 mod session;
 mod signals;
 mod tls;
+mod v5_session;
 
 #[tokio::main]
 async fn main() {

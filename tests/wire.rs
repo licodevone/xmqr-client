@@ -365,6 +365,74 @@ fn finish(mut child: Child) -> Output {
 }
 
 #[test]
+fn mqtt5_publish_qos0_qos1_and_refusal_wire() {
+    for qos in [0_u8, 1] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            let (header, body) = packet(&mut stream);
+            assert_eq!(header, 0x10);
+            assert_eq!(&body[..11], &[0, 4, b'M', b'Q', b'T', b'T', 5, 2, 0, 30, 0]);
+            stream
+                .write_all(&[0x20, 10, 0, 0, 7, 0x24, 1, 0x27, 0, 1, 0, 0])
+                .unwrap();
+            let (header, body) = packet(&mut stream);
+            assert_eq!(header, 0x30 | (qos << 1));
+            assert_eq!(&body[..3], &[0, 1, b't']);
+            let offset = if qos == 0 { 3 } else { 5 };
+            assert_eq!(body[offset], 0, "PUBLISH properties must be empty");
+            assert_eq!(&body[offset + 1..], b"hello");
+            if qos == 1 {
+                stream.write_all(&[0x40, 2, body[3], body[4]]).unwrap();
+            }
+            assert_eq!(packet(&mut stream), (0xe0, vec![]));
+        });
+        let qos_arg = qos.to_string();
+        let output = finish(child(
+            port,
+            "pub",
+            &[
+                "--protocol-version",
+                "5",
+                "--qos",
+                &qos_arg,
+                "--message",
+                "hello",
+            ],
+        ));
+        server.join().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream.write_all(&[0x20, 3, 0, 0x83, 0]).unwrap();
+        let mut probe = [0];
+        assert_eq!(stream.read(&mut probe).unwrap(), 0);
+    });
+    let output = finish(child(
+        port,
+        "pub",
+        &["--protocol-version", "5", "--message", "hello"],
+    ));
+    server.join().unwrap();
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("recusou CONNECT MQTT 5"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
 fn reconnect_preserves_id_and_resubscribes_only_without_session() {
     for session_present in [false, true] {
         let listener = listener();

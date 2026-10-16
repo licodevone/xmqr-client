@@ -28,6 +28,9 @@ pub async fn run(
     password: Option<String>,
     publication: Option<crate::payload::Publication>,
 ) -> AppResult<()> {
+    if cli.protocol_version == super::cli::ProtocolVersion::Mqtt5 {
+        return super::v5_session::run(cli, password, publication).await;
+    }
     // One monotonic deadline; reconnects and ordinary traffic cannot renew it.
     // Initial payload/password reads occur before run() and are excluded.
     let total_deadline = cli

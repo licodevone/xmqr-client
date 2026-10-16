@@ -10,6 +10,7 @@ const ENV_FIELDS: &[(&str, &str)] = &[
     ("client_id", "MQTT_CLIENT_ID"),
     ("output", "MQTT_CLIENT_OUTPUT"),
     ("qos", "MQTT_CLIENT_QOS"),
+    ("protocol_version", "MQTT_CLIENT_PROTOCOL_VERSION"),
     ("keepalive_seconds", "MQTT_CLIENT_KEEPALIVE_SECONDS"),
     ("timeout_seconds", "MQTT_CLIENT_TIMEOUT_SECONDS"),
     ("total_timeout_seconds", "MQTT_CLIENT_TOTAL_TIMEOUT_SECONDS"),
@@ -161,7 +162,9 @@ fn setting(
     profile_path: &Path,
 ) -> Result<(String, String), String> {
     let (string, is_path) = match key {
-        "host" | "client_id" | "username" | "output" => (value.as_str().map(str::to_owned), false),
+        "host" | "client_id" | "username" | "output" | "protocol_version" => {
+            (value.as_str().map(str::to_owned), false)
+        }
         "ca" | "cert" | "key" | "password_file" => (value.as_str().map(str::to_owned), true),
         "port"
         | "qos"

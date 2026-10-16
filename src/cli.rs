@@ -33,6 +33,12 @@ pub enum TransportMode {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProtocolVersion {
+    Mqtt311,
+    Mqtt5,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RetainedFilter {
     All,
     Ignore,
@@ -59,6 +65,7 @@ pub struct Will {
 
 #[derive(Debug)]
 pub struct Cli {
+    pub protocol_version: ProtocolVersion,
     pub line_mode: bool,
     pub retained_filter: RetainedFilter,
     pub output: crate::output::Output,
@@ -84,7 +91,7 @@ pub struct Cli {
     pub transport_mode: TransportMode,
 }
 
-pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\nTLS com senha, sem certificado de cliente:\n  mqtt-client pub|sub --tls-password --topic TOPICO --username USUARIO --ca CA.crt [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO | --will-message-file PATH [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl|hex|raw (hex/raw apenas sub; raw exige --count 1), --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --repeat 1..1000 --repeat-interval-ms 1..60000 (pub, fonte unica), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --exclude-topic FILTRO (sub, repetivel), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
+pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\nTLS com senha, sem certificado de cliente:\n  mqtt-client pub|sub --tls-password --topic TOPICO --username USUARIO --ca CA.crt [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO | --will-message-file PATH [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --protocol-version 3.1.1|5 (padrao 3.1.1; MQTT5 inicial somente pub QoS0/1), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl|hex|raw (hex/raw apenas sub; raw exige --count 1), --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --repeat 1..1000 --repeat-interval-ms 1..60000 (pub, fonte unica), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --exclude-topic FILTRO (sub, repetivel), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -95,6 +102,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     }
 
     let mut output = None;
+    let mut protocol_version = None;
     let mut retained_filter = None;
     let mut reconnect_attempts = None;
     let mut repeat = None;
@@ -186,6 +194,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             continue;
         }
         let slot = match flag.as_str() {
+            "--protocol-version" => &mut protocol_version,
             "--output" => &mut output,
             "--reconnect-attempts" => &mut reconnect_attempts,
             "--repeat" => &mut repeat,
@@ -267,6 +276,11 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         "1" => QoS::AtLeastOnce,
         "2" => QoS::ExactlyOnce,
         _ => return Err("--qos deve ser 0, 1 ou 2".into()),
+    };
+    let protocol_version = match protocol_version.as_deref().unwrap_or("3.1.1") {
+        "3.1.1" => ProtocolVersion::Mqtt311,
+        "5" => ProtocolVersion::Mqtt5,
+        _ => return Err("--protocol-version deve ser 3.1.1 ou 5".into()),
     };
     if command == "sub" && retain.is_some() {
         return Err("--retain somente vale para pub".into());
@@ -446,7 +460,20 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                 .ok_or("--total-timeout-seconds deve ser 1..86400")
         })
         .transpose()?;
+    if protocol_version == ProtocolVersion::Mqtt5
+        && (!matches!(mode, Mode::Pub { .. })
+            || qos == QoS::ExactlyOnce
+            || will.is_some()
+            || !clean_session
+            || line_mode
+            || repeat_count != 1
+            || reconnect_attempts != 0
+            || keepalive_seconds < 5)
+    {
+        return Err("MQTT 5 inicial exige pub QoS 0/1, Clean Start, sem Will, lotes ou reconexao; keepalive >= 5".into());
+    }
     Ok(Cli {
+        protocol_version,
         line_mode,
         retained_filter: retained_filter.unwrap_or(RetainedFilter::All),
         output,
@@ -664,6 +691,48 @@ fn subscribe_packet_size(filters: &[String]) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn mqtt5_initial_scope_is_explicit_and_validated_before_network() {
+        use super::{Mode, ProtocolVersion, parse};
+        let base = ["pub", "--open-lab", "--topic", "t", "--message", "x"];
+        let arguments = |extra: &[&str]| {
+            base.iter()
+                .chain(extra)
+                .map(|s| (*s).to_owned())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            parse(arguments(&[])).unwrap().protocol_version,
+            ProtocolVersion::Mqtt311
+        );
+        assert_eq!(
+            parse(arguments(&["--protocol-version", "5", "--qos", "1"]))
+                .unwrap()
+                .protocol_version,
+            ProtocolVersion::Mqtt5
+        );
+        for extra in [
+            vec!["--protocol-version", "6"],
+            vec!["--protocol-version", "5", "--qos", "2"],
+            vec!["--protocol-version", "5", "--clean-session", "false"],
+            vec!["--protocol-version", "5", "--reconnect-attempts", "1"],
+        ] {
+            assert!(parse(arguments(&extra)).is_err());
+        }
+        let sub = [
+            "sub",
+            "--open-lab",
+            "--topic",
+            "t",
+            "--protocol-version",
+            "5",
+        ];
+        assert!(parse(sub.into_iter().map(str::to_owned)).is_err());
+        assert!(matches!(
+            parse(arguments(&["--protocol-version", "5"])).unwrap().mode,
+            Mode::Pub { .. }
+        ));
+    }
     use super::{Mode, RetainedFilter, TransportMode, parse, validate_password};
 
     fn base(mode: &str) -> Vec<String> {
