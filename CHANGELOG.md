@@ -1,6 +1,6 @@
 # Histórico de versões
 
-## Não publicado — fase 6A em evolução
+## 0.15.0 — MQTT 5 ampliado, experimental
 
 - C64: flags MQTT 5 para Request Problem/Response Information e pares repetíveis de User Property no CONNECT; validação local de valores e limite 4096 bytes, sem alterar MQTT 3.1.1.
 - C63: `pub`/`sub --protocol-version 5 --qos 2` completam o ciclo QoS2; publicação aguarda PUBCOMP e mostra motivo/código de PUBREC ou PUBCOMP recusado.

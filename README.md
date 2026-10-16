@@ -1,5 +1,10 @@
 # xmqr-client
 
+O marco experimental 0.15.0 amplia MQTT 5 para QoS2, UNSUBACK, diagnóstico
+de recusas e propriedades informativas de CONNECT. Veja a
+[nota de release](docs/releases/0.15.0.md); o suporte MQTT 5 integral ainda
+está em desenvolvimento.
+
 Desde a [prerelease 0.14.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.14.0), C57/C58 permitem `mqtt-client pub|sub --protocol-version 5`
 em QoS0/1 com Clean Start, sem Will/propriedades avançadas.
 O padrão segue MQTT 3.1.1; QoS2, lotes e reconexão nessa versão
@@ -8,7 +13,7 @@ ainda não estão disponíveis. Exemplo local:
 `mqtt-client sub --open-lab --protocol-version 5 --topic teste --count 1`.
 Ao atingir `--count` em MQTT 5, o client aguarda UNSUBACK de cada filtro antes
 de enviar DISCONNECT; recusa ou timeout encerra com erro.
-Na evolução C60/C61 ainda não publicada, recusas CONNACK/PUBACK/SUBACK MQTT 5 exibem
+Em C60/C61, recusas CONNACK/PUBACK/SUBACK MQTT 5 exibem
 o motivo e o código, por exemplo `BadUserNamePassword (0x86)` e `NotAuthorized (0x87)`. Um PUBACK de sucesso
 confirma aceitação pelo broker, sem atestar processamento pela aplicação consumidora.
 Na árvore atual, C63 amplia `pub` e `sub --protocol-version 5 --qos 2` para
