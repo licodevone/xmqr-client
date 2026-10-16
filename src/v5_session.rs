@@ -20,6 +20,51 @@ fn protocol_error(message: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
 
+fn puback_refusal(reason: PubAckReason) -> io::Error {
+    let code = match reason {
+        PubAckReason::Success => 0x00,
+        PubAckReason::NoMatchingSubscribers => 0x10,
+        PubAckReason::UnspecifiedError => 0x80,
+        PubAckReason::ImplementationSpecificError => 0x83,
+        PubAckReason::NotAuthorized => 0x87,
+        PubAckReason::TopicNameInvalid => 0x90,
+        PubAckReason::PacketIdentifierInUse => 0x91,
+        PubAckReason::QuotaExceeded => 0x97,
+        PubAckReason::PayloadFormatInvalid => 0x99,
+    };
+    io::Error::new(
+        io::ErrorKind::InvalidData,
+        format!("broker recusou PUBLISH MQTT 5: {reason:?} (0x{code:02X})"),
+    )
+}
+
+fn suback_refusal(index: usize, reason: SubscribeReasonCode) -> io::Error {
+    let code = match reason {
+        SubscribeReasonCode::Success(qos) => qos as u8,
+        SubscribeReasonCode::Failure | SubscribeReasonCode::Unspecified => 0x80,
+        SubscribeReasonCode::ImplementationSpecific => 0x83,
+        SubscribeReasonCode::NotAuthorized => 0x87,
+        SubscribeReasonCode::TopicFilterInvalid => 0x8f,
+        SubscribeReasonCode::PkidInUse => 0x91,
+        SubscribeReasonCode::QuotaExceeded => 0x97,
+        SubscribeReasonCode::SharedSubscriptionsNotSupported => 0x9e,
+        SubscribeReasonCode::SubscriptionIdNotSupported => 0xa1,
+        SubscribeReasonCode::WildcardSubscriptionsNotSupported => 0xa2,
+    };
+    io::Error::new(
+        io::ErrorKind::InvalidData,
+        format!(
+            "SUBACK MQTT 5 {} filtro {}: {reason:?} (0x{code:02X})",
+            if matches!(reason, SubscribeReasonCode::Success(_)) {
+                "alterou QoS do"
+            } else {
+                "recusou"
+            },
+            index + 1
+        ),
+    )
+}
+
 pub async fn run(
     cli: Cli,
     password: Option<String>,
@@ -109,7 +154,7 @@ async fn run_inner(
             Event::Outgoing(Outgoing::Publish(0)) if cli.qos == QoS::AtMostOnce => break,
             Event::Incoming(Incoming::PubAck(ack)) if cli.qos == QoS::AtLeastOnce => {
                 if ack.reason != PubAckReason::Success {
-                    return Err(protocol_error("broker recusou PUBLISH MQTT 5").into());
+                    return Err(puback_refusal(ack.reason).into());
                 }
                 break;
             }
@@ -186,9 +231,16 @@ async fn subscribe(
             .map_err(|_| protocol_error("tempo esgotado aguardando SUBACK/mensagem MQTT 5"))??;
         match event {
             Event::Incoming(Incoming::SubAck(ack)) if !acknowledged => {
-                if ack.return_codes.len() != filters.len()
-                    || ack.return_codes.iter().any(|code| !matches!(code, SubscribeReasonCode::Success(granted) if *granted == qos)) {
-                    return Err(protocol_error("SUBACK MQTT 5 recusou ou alterou QoS solicitado").into());
+                if ack.return_codes.len() != filters.len() {
+                    return Err(protocol_error(
+                        "SUBACK MQTT 5 retornou quantidade incorreta de motivos",
+                    )
+                    .into());
+                }
+                for (index, reason) in ack.return_codes.iter().enumerate() {
+                    if !matches!(reason, SubscribeReasonCode::Success(granted) if *granted == qos) {
+                        return Err(suback_refusal(index, *reason).into());
+                    }
                 }
                 acknowledged = true;
                 cli.output

@@ -6,6 +6,9 @@ O padrão segue MQTT 3.1.1; QoS2, lotes e reconexão nessa versão
 ainda não estão disponíveis. Exemplo local:
 `mqtt-client pub --open-lab --protocol-version 5 --topic teste --message ola`.
 `mqtt-client sub --open-lab --protocol-version 5 --topic teste --count 1`.
+Na evolução C60 ainda não publicada, recusas PUBACK/SUBACK MQTT 5 exibem
+o motivo e o código, por exemplo `NotAuthorized (0x87)`. Um PUBACK de sucesso
+confirma aceitação pelo broker, sem atestar processamento pela aplicação consumidora.
 Com perfil TOML, use
 `protocol_version = "5"` ou `MQTT_CLIENT_PROTOCOL_VERSION=5`.
 

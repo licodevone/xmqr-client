@@ -433,8 +433,47 @@ fn mqtt5_publish_qos0_qos1_and_refusal_wire() {
 }
 
 #[test]
+fn mqtt5_puback_not_authorized_is_reported_without_success_output() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream
+            .write_all(&[0x20, 10, 0, 0, 7, 0x24, 1, 0x27, 0, 1, 0, 0])
+            .unwrap();
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x32);
+        let packet_id = &body[3..5];
+        stream
+            .write_all(&[0x40, 4, packet_id[0], packet_id[1], 0x87, 0])
+            .unwrap();
+        let mut probe = [0];
+        assert_eq!(stream.read(&mut probe).unwrap(), 0);
+    });
+    let output = finish(child(
+        port,
+        "pub",
+        &[
+            "--protocol-version",
+            "5",
+            "--qos",
+            "1",
+            "--message",
+            "hello",
+        ],
+    ));
+    server.join().unwrap();
+    assert!(!output.status.success());
+    assert_eq!(output.stdout, [] as [u8; 0]);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("NotAuthorized (0x87)"), "{stderr}");
+    assert!(!stderr.contains("hello"));
+}
+
+#[test]
 fn mqtt5_subscribe_checks_suback_and_acknowledges_qos1_before_disconnect() {
-    for reason in [1_u8, 0x80] {
+    for reason in [1_u8, 0, 0x80, 0x87] {
         let listener = listener();
         let port = listener.local_addr().unwrap().port();
         let server = thread::spawn(move || {
@@ -475,11 +514,14 @@ fn mqtt5_subscribe_checks_suback_and_acknowledges_qos1_before_disconnect() {
             assert!(String::from_utf8_lossy(&output.stdout).contains("104,105"));
         } else {
             assert!(!output.status.success());
-            assert!(
-                String::from_utf8_lossy(&output.stderr).contains("SUBACK MQTT 5 recusou"),
-                "{}",
-                String::from_utf8_lossy(&output.stderr)
-            );
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let expected = if reason == 0 {
+                "SUBACK MQTT 5 alterou QoS do filtro 1"
+            } else {
+                "SUBACK MQTT 5 recusou filtro 1"
+            };
+            assert!(stderr.contains(expected), "{stderr}");
+            assert!(stderr.contains(&format!("0x{reason:02X}")), "{stderr}");
         }
     }
 }

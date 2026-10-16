@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## Não publicado — fase 6A em evolução
+
+- C60: erros de PUBACK/SUBACK MQTT 5 mostram motivo e código hexadecimal, incluindo `NotAuthorized (0x87)`; teste cruzado com broker P119, sem reenvio automático.
+
 ## 0.14.0 — MQTT 5 inicial, experimental
 
 - C58: `sub --protocol-version 5` com filtros QoS0/1, SUBACK validado,
