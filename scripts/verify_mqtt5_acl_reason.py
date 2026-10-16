@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""P119-P122/C60-C63: isolated broker/client MQTT 5 reason-code contract."""
+"""P119-P123/C60-C64: isolated broker/client MQTT 5 reason-code contract."""
 
 import argparse
 import json
@@ -37,6 +37,8 @@ def client_command(client: Path, port: int, password: Path, mode: str,
                    topic: str, qos: str = "1"):
     command = [str(client), mode, "--plain-auth-lab", "--username", "fixture",
                "--password-file", str(password), "--protocol-version", "5",
+               "--request-problem-info", "0", "--request-response-info", "1",
+               "--connect-user-property", "scenario=fixture",
                "--host", "127.0.0.1", "--port", str(port), "--client-id",
                f"fx-{mode}-{topic.split('/')[0]}", "--topic", topic,
                "--qos", qos, "--timeout-seconds", "3"]
@@ -181,6 +183,7 @@ def main() -> None:
                     subscriber.kill()
                     subscriber.wait(timeout=5)
             print("PASS: denied PUBACK/PUBREC/SUBACK, CONNACK, QoS1/2 delivery and UNSUBACK")
+            print("PASS: MQTT5 CONNECT informational properties from client C64 to broker P123")
             print("PASS: Mosquitto 2.0.22 MQTT5 QoS2 in both directions")
         finally:
             if process.poll() is None:

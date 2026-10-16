@@ -13,6 +13,10 @@ o motivo e o código, por exemplo `BadUserNamePassword (0x86)` e `NotAuthorized 
 confirma aceitação pelo broker, sem atestar processamento pela aplicação consumidora.
 Na árvore atual, C63 amplia `pub` e `sub --protocol-version 5 --qos 2` para
 o ciclo QoS2 completo; `pub` aguarda PUBCOMP e mostra recusas PUBREC/PUBCOMP.
+Em C64, use `--request-problem-info 0|1`, `--request-response-info 0|1` ou
+`--connect-user-property CHAVE=VALOR` (repetível) com MQTT 5. Cada campo aceita
+até 1024 bytes e os pares até 4096 bytes codificados; não passe segredos nessas
+opções. O broker P123 valida os pares, sem armazená-los ou devolvê-los.
 Com perfil TOML, use
 `protocol_version = "5"` ou `MQTT_CLIENT_PROTOCOL_VERSION=5`.
 

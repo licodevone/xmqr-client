@@ -216,6 +216,18 @@ pub async fn run(
     }
 }
 
+fn configure_connect_properties(options: &mut MqttOptions, cli: &Cli) {
+    if let Some(value) = cli.request_problem_info {
+        options.set_request_problem_info(Some(value));
+    }
+    if let Some(value) = cli.request_response_info {
+        options.set_request_response_info(Some(value));
+    }
+    if !cli.connect_user_properties.is_empty() {
+        options.set_user_properties(cli.connect_user_properties.clone());
+    }
+}
+
 async fn run_inner(
     cli: &Cli,
     password: Option<String>,
@@ -224,6 +236,7 @@ async fn run_inner(
     let mut options = MqttOptions::new(&cli.client_id, &cli.host, cli.port);
     options.set_clean_start(true);
     options.set_keep_alive(Duration::from_secs(u64::from(cli.keepalive_seconds)));
+    configure_connect_properties(&mut options, cli);
     if matches!(
         cli.transport_mode,
         TransportMode::Secure | TransportMode::TlsPassword
@@ -235,7 +248,7 @@ async fn run_inner(
     if let (Some(username), Some(password)) = (cli.username.clone(), password) {
         options.set_credentials(username, password);
     }
-    // CONNECT stays property-free in the broker's initial MQTT 5 subset.
+    // Only informational CONNECT properties from P123/C64 are sent.
     let (client, mut events) = AsyncClient::new(options, 8);
     let limit = Duration::from_secs(u64::from(cli.timeout_seconds));
     loop {

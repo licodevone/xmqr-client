@@ -66,6 +66,9 @@ pub struct Will {
 #[derive(Debug)]
 pub struct Cli {
     pub protocol_version: ProtocolVersion,
+    pub request_problem_info: Option<u8>,
+    pub request_response_info: Option<u8>,
+    pub connect_user_properties: Vec<(String, String)>,
     pub line_mode: bool,
     pub retained_filter: RetainedFilter,
     pub output: crate::output::Output,
@@ -93,6 +96,8 @@ pub struct Cli {
 
 pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\nTLS com senha, sem certificado de cliente:\n  mqtt-client pub|sub --tls-password --topic TOPICO --username USUARIO --ca CA.crt [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO | --will-message-file PATH [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --protocol-version 3.1.1|5 (padrao 3.1.1; MQTT5 inicial pub/sub QoS0/1/2), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl|hex|raw (hex/raw apenas sub; raw exige --count 1), --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --repeat 1..1000 --repeat-interval-ms 1..60000 (pub, fonte unica), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --exclude-topic FILTRO (sub, repetivel), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
+pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes). Nao inclua segredos em argumentos.\n";
+
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut args = crate::profile::expand(args.into_iter().collect())?.into_iter();
@@ -103,6 +108,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
 
     let mut output = None;
     let mut protocol_version = None;
+    let mut request_problem_info = None;
+    let mut request_response_info = None;
+    let mut raw_connect_user_properties = Vec::new();
     let mut retained_filter = None;
     let mut reconnect_attempts = None;
     let mut repeat = None;
@@ -193,8 +201,14 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             exclusions.push(value);
             continue;
         }
+        if flag == "--connect-user-property" {
+            raw_connect_user_properties.push(value);
+            continue;
+        }
         let slot = match flag.as_str() {
             "--protocol-version" => &mut protocol_version,
+            "--request-problem-info" => &mut request_problem_info,
+            "--request-response-info" => &mut request_response_info,
             "--output" => &mut output,
             "--reconnect-attempts" => &mut reconnect_attempts,
             "--repeat" => &mut repeat,
@@ -282,6 +296,44 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         "5" => ProtocolVersion::Mqtt5,
         _ => return Err("--protocol-version deve ser 3.1.1 ou 5".into()),
     };
+    if protocol_version != ProtocolVersion::Mqtt5
+        && (request_problem_info.is_some()
+            || request_response_info.is_some()
+            || !raw_connect_user_properties.is_empty())
+    {
+        return Err("propriedades CONNECT exigem --protocol-version 5".into());
+    }
+    let parse_request_flag = |raw: Option<String>, flag: &str| -> Result<Option<u8>, String> {
+        raw.map(|value| match value.as_str() {
+            "0" => Ok(0),
+            "1" => Ok(1),
+            _ => Err(format!("{flag} deve ser 0 ou 1")),
+        })
+        .transpose()
+    };
+    let request_problem_info = parse_request_flag(request_problem_info, "--request-problem-info")?;
+    let request_response_info =
+        parse_request_flag(request_response_info, "--request-response-info")?;
+    let mut connect_user_properties = Vec::new();
+    let mut connect_property_bytes = 0_usize;
+    for raw in raw_connect_user_properties {
+        let (key, value) = raw
+            .split_once('=')
+            .ok_or("--connect-user-property exige CHAVE=VALOR")?;
+        if !valid_mqtt5_property_text(key) || !valid_mqtt5_property_text(value) {
+            return Err(
+                "--connect-user-property contem texto MQTT 5 invalido ou acima de 1024 bytes"
+                    .into(),
+            );
+        }
+        connect_property_bytes = connect_property_bytes
+            .checked_add(5 + key.len() + value.len())
+            .ok_or("propriedades CONNECT excedem 4096 bytes")?;
+        if connect_property_bytes > 4096 {
+            return Err("propriedades CONNECT excedem 4096 bytes".into());
+        }
+        connect_user_properties.push((key.to_owned(), value.to_owned()));
+    }
     if protocol_version == ProtocolVersion::Mqtt5
         && let Mode::Sub { filters, .. } = &mode
         && subscribe_packet_size(filters).is_none_or(|size| size + 1 > MAX_PACKET_BYTES)
@@ -480,6 +532,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     }
     Ok(Cli {
         protocol_version,
+        request_problem_info,
+        request_response_info,
+        connect_user_properties,
         line_mode,
         retained_filter: retained_filter.unwrap_or(RetainedFilter::All),
         output,
@@ -523,6 +578,18 @@ fn parse_bool(value: &str, flag: &str) -> Result<bool, String> {
         "false" => Ok(false),
         _ => Err(format!("{flag} deve ser true ou false")),
     }
+}
+
+fn valid_mqtt5_property_text(value: &str) -> bool {
+    value.len() <= 1024
+        && !value.chars().any(|ch| {
+            let code = ch as u32;
+            ch == '\0'
+                || ch.is_control()
+                || (0xfdd0..=0xfdef).contains(&code)
+                || code & 0xffff == 0xfffe
+                || code & 0xffff == 0xffff
+        })
 }
 
 /// Validates a secret without including it in diagnostics or logs.
@@ -697,6 +764,75 @@ fn subscribe_packet_size(filters: &[String]) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn mqtt5_connect_properties_validate_and_preserve_pairs() {
+        use super::parse;
+        let base = ["pub", "--open-lab", "--topic", "t", "--message", "x"];
+        let arguments = |extra: &[&str]| {
+            base.iter()
+                .chain(extra)
+                .map(|s| (*s).to_owned())
+                .collect::<Vec<_>>()
+        };
+        let parsed = parse(arguments(&[
+            "--protocol-version",
+            "5",
+            "--request-problem-info",
+            "0",
+            "--request-response-info",
+            "1",
+            "--connect-user-property",
+            "a=b",
+            "--connect-user-property",
+            "a=c",
+        ]))
+        .unwrap();
+        assert_eq!(parsed.request_problem_info, Some(0));
+        assert_eq!(parsed.request_response_info, Some(1));
+        assert_eq!(
+            parsed.connect_user_properties,
+            [("a".into(), "b".into()), ("a".into(), "c".into())]
+        );
+        for extra in [
+            vec!["--request-problem-info", "0"],
+            vec!["--protocol-version", "5", "--request-problem-info", "2"],
+            vec![
+                "--protocol-version",
+                "5",
+                "--request-problem-info",
+                "0",
+                "--request-problem-info",
+                "1",
+            ],
+            vec!["--protocol-version", "5", "--request-response-info", "2"],
+            vec![
+                "--protocol-version",
+                "5",
+                "--connect-user-property",
+                "missing-equals",
+            ],
+            vec![
+                "--protocol-version",
+                "5",
+                "--connect-user-property",
+                "a=\u{0}",
+            ],
+        ] {
+            assert!(parse(arguments(&extra)).is_err(), "{extra:?}");
+        }
+        let mut oversized = arguments(&["--protocol-version", "5", "--connect-user-property"]);
+        oversized.push(format!("a={}", "x".repeat(1025)));
+        assert!(parse(oversized).is_err());
+        let mut total_oversized = arguments(&["--protocol-version", "5"]);
+        for _ in 0..4 {
+            total_oversized.extend([
+                "--connect-user-property".to_owned(),
+                format!("a={}", "x".repeat(1023)),
+            ]);
+        }
+        assert!(parse(total_oversized).is_err());
+    }
+
     #[test]
     fn mqtt5_initial_scope_is_explicit_and_validated_before_network() {
         use super::{Mode, ProtocolVersion, parse};
