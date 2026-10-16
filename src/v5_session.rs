@@ -20,6 +20,40 @@ fn protocol_error(message: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
 
+fn connack_refusal(reason: ConnectReturnCode) -> io::Error {
+    let code = match reason {
+        ConnectReturnCode::Success => 0x00,
+        ConnectReturnCode::RefusedProtocolVersion => 0x01,
+        ConnectReturnCode::BadClientId => 0x02,
+        ConnectReturnCode::ServiceUnavailable => 0x03,
+        ConnectReturnCode::UnspecifiedError => 0x80,
+        ConnectReturnCode::MalformedPacket => 0x81,
+        ConnectReturnCode::ProtocolError => 0x82,
+        ConnectReturnCode::ImplementationSpecificError => 0x83,
+        ConnectReturnCode::UnsupportedProtocolVersion => 0x84,
+        ConnectReturnCode::ClientIdentifierNotValid => 0x85,
+        ConnectReturnCode::BadUserNamePassword => 0x86,
+        ConnectReturnCode::NotAuthorized => 0x87,
+        ConnectReturnCode::ServerUnavailable => 0x88,
+        ConnectReturnCode::ServerBusy => 0x89,
+        ConnectReturnCode::Banned => 0x8a,
+        ConnectReturnCode::BadAuthenticationMethod => 0x8c,
+        ConnectReturnCode::TopicNameInvalid => 0x90,
+        ConnectReturnCode::PacketTooLarge => 0x95,
+        ConnectReturnCode::QuotaExceeded => 0x97,
+        ConnectReturnCode::PayloadFormatInvalid => 0x99,
+        ConnectReturnCode::RetainNotSupported => 0x9a,
+        ConnectReturnCode::QoSNotSupported => 0x9b,
+        ConnectReturnCode::UseAnotherServer => 0x9c,
+        ConnectReturnCode::ServerMoved => 0x9d,
+        ConnectReturnCode::ConnectionRateExceeded => 0x9f,
+    };
+    io::Error::new(
+        io::ErrorKind::InvalidData,
+        format!("broker recusou CONNECT MQTT 5: {reason:?} (0x{code:02X})"),
+    )
+}
+
 fn puback_refusal(reason: PubAckReason) -> io::Error {
     let code = match reason {
         PubAckReason::Success => 0x00,
@@ -116,17 +150,15 @@ async fn run_inner(
             .await
             .map_err(|_| protocol_error("tempo esgotado aguardando CONNACK MQTT 5"))?
             .map_err(|error| match error {
-                ConnectionError::ConnectionRefused(_) => {
-                    protocol_error("broker recusou CONNECT MQTT 5")
-                }
+                ConnectionError::ConnectionRefused(reason) => connack_refusal(reason),
                 _ => protocol_error("falha na conexao MQTT 5"),
             })?;
         match event {
             Event::Incoming(Incoming::ConnAck(ack)) if ack.code == ConnectReturnCode::Success => {
                 break;
             }
-            Event::Incoming(Incoming::ConnAck(_)) => {
-                return Err(protocol_error("broker recusou CONNECT MQTT 5").into());
+            Event::Incoming(Incoming::ConnAck(ack)) => {
+                return Err(connack_refusal(ack.code).into());
             }
             Event::Outgoing(_) => {}
             Event::Incoming(_) => {

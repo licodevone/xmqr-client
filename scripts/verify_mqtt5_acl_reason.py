@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""P119/C60: isolated broker/client MQTT 5 ACL reason-code contract."""
+"""P119/P120/C60/C61: isolated broker/client MQTT 5 ACL reason-code contract."""
 
 import argparse
 import os
@@ -55,13 +55,15 @@ def main() -> None:
         root = Path(temporary)
         state = root / "state"
         state.mkdir()
-        users, acl, password = (root / name for name in
-                                ("users.toml", "acl.toml", "password"))
+        users, acl, password, wrong_password = (root / name for name in
+                                               ("users.toml", "acl.toml",
+                                                "password", "wrong-password"))
         private_file(users, "[[users]]\nusername='fixture'\npassword_hash='" +
                      hash_password(admin) + "'\n")
         private_file(acl, "[[rules]]\nusername='fixture'\n"
                      "publish=['allowed/topic']\nsubscribe=['allowed/topic']\n")
         private_file(password, "fixture-pass\n")
+        private_file(wrong_password, "wrong-pass\n")
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
             port = probe.getsockname()[1]
@@ -91,11 +93,16 @@ def main() -> None:
             assert not denied.stdout, "denied publish emitted success output"
             allowed = run_client(client, port, password, "pub", "allowed/topic")
             assert allowed.returncode == 0, allowed.stderr
+            refused_connect = run_client(client, port, wrong_password,
+                                         "pub", "allowed/topic")
+            assert refused_connect.returncode != 0, "bad password connected"
+            assert "BadUserNamePassword (0x86)" in refused_connect.stderr, refused_connect.stderr
+            assert not refused_connect.stdout, "bad password emitted success output"
             sub = run_client(client, port, password, "sub", "denied/topic")
             assert sub.returncode != 0, "denied subscribe succeeded"
             assert "SUBACK MQTT 5 recusou filtro 1" in sub.stderr, sub.stderr
-            assert "0x80" in sub.stderr, sub.stderr
-            print("PASS: denied PUBACK 0x87, allowed publish and denied SUBACK")
+            assert "NotAuthorized (0x87)" in sub.stderr, sub.stderr
+            print("PASS: denied PUBACK/SUBACK 0x87, CONNACK 0x86 and allowed publish")
         finally:
             if process.poll() is None:
                 process.terminate()

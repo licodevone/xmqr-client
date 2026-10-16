@@ -426,7 +426,8 @@ fn mqtt5_publish_qos0_qos1_and_refusal_wire() {
     server.join().unwrap();
     assert!(!output.status.success());
     assert!(
-        String::from_utf8_lossy(&output.stderr).contains("recusou CONNECT MQTT 5"),
+        String::from_utf8_lossy(&output.stderr)
+            .contains("recusou CONNECT MQTT 5: ImplementationSpecificError (0x83)"),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
