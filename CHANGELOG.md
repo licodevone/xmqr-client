@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## Em desenvolvimento após 0.18.0
+
+- C75: `sub --protocol-version 5 --topic-alias-maximum 0..16` anuncia o limite de Topic Alias recebido. O client reconstrói o nome do tópico para filtros e saída quando o broker envia a forma abreviada; um processo novo não reutiliza associações antigas. A publicação do client ainda não comprime tópicos. O Mosquitto 2.0.22 falha ao receber a forma abreviada válida em fixture independente; não se afirma interoperabilidade nessa direção.
+
 ## 0.18.0 — limites de recebimento MQTT 5, experimental
 
 - C72: `sub --protocol-version 5 --receive-maximum` anuncia a quota de PUBLISH QoS1/2 em voo.

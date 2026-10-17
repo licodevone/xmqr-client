@@ -1,5 +1,13 @@
 # xmqr-client
 
+Na árvore em desenvolvimento, `mqtt-client sub --protocol-version 5
+--topic-alias-maximum 1` anuncia que aceita um Topic Alias por conexão.
+O valor pode ser 0..16; sem a opção, o padrão é zero. O client mostra o tópico
+resolvido também nas entregas abreviadas do broker P139. Esta opção é exclusiva
+de `sub` MQTT 5. A assinatura não retoma automaticamente após erro de transporte;
+uma nova execução estabelece sua própria tabela de aliases. A publicação do
+client ainda não usa Topic Alias.
+
 O marco experimental 0.18.0 acrescenta `--receive-maximum` e
 `--maximum-packet-size` para assinaturas MQTT 5. Veja a
 [nota de release](docs/releases/0.18.0.md). O broker parceiro 0.20.0 conserva

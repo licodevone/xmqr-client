@@ -1,9 +1,9 @@
 //! Initial MQTT 5 pub/sub path. No retransmission after an uncertain send.
-use std::{error::Error, io, time::Duration};
+use std::{collections::HashMap, error::Error, io, time::Duration};
 
 use rumqttc::v5::mqttbytes::v5::{
     ConnectReturnCode, Filter, LastWill, LastWillProperties, PubAckReason, PubCompReason,
-    PubRecReason, PublishProperties, SubscribeReasonCode, UnsubAckReason,
+    PubRecReason, Publish, PublishProperties, SubscribeReasonCode, UnsubAckReason,
 };
 use rumqttc::{
     Outgoing, QoS, Transport,
@@ -242,6 +242,9 @@ fn configure_options(cli: &Cli, password: Option<String>) -> AppResult<MqttOptio
     if let Some(maximum) = cli.maximum_packet_size {
         options.set_max_packet_size(Some(maximum));
     }
+    if let Some(maximum) = cli.topic_alias_maximum {
+        options.set_topic_alias_max(Some(maximum));
+    }
     if let Some(will) = &cli.will {
         let qos = match will.qos {
             QoS::AtMostOnce => rumqttc::v5::mqttbytes::QoS::AtMostOnce,
@@ -396,6 +399,36 @@ async fn run_inner(
     Ok(())
 }
 
+fn resolved_incoming_topic(
+    publish: &Publish,
+    aliases: &mut HashMap<u16, String>,
+    maximum: u16,
+) -> AppResult<String> {
+    let alias = publish
+        .properties
+        .as_ref()
+        .and_then(|props| props.topic_alias);
+    if alias.is_some_and(|value| value == 0 || value > maximum) {
+        return Err(protocol_error("Topic Alias MQTT 5 fora do limite negociado").into());
+    }
+    if !publish.topic.is_empty() {
+        let topic = std::str::from_utf8(&publish.topic)
+            .map_err(|_| protocol_error("topico MQTT 5 invalido"))?;
+        if topic.len() > 1024 {
+            return Err(protocol_error("PUBLISH MQTT 5 excede limites XMQR").into());
+        }
+        if let Some(alias) = alias {
+            aliases.insert(alias, topic.to_owned());
+        }
+        return Ok(topic.to_owned());
+    }
+    let alias = alias.ok_or_else(|| protocol_error("topico MQTT 5 vazio sem alias"))?;
+    aliases
+        .get(&alias)
+        .cloned()
+        .ok_or_else(|| protocol_error("Topic Alias MQTT 5 desconhecido").into())
+}
+
 async fn subscribe(
     cli: &Cli,
     client: &AsyncClient,
@@ -425,6 +458,7 @@ async fn subscribe(
         .await?;
     let mut acknowledged = false;
     let mut received = 0_u64;
+    let mut aliases = HashMap::new();
     loop {
         if acknowledged && count.is_some_and(|target| received >= target) {
             unsubscribe_after_count(client, events, filters, limit).await?;
@@ -465,15 +499,18 @@ async fn subscribe(
                     .status("Assinatura ativa (MQTT 5). Aguardando mensagens; Ctrl+C para sair.");
             }
             Event::Incoming(Incoming::Publish(publish)) => {
-                let topic = std::str::from_utf8(&publish.topic)
-                    .map_err(|_| protocol_error("topico MQTT 5 invalido"))?;
-                if publish.payload.len() > 4096 || topic.len() > 1024 {
+                let topic = resolved_incoming_topic(
+                    &publish,
+                    &mut aliases,
+                    cli.topic_alias_maximum.unwrap_or(0),
+                )?;
+                if publish.payload.len() > 4096 {
                     return Err(protocol_error("PUBLISH MQTT 5 excede limites XMQR").into());
                 }
                 if cli.retained_filter.accepts(publish.retain)
                     && !exclusions
                         .iter()
-                        .any(|filter| crate::cli::matches_filter(filter, topic))
+                        .any(|filter| crate::cli::matches_filter(filter, &topic))
                     && count.is_none_or(|target| received < target)
                 {
                     let qos = match publish.qos {
@@ -482,7 +519,7 @@ async fn subscribe(
                         rumqttc::v5::mqttbytes::QoS::ExactlyOnce => QoS::ExactlyOnce,
                     };
                     let mut display =
-                        rumqttc::mqttbytes::v4::Publish::new(topic, qos, publish.payload.clone());
+                        rumqttc::mqttbytes::v4::Publish::new(&topic, qos, publish.payload.clone());
                     display.retain = publish.retain;
                     cli.output.publish(&display)?;
                     received += 1;

@@ -1,0 +1,6 @@
+# C75 — Topic Alias Maximum no assinante MQTT 5
+
+- [Prompt C75 rev1–rev4](../clients/75-topic-alias-maximum-mqtt5.md) criado antes do código. Broker P139 em validação; fase 6C aberta.
+- Primeiro gate: CLI 53 PASS, wire 46 PASS/1 FAIL. O CONNECT levou `0x22=1` e o client recebeu as duas publicações, mas a segunda apareceu com tópico vazio no JSONL. A rumqttc enfileira evento antes de expandir alias internamente; prompt revisado para tabela local da interface. Nenhum aceite neste ponto.
+- Correção: tabela local limitada à conexão resolve o tópico antes de filtros e saída. Fixture wire positiva PASS com duas mensagens, segunda abreviada; negativo de alias não estabelecido em conexão nova PASS. Integração broker P139 PASS com dois payloads e tópico reconstruído. Gate com novo teste: CLI 53 PASS, wire 48 PASS, Clippy FAIL somente por `assert_is_empty` no teste negativo; prompt rev4 registra correção e repetição. CI e aceite pendentes.
+- Gate repetido: CLI 53 PASS, wire 48 PASS, fmt, Clippy `-D warnings`, build release e inventário de licenças PASS. Nenhum ensaio físico ESP32. CI e aceite ainda pendentes.

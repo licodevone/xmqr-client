@@ -887,6 +887,97 @@ fn mqtt5_subscribe_maximum_packet_size_connect_wire() {
 }
 
 #[test]
+fn mqtt5_subscribe_topic_alias_maximum_connect_and_expansion_wire() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x10);
+        assert_eq!(&body[10..14], &[3, 0x22, 0, 1]);
+        stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+        let (header, subscribe) = packet(&mut stream);
+        assert_eq!(header, 0x82);
+        stream
+            .write_all(&[0x90, 4, subscribe[0], subscribe[1], 0, 0])
+            .unwrap();
+        stream
+            .write_all(&[0x30, 8, 0, 1, b't', 3, 0x23, 0, 1, b'x'])
+            .unwrap();
+        stream
+            .write_all(&[0x30, 7, 0, 0, 3, 0x23, 0, 1, b'y'])
+            .unwrap();
+        let (header, unsubscribe) = packet(&mut stream);
+        assert_eq!(header, 0xa2);
+        stream
+            .write_all(&[0xb0, 4, unsubscribe[0], unsubscribe[1], 0, 0])
+            .unwrap();
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(
+        port,
+        "sub",
+        &[
+            "--protocol-version",
+            "5",
+            "--topic-alias-maximum",
+            "1",
+            "--count",
+            "2",
+        ],
+    ));
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let lines = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(lines.lines().count(), 2);
+    assert!(
+        lines.lines().all(|line| line.contains("\"topic\":\"t\"")),
+        "{lines}"
+    );
+    assert!(lines.contains("\"payload_bytes\":[120]"), "{lines}");
+    assert!(lines.contains("\"payload_bytes\":[121]"), "{lines}");
+}
+
+#[test]
+fn mqtt5_subscribe_rejects_unestablished_topic_alias_on_new_connection() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        let (header, _) = packet(&mut stream);
+        assert_eq!(header, 0x10);
+        stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+        let (header, subscribe) = packet(&mut stream);
+        assert_eq!(header, 0x82);
+        stream
+            .write_all(&[0x90, 4, subscribe[0], subscribe[1], 0, 0])
+            .unwrap();
+        stream
+            .write_all(&[0x30, 7, 0, 0, 3, 0x23, 0, 1, b'x'])
+            .unwrap();
+    });
+    let output = finish(child(
+        port,
+        "sub",
+        &[
+            "--protocol-version",
+            "5",
+            "--topic-alias-maximum",
+            "1",
+            "--count",
+            "1",
+        ],
+    ));
+    server.join().unwrap();
+    assert!(!output.status.success());
+    assert_eq!(output.stdout, Vec::<u8>::new());
+}
+
+#[test]
 fn mqtt5_unsuback_refusal_and_timeout_fail_the_subscription_command() {
     for reason in [Some(0x11_u8), Some(0x87), None] {
         let listener = listener();
