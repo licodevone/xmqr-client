@@ -5,6 +5,9 @@ Na árvore de desenvolvimento após 0.16.0, C69 acrescenta
 A opção envia a validade da publicação e exige broker que aceite a propriedade
 MQTT 5, como o P130. O broker P130 migra estado durável para v7; faça backup
 privado antes de atualizá-lo.
+Na árvore atual, C70 permite Will MQTT 5 com `--will-delay-seconds` opcional;
+veja o [registro C70](prompts/registros/C70-will-delay-mqtt5.md). O broker P132
+grava estado v8, que exige backup anterior para rollback do broker.
 
 O marco experimental 0.16.0 acrescenta Clean Start e Session Expiry
 zero, finita ou infinita ao subconjunto MQTT 5. Veja a
