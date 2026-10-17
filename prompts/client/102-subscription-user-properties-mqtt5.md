@@ -7,3 +7,5 @@ Objetivo: acrescentar `--subscribe-user-property CHAVE=VALOR` e `--unsubscribe-u
 Aceite: unitários de CLI/wire para positivos, repetição e negativos; integração real com broker P180 para entrega, confirmação de remoção e regressão de QoS/3.1.1; fmt, Rust, Clippy, build release, licenças, distribuição e CI. Atualizar uso, docs, checklist cruzado e registro parcial 6A/6D. Sem nova tag isolada nem migração.
 
 Revisão 2: o primeiro gate parou no `cargo fmt --check` das novas linhas, antes dos testes. Formatar a asserção e a atribuição e repetir a verificação completa antes de aceitar a funcionalidade.
+
+Revisão 3: o teste unitário passou; a fixture TCP comparou o DISCONNECT normal a um corpo de um byte, mas a codificação abreviada válida enviada pelo rumqttc tem Remaining Length zero. Corrigir só a expectativa do teste, preservar o wire do client e repetir os gates.
