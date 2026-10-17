@@ -3,8 +3,8 @@ use std::{collections::HashMap, error::Error, io, time::Duration};
 
 use rumqttc::v5::mqttbytes::v5::{
     ConnectReturnCode, Filter, LastWill, LastWillProperties, PubAckReason, PubCompReason,
-    PubRecReason, Publish, PublishProperties, RetainForwardRule, SubscribeReasonCode,
-    UnsubAckReason,
+    PubRecReason, Publish, PublishProperties, RetainForwardRule, SubscribeProperties,
+    SubscribeReasonCode, UnsubAckReason,
 };
 use rumqttc::{
     Outgoing, QoS, Transport,
@@ -351,6 +351,16 @@ async fn run_inner(
                     )
                     .into());
                 }
+                if cli.subscription_options.identifier.is_some()
+                    && ack.properties.as_ref().is_some_and(|properties| {
+                        properties.subscription_identifiers_available == Some(0)
+                    })
+                {
+                    return Err(protocol_error(
+                        "broker nao oferece Subscription Identifier MQTT 5",
+                    )
+                    .into());
+                }
                 break ack
                     .properties
                     .as_ref()
@@ -522,6 +532,46 @@ fn subscription_filter(
     request
 }
 
+async fn send_subscribe(
+    client: &AsyncClient,
+    filters: &[String],
+    qos: rumqttc::v5::mqttbytes::QoS,
+    options: crate::cli::SubscriptionOptions,
+) -> AppResult<()> {
+    let requests = filters
+        .iter()
+        .cloned()
+        .map(|filter| subscription_filter(filter, qos, options));
+    if let Some(id) = options.identifier {
+        client
+            .subscribe_many_with_properties(
+                requests,
+                SubscribeProperties {
+                    id: Some(id),
+                    user_properties: Vec::new(),
+                },
+            )
+            .await?;
+    } else {
+        client.subscribe_many(requests).await?;
+    }
+    Ok(())
+}
+
+fn validate_subscription_identifiers(publish: &Publish) -> AppResult<()> {
+    if publish.properties.as_ref().is_some_and(|properties| {
+        properties
+            .subscription_identifiers
+            .iter()
+            .any(|id| !(1..=268_435_455).contains(id))
+    }) {
+        return Err(
+            protocol_error("PUBLISH MQTT 5 contem Subscription Identifier invalido").into(),
+        );
+    }
+    Ok(())
+}
+
 async fn subscribe(
     cli: &Cli,
     client: &AsyncClient,
@@ -541,14 +591,7 @@ async fn subscribe(
         QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
         QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
     };
-    client
-        .subscribe_many(
-            filters
-                .iter()
-                .cloned()
-                .map(|filter| subscription_filter(filter, qos, cli.subscription_options)),
-        )
-        .await?;
+    send_subscribe(client, filters, qos, cli.subscription_options).await?;
     let mut acknowledged = false;
     let mut received = 0_u64;
     let mut aliases = HashMap::new();
@@ -592,6 +635,7 @@ async fn subscribe(
                     .status("Assinatura ativa (MQTT 5). Aguardando mensagens; Ctrl+C para sair.");
             }
             Event::Incoming(Incoming::Publish(publish)) => {
+                validate_subscription_identifiers(&publish)?;
                 let topic = resolved_incoming_topic(
                     &publish,
                     &mut aliases,

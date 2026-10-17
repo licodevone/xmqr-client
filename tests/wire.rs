@@ -1247,12 +1247,12 @@ fn mqtt5_subscribe_receive_maximum_connect_wire() {
             "1",
         ],
     ));
-    server.join().unwrap();
     assert!(
         output.status.success(),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
+    server.join().unwrap();
 }
 
 #[test]
@@ -1345,6 +1345,120 @@ fn mqtt5_subscribe_no_local_and_retain_as_published_bits_are_independent() {
             String::from_utf8_lossy(&output.stderr)
         );
     }
+}
+
+#[test]
+fn mqtt5_subscription_identifier_is_sent_and_received_in_jsonl() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+        let (header, subscribe) = packet(&mut stream);
+        assert_eq!(header, 0x82);
+        assert_eq!(&subscribe[2..5], &[2, 0x0b, 7]);
+        stream
+            .write_all(&[0x90, 4, subscribe[0], subscribe[1], 0, 0])
+            .unwrap();
+        stream
+            .write_all(&[0x30, 9, 0, 1, b't', 4, 0x0b, 7, 0x0b, 7, b'x'])
+            .unwrap();
+        let (header, unsubscribe) = packet(&mut stream);
+        assert_eq!(header, 0xa2);
+        stream
+            .write_all(&[0xb0, 4, unsubscribe[0], unsubscribe[1], 0, 0])
+            .unwrap();
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(
+        port,
+        "sub",
+        &[
+            "--protocol-version",
+            "5",
+            "--subscription-identifier",
+            "7",
+            "--count",
+            "1",
+        ],
+    ));
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    server.join().unwrap();
+    assert!(String::from_utf8_lossy(&output.stdout).contains("\"subscription_identifiers\":[7,7]"));
+}
+
+#[test]
+fn mqtt5_subscription_identifier_is_refused_when_connack_disables_it() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream.write_all(&[0x20, 5, 0, 0, 2, 0x29, 0]).unwrap();
+        let mut probe = [0];
+        assert_eq!(
+            stream.read(&mut probe).unwrap(),
+            0,
+            "client sent SUBSCRIBE despite CONNACK refusal"
+        );
+    });
+    let output = finish(child(
+        port,
+        "sub",
+        &["--protocol-version", "5", "--subscription-identifier", "7"],
+    ));
+    server.join().unwrap();
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("Subscription Identifier"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn mqtt5_publish_with_zero_subscription_identifier_is_rejected() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+        let (header, subscribe) = packet(&mut stream);
+        assert_eq!(header, 0x82);
+        stream
+            .write_all(&[0x90, 4, subscribe[0], subscribe[1], 0, 0])
+            .unwrap();
+        stream
+            .write_all(&[0x30, 7, 0, 1, b't', 2, 0x0b, 0, b'x'])
+            .unwrap();
+        let mut probe = [0];
+        let _ = stream.read(&mut probe);
+    });
+    let output = finish(child(
+        port,
+        "sub",
+        &[
+            "--protocol-version",
+            "5",
+            "--subscription-identifier",
+            "7",
+            "--count",
+            "1",
+        ],
+    ));
+    server.join().unwrap();
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("Subscription Identifier"),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 #[test]

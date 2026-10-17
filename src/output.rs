@@ -120,6 +120,15 @@ impl Output {
 
 fn render_mqtt5_metadata(properties: &PublishProperties) -> Option<String> {
     let mut fields = Vec::new();
+    if !properties.subscription_identifiers.is_empty() {
+        let ids = properties
+            .subscription_identifiers
+            .iter()
+            .map(usize::to_string)
+            .collect::<Vec<_>>()
+            .join(",");
+        fields.push(format!("\"subscription_identifiers\":[{ids}]"));
+    }
     if let Some(value) = properties.payload_format_indicator {
         fields.push(format!("\"payload_format_indicator\":{value}"));
     }
@@ -242,6 +251,18 @@ mod tests {
                 ..PublishProperties::default()
             })
             .is_none()
+        );
+    }
+
+    #[test]
+    fn mqtt5_metadata_preserves_repeated_subscription_identifiers() {
+        let properties = PublishProperties {
+            subscription_identifiers: vec![7, 7, 268_435_455],
+            ..PublishProperties::default()
+        };
+        assert_eq!(
+            render_mqtt5_metadata(&properties).as_deref(),
+            Some("{\"subscription_identifiers\":[7,7,268435455]}")
         );
     }
 }

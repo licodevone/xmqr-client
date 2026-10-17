@@ -1,5 +1,12 @@
 # xmqr-client
 
+Em desenvolvimento após 0.22.0, C87 permite `sub --protocol-version 5
+--subscription-identifier 1..268435455` e exibe
+`metadata.subscription_identifiers` em JSONL, inclusive IDs repetidos. O
+client recusa o recurso quando o CONNACK anuncia indisponibilidade. O broker
+XMQR 0.24.0 ainda não implementa Subscription Identifier; use um broker que
+ofereça esse recurso, como o Mosquitto 2.0.22 validado em C87.
+
 A versão experimental 0.22.0 reúne Topic Alias compacto e opções No Local,
 Retain As Published e Retain Handling no assinante MQTT 5. Pacotes e imagem
 numerada estão na [release 0.22.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.22.0);
