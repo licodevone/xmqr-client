@@ -1,0 +1,9 @@
+# C102 — User Property em SUBSCRIBE/UNSUBSCRIBE MQTT 5
+
+O [prompt C102](../client/102-subscription-user-properties-mqtt5.md) foi commitado antes da implementação; revisões 2–7 antecederam as respectivas correções e o ensaio externo. Fonte principal `cbdee922ed87363b1623968f6ae55bbddc973617` em `main`: [CI PASS](https://github.com/licodevone/xmqr-client/actions/runs/39028605438) nos jobs Rust e pacote Ubuntu 26.04. O ajuste de ajuda e ensaio Mosquitto está no commit `ff18e0152d11a6b5bab5f85dcc0bd6be85328ee9`: [CI final PASS](https://github.com/licodevone/xmqr-client/actions/runs/39028765006) nos mesmos dois jobs.
+
+`sub --protocol-version 5` aceita `--subscribe-user-property CHAVE=VALOR` e `--unsubscribe-user-property CHAVE=VALOR` repetíveis e independentes, com 16 pares/2048 bytes codificados e 256 bytes UTF-8 por campo em cada contexto. A segunda flag exige `--count N`, que produz UNSUBSCRIBE confirmado por UNSUBACK. Ordem e duplicação dos pares são preservadas, inclusive ao combinar SUBSCRIBE com Subscription Identifier. MQTT 3.1.1 e `pub` recusam as flags antes da rede. A CLI não trata propriedades como segredo.
+
+Gates locais PASS: 78 testes CLI e 66 testes de fio Rust, fmt, Clippy `-D warnings`, build release, inventário de licenças, sete contratos de distribuição, `C102_SUBSCRIPTION_USER_PROPERTIES_PASS` no wire e `C102_P180_INTEGRATION_PASS` com broker XMQR P180 real (sub MQTT 5, publicação MQTT 3.1.1, identificador, UNSUBACK). `C102_MOSQUITTO_PASS` validou a mesma assinatura/cancelamento e publicação externa com Mosquitto 2.0.22, imagem `sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21`, em container descartável removido após o ensaio. Sem ensaio físico ESP32.
+
+Aceite parcial 6A/6D. Fluxo QoS local durável do client, matriz MQTT 5 completa e fases 7–9 seguem abertos. Sem tag isolada; client publicado permanece 0.27.0, broker publicado 0.32.0 ainda não contém P180.
