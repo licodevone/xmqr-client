@@ -797,6 +797,51 @@ fn mqtt5_subscribe_checks_suback_and_acknowledges_qos1_before_disconnect() {
 }
 
 #[test]
+fn mqtt5_subscribe_receive_maximum_connect_wire() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x10);
+        assert_eq!(&body[10..14], &[3, 0x21, 0, 1]);
+        stream
+            .write_all(&[0x20, 8, 0, 0, 5, 0x27, 0, 1, 0, 0])
+            .unwrap();
+        let (header, subscribe) = packet(&mut stream);
+        assert_eq!(header, 0x82);
+        stream
+            .write_all(&[0x90, 4, subscribe[0], subscribe[1], 0, 0])
+            .unwrap();
+        stream.write_all(&[0x30, 5, 0, 1, b't', 0, b'x']).unwrap();
+        let (header, unsubscribe) = packet(&mut stream);
+        assert_eq!(header, 0xa2);
+        stream
+            .write_all(&[0xb0, 4, unsubscribe[0], unsubscribe[1], 0, 0])
+            .unwrap();
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(
+        port,
+        "sub",
+        &[
+            "--protocol-version",
+            "5",
+            "--receive-maximum",
+            "1",
+            "--count",
+            "1",
+        ],
+    ));
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
 fn mqtt5_unsuback_refusal_and_timeout_fail_the_subscription_command() {
     for reason in [Some(0x11_u8), Some(0x87), None] {
         let listener = listener();

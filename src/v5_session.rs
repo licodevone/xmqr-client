@@ -236,6 +236,9 @@ fn configure_options(cli: &Cli, password: Option<String>) -> AppResult<MqttOptio
     }
     options.set_keep_alive(Duration::from_secs(u64::from(cli.keepalive_seconds)));
     configure_connect_properties(&mut options, cli);
+    if let Some(maximum) = cli.receive_maximum {
+        options.set_receive_maximum(Some(maximum));
+    }
     if let Some(will) = &cli.will {
         let qos = match will.qos {
             QoS::AtMostOnce => rumqttc::v5::mqttbytes::QoS::AtMostOnce,

@@ -1,5 +1,11 @@
 # xmqr-client
 
+Em C72, `mqtt-client sub --protocol-version 5 --receive-maximum 1..65535`
+anuncia no CONNECT o máximo de publicações QoS1/2 que o assinante aceita em voo
+nessa conexão. Sem a opção, a propriedade é omitida. A opção é exclusiva de
+`sub` MQTT 5; o broker P134 aplica a quota inclusive a mensagens retidas e
+retomadas após reconexão.
+
 O marco experimental 0.17.0 acrescenta
 `mqtt-client pub --protocol-version 5 --message-expiry-seconds 0..4294967295`
 e Will MQTT 5 com `--will-delay-seconds` opcional. Veja a
