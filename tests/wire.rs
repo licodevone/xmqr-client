@@ -1248,6 +1248,37 @@ fn mqtt5_subscribe_checks_suback_and_acknowledges_qos1_before_disconnect() {
 }
 
 #[test]
+fn mqtt5_server_disconnect_prints_reason_code_without_remote_text() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+        let (header, subscribe) = packet(&mut stream);
+        assert_eq!(header, 0x82);
+        stream
+            .write_all(&[0x90, 4, subscribe[0], subscribe[1], 0, 0])
+            .unwrap();
+        let remote_text = b"secret-fixture-content";
+        let mut properties = vec![0x1f, 0, u8::try_from(remote_text.len()).unwrap()];
+        properties.extend_from_slice(remote_text);
+        let mut body = vec![0x95, u8::try_from(properties.len()).unwrap()];
+        body.extend_from_slice(&properties);
+        stream
+            .write_all(&[0xe0, u8::try_from(body.len()).unwrap()])
+            .unwrap();
+        stream.write_all(&body).unwrap();
+    });
+    let output = finish(child(port, "sub", &["--protocol-version", "5"]));
+    server.join().unwrap();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("PacketTooLarge (0x95)"), "{stderr}");
+    assert!(!stderr.contains("secret-fixture-content"), "{stderr}");
+}
+
+#[test]
 fn mqtt5_subscribe_jsonl_exposes_publish_metadata_without_losing_qos_ack() {
     let listener = listener();
     let port = listener.local_addr().unwrap().port();

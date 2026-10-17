@@ -8,6 +8,19 @@ mod signals;
 mod tls;
 mod v5_session;
 
+fn user_error(error: &(dyn std::error::Error + Send + Sync + 'static)) -> String {
+    if let Some(rumqttc::v5::ConnectionError::MqttState(
+        rumqttc::v5::StateError::ServerDisconnect { reason_code, .. },
+    )) = error.downcast_ref::<rumqttc::v5::ConnectionError>()
+    {
+        return format!(
+            "broker encerrou conexao MQTT 5: {reason_code:?} (0x{:02X})",
+            *reason_code as u8
+        );
+    }
+    error.to_string()
+}
+
 #[tokio::main]
 async fn main() {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
@@ -88,7 +101,28 @@ async fn main() {
         Some(password)
     };
     if let Err(error) = session::run(cli, password, publication).await {
-        eprintln!("Erro: {error}");
+        eprintln!("Erro: {}", user_error(error.as_ref()));
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod diagnostic_tests {
+    use super::user_error;
+    use rumqttc::v5::{ConnectionError, StateError, mqttbytes::v5::DisconnectReasonCode};
+
+    #[test]
+    fn server_disconnect_exposes_code_without_untrusted_reason_string() {
+        let error = ConnectionError::MqttState(StateError::ServerDisconnect {
+            reason_code: DisconnectReasonCode::PacketTooLarge,
+            reason_string: Some("secret-fixture-content\nforged-status".into()),
+        });
+        let message = user_error(&error);
+        assert!(message.contains("PacketTooLarge"));
+        assert!(message.contains("0x95"));
+        assert!(!message.contains("secret-fixture-content"));
+        assert!(!message.contains("forged-status"));
+        let local = std::io::Error::other("local-error");
+        assert_eq!(user_error(&local), "local-error");
     }
 }
