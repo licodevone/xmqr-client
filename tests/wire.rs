@@ -909,6 +909,51 @@ fn mqtt5_subscribe_checks_suback_and_acknowledges_qos1_before_disconnect() {
 }
 
 #[test]
+fn mqtt5_subscribe_jsonl_exposes_publish_metadata_without_losing_qos_ack() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+        let (header, subscribe) = packet(&mut stream);
+        assert_eq!(header, 0x82);
+        stream
+            .write_all(&[0x90, 4, subscribe[0], subscribe[1], 0, 1])
+            .unwrap();
+        let properties = b"\x01\x01\x02\x00\x00\x00\x07\x03\x00\x0atext/plain\x08\x00\x07reply/t\x09\x00\x03\x00\xff\x07\x26\x00\x05trace\x00\x03one\x26\x00\x05trace\x00\x03two";
+        let mut body = vec![0, 1, b't', 0, 2, u8::try_from(properties.len()).unwrap()];
+        body.extend_from_slice(properties);
+        body.push(b'x');
+        stream
+            .write_all(&[0x32, u8::try_from(body.len()).unwrap()])
+            .unwrap();
+        stream.write_all(&body).unwrap();
+        assert_eq!(packet(&mut stream), (0x40, vec![0, 2]));
+        let (header, unsubscribe) = packet(&mut stream);
+        assert_eq!(header, 0xa2);
+        stream
+            .write_all(&[0xb0, 4, unsubscribe[0], unsubscribe[1], 0, 0])
+            .unwrap();
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(
+        port,
+        "sub",
+        &["--protocol-version", "5", "--qos", "1", "--count", "1"],
+    ));
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let line = String::from_utf8(output.stdout).unwrap();
+    assert!(line.contains("\"payload_bytes\":[120]"), "{line}");
+    assert!(line.contains("\"metadata\":{\"payload_format_indicator\":1,\"message_expiry_interval\":7,\"content_type\":\"text/plain\",\"response_topic\":\"reply/t\",\"correlation_data_hex\":\"00ff07\",\"user_properties\":[[\"trace\",\"one\"],[\"trace\",\"two\"]]}"), "{line}");
+}
+
+#[test]
 fn mqtt5_subscribe_receive_maximum_connect_wire() {
     let listener = listener();
     let port = listener.local_addr().unwrap().port();

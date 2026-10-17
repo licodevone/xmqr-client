@@ -3,11 +3,12 @@
 No marco experimental 0.20.0, `mqtt-client pub --protocol-version 5
 --payload-format 1 --content-type text/plain` envia as propriedades MQTT 5.
 O payload deve ser UTF-8 válido com indicador 1; o client recusa bytes inválidos
-antes de conectar. `sub` ainda mostra tópico e payload sem esses metadados.
+antes de conectar. C80 acrescenta os metadados recebidos a `sub --output jsonl`
+na árvore de desenvolvimento, ainda sem nova release.
 Em C78, `pub --protocol-version 5` aceita `--response-topic reply/t`,
 `--correlation-data-hex 00ff07` e `--publish-user-property trace=one` repetível
 (até 16 pares e 2048 bytes codificados). A validação ocorre antes da conexão;
-o assinante ainda não exibe esses metadados. Veja a
+o assinante instalado da release 0.20.0 ainda não exibe esses metadados. Veja a
 [nota de release](docs/releases/0.20.0.md). A fase 6C global segue aberta.
 
 No marco experimental 0.19.0, `mqtt-client sub --protocol-version 5
@@ -479,6 +480,13 @@ não sucesso de negócio nem processamento pelo assinante.
 linha em stdout; estados operacionais, reconexões e erros vão para stderr.
 Mensagens têm event, topic, qos, retain e payload_bytes (array de
 inteiros 0..255, inclusive payload vazio), preservando binários sem conversão UTF-8.
+Com MQTT 5, `sub --output jsonl` acrescenta `metadata` quando recebe propriedades
+PUBLISH conhecidas: `payload_format_indicator`, `message_expiry_interval`,
+`content_type`, `response_topic`, `correlation_data_hex` (bytes em hexadecimal)
+e `user_properties` (lista ordenada de pares, inclusive chaves repetidas).
+Sem essas propriedades, o campo é omitido. Topic Alias é detalhe da conexão:
+o campo `topic` contém o nome resolvido. MQTT 3.1.1 e saídas text/hex/raw
+conservam o formato anterior.
 Conclusão de pub usa event: "publish_complete" e confirmation igual a sent
 (QoS0) ou broker_protocol_ack (QoS1/2). Credenciais não integram esses objetos.
 

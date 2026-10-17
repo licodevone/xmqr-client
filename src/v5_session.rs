@@ -532,7 +532,8 @@ async fn subscribe(
                     let mut display =
                         rumqttc::mqttbytes::v4::Publish::new(&topic, qos, publish.payload.clone());
                     display.retain = publish.retain;
-                    cli.output.publish(&display)?;
+                    cli.output
+                        .publish_mqtt5(&display, publish.properties.as_ref())?;
                     received += 1;
                 }
             }

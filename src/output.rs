@@ -3,6 +3,7 @@ use std::{
     io::{self, Write as _},
 };
 
+use rumqttc::v5::mqttbytes::v5::PublishProperties;
 use rumqttc::{QoS, mqttbytes::v4::Publish};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,6 +23,27 @@ impl Output {
             stdout.write_all(self.render_publish(publish).as_bytes())?;
             stdout.write_all(b"\n")?;
         }
+        stdout.flush()
+    }
+
+    pub fn publish_mqtt5(
+        self,
+        publish: &Publish,
+        properties: Option<&PublishProperties>,
+    ) -> io::Result<()> {
+        if self != Self::Jsonl {
+            return self.publish(publish);
+        }
+        let mut rendered = self.render_publish(publish);
+        if let Some(metadata) = properties.and_then(render_mqtt5_metadata) {
+            rendered.pop(); // Replace the closing JSON object brace.
+            rendered.push_str(",\"metadata\":");
+            rendered.push_str(&metadata);
+            rendered.push('}');
+        }
+        let mut stdout = io::stdout().lock();
+        stdout.write_all(rendered.as_bytes())?;
+        stdout.write_all(b"\n")?;
         stdout.flush()
     }
 
@@ -96,6 +118,39 @@ impl Output {
     }
 }
 
+fn render_mqtt5_metadata(properties: &PublishProperties) -> Option<String> {
+    let mut fields = Vec::new();
+    if let Some(value) = properties.payload_format_indicator {
+        fields.push(format!("\"payload_format_indicator\":{value}"));
+    }
+    if let Some(value) = properties.message_expiry_interval {
+        fields.push(format!("\"message_expiry_interval\":{value}"));
+    }
+    if let Some(value) = &properties.content_type {
+        fields.push(format!("\"content_type\":{}", json_string(value)));
+    }
+    if let Some(value) = &properties.response_topic {
+        fields.push(format!("\"response_topic\":{}", json_string(value)));
+    }
+    if let Some(value) = &properties.correlation_data {
+        let mut hex = String::with_capacity(value.len() * 2);
+        for byte in value {
+            write!(hex, "{byte:02x}").unwrap();
+        }
+        fields.push(format!("\"correlation_data_hex\":\"{hex}\""));
+    }
+    if !properties.user_properties.is_empty() {
+        let pairs = properties
+            .user_properties
+            .iter()
+            .map(|(key, value)| format!("[{},{}]", json_string(key), json_string(value)))
+            .collect::<Vec<_>>()
+            .join(",");
+        fields.push(format!("\"user_properties\":[{pairs}]"));
+    }
+    (!fields.is_empty()).then(|| format!("{{{}}}", fields.join(",")))
+}
+
 fn json_string(value: &str) -> String {
     let mut result = String::from("\"");
     for ch in value.chars() {
@@ -157,6 +212,36 @@ mod tests {
         assert_eq!(
             Output::Hex.render_publish(&publish),
             "topic_hex=c3a92f76616c6f72 payload_hex=00ff0a22 qos=1 retain=true"
+        );
+    }
+
+    #[test]
+    fn mqtt5_metadata_json_preserves_binary_unicode_and_pair_order() {
+        let properties = PublishProperties {
+            payload_format_indicator: Some(1),
+            message_expiry_interval: Some(7),
+            content_type: Some("text/é".into()),
+            response_topic: Some("reply/\"t".into()),
+            correlation_data: Some(vec![0, 255, 7].into()),
+            user_properties: vec![
+                ("trace".into(), "one".into()),
+                ("trace".into(), "two".into()),
+            ],
+            ..PublishProperties::default()
+        };
+        assert_eq!(
+            render_mqtt5_metadata(&properties).as_deref(),
+            Some(
+                "{\"payload_format_indicator\":1,\"message_expiry_interval\":7,\"content_type\":\"text/é\",\"response_topic\":\"reply/\\\"t\",\"correlation_data_hex\":\"00ff07\",\"user_properties\":[[\"trace\",\"one\"],[\"trace\",\"two\"]]}"
+            )
+        );
+        assert!(render_mqtt5_metadata(&PublishProperties::default()).is_none());
+        assert!(
+            render_mqtt5_metadata(&PublishProperties {
+                topic_alias: Some(1),
+                ..PublishProperties::default()
+            })
+            .is_none()
         );
     }
 }
