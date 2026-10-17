@@ -287,13 +287,15 @@ async fn send_publication(
     cli: &Cli,
     topic: &str,
     payload: Vec<u8>,
+    topic_alias: Option<u16>,
 ) -> AppResult<()> {
     let qos = match cli.qos {
         QoS::AtMostOnce => rumqttc::v5::mqttbytes::QoS::AtMostOnce,
         QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
         QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
     };
-    if cli.message_expiry.is_some()
+    if topic_alias.is_some()
+        || cli.message_expiry.is_some()
         || cli.payload_format.is_some()
         || cli.content_type.is_some()
         || cli.response_topic.is_some()
@@ -313,6 +315,7 @@ async fn send_publication(
                     response_topic: cli.response_topic.clone(),
                     correlation_data: cli.correlation_data.clone().map(Into::into),
                     user_properties: cli.publish_user_properties.clone(),
+                    topic_alias,
                     ..PublishProperties::default()
                 },
             )
@@ -331,7 +334,7 @@ async fn run_inner(
     let options = configure_options(cli, password)?;
     let (client, mut events) = AsyncClient::new(options, 8);
     let limit = Duration::from_secs(u64::from(cli.timeout_seconds));
-    loop {
+    let broker_topic_alias_maximum = loop {
         let event = timeout(limit, events.poll())
             .await
             .map_err(|_| protocol_error("tempo esgotado aguardando CONNACK MQTT 5"))?
@@ -347,7 +350,11 @@ async fn run_inner(
                     )
                     .into());
                 }
-                break;
+                break ack
+                    .properties
+                    .as_ref()
+                    .and_then(|properties| properties.topic_alias_max)
+                    .unwrap_or(0);
             }
             Event::Incoming(Incoming::ConnAck(ack)) => {
                 return Err(connack_refusal(ack.code).into());
@@ -357,16 +364,37 @@ async fn run_inner(
                 return Err(protocol_error("resposta antes de CONNACK MQTT 5").into());
             }
         }
-    }
+    };
     let Mode::Pub { topic, .. } = &cli.mode else {
         return subscribe(cli, &client, &mut events, limit).await;
     };
+    if let Some(alias) = cli.publish_topic_alias
+        && alias > broker_topic_alias_maximum
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("broker anuncia Topic Alias Maximum {broker_topic_alias_maximum}; alias solicitado {alias}"),
+        )
+        .into());
+    }
     let publication = publication.ok_or_else(|| protocol_error("payload ausente"))?;
     for index in 0..cli.repeat {
         if index > 0 {
             wait_repeat_interval(&mut events, cli.repeat_interval_ms.unwrap()).await?;
         }
-        send_publication(&client, cli, topic, publication.first.clone()).await?;
+        let wire_topic = if index > 0 && cli.publish_topic_alias.is_some() {
+            ""
+        } else {
+            topic
+        };
+        send_publication(
+            &client,
+            cli,
+            wire_topic,
+            publication.first.clone(),
+            cli.publish_topic_alias,
+        )
+        .await?;
         await_publish_complete(&mut events, cli.qos, limit).await?;
         cli.output.complete(cli.qos);
     }

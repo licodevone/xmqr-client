@@ -4,6 +4,15 @@ No marco experimental 0.21.0, C80 exibe propriedades PUBLISH MQTT 5 recebidas
 em `sub --output jsonl` e C81 permite `pub --protocol-version 5 --repeat` em
 série. [Nota de release](docs/releases/0.21.0.md). A fase 6C segue aberta.
 
+Em desenvolvimento após 0.21.0, C83 acrescenta
+`pub --protocol-version 5 --repeat 3 --repeat-interval-ms 20
+--publish-topic-alias 1` (com `--topic` e `--message`/`--message-file`).
+O broker precisa anunciar Topic Alias Maximum >= 1 no CONNACK. A primeira
+mensagem estabelece o alias com tópico completo; as seguintes usam tópico
+vazio na mesma conexão, com as propriedades PUBLISH preservadas. Se o broker
+não anunciar suporte suficiente, a operação falha antes do primeiro envio.
+O alias é local à conexão; não há reconexão/replay MQTT 5 automático.
+
 No marco experimental 0.20.0, `mqtt-client pub --protocol-version 5
 --payload-format 1 --content-type text/plain` envia as propriedades MQTT 5.
 O payload deve ser UTF-8 válido com indicador 1; o client recusa bytes inválidos
@@ -26,7 +35,7 @@ O valor pode ser 0..16; sem a opção, o padrão é zero. O client mostra o tóp
 resolvido também nas entregas abreviadas do broker P139. Esta opção é exclusiva
 de `sub` MQTT 5. A assinatura não retoma automaticamente após erro de transporte;
 uma nova execução estabelece sua própria tabela de aliases. A publicação do
-client ainda não usa Topic Alias.
+na versão 0.19.0 o publisher ainda não usava Topic Alias.
 Veja a [nota de release](docs/releases/0.19.0.md).
 
 O marco experimental 0.18.0 acrescenta `--receive-maximum` e

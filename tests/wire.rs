@@ -510,6 +510,108 @@ fn mqtt5_repeat_waits_for_each_ack_and_reapplies_publish_properties() {
 }
 
 #[test]
+fn mqtt5_repeat_uses_negotiated_topic_alias_and_shortens_subsequent_topics() {
+    for qos in [0_u8, 1, 2] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            assert_eq!(packet(&mut stream).0, 0x10);
+            stream.write_all(&[0x20, 6, 0, 0, 3, 0x22, 0, 1]).unwrap();
+            for index in 0..2 {
+                let (header, body) = packet(&mut stream);
+                assert_eq!(header, 0x30 | (qos << 1));
+                if index == 0 {
+                    assert_eq!(&body[..3], &[0, 1, b't']);
+                } else {
+                    assert_eq!(&body[..2], &[0, 0]);
+                }
+                let topic_len = if index == 0 { 3 } else { 2 };
+                let prop_offset = topic_len + if qos == 0 { 0 } else { 2 };
+                let props_len = usize::from(body[prop_offset]);
+                let properties = &body[prop_offset + 1..prop_offset + 1 + props_len];
+                assert!(properties.windows(3).any(|chunk| chunk == [0x23, 0, 1]));
+                assert!(properties.windows(2).any(|chunk| chunk == [1, 1]));
+                assert_eq!(&body[prop_offset + 1 + props_len..], b"hello");
+                if qos != 0 {
+                    let id = [body[topic_len], body[topic_len + 1]];
+                    if qos == 1 {
+                        stream.write_all(&[0x40, 2, id[0], id[1]]).unwrap();
+                    } else {
+                        stream.write_all(&[0x50, 2, id[0], id[1]]).unwrap();
+                        assert_eq!(packet(&mut stream), (0x62, id.to_vec()));
+                        stream.write_all(&[0x70, 2, id[0], id[1]]).unwrap();
+                    }
+                }
+            }
+            assert_eq!(packet(&mut stream), (0xe0, vec![]));
+        });
+        let qos_arg = qos.to_string();
+        let output = finish(child(
+            port,
+            "pub",
+            &[
+                "--protocol-version",
+                "5",
+                "--qos",
+                &qos_arg,
+                "--message",
+                "hello",
+                "--repeat",
+                "2",
+                "--repeat-interval-ms",
+                "5",
+                "--payload-format",
+                "1",
+                "--publish-topic-alias",
+                "1",
+            ],
+        ));
+        server.join().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout).lines().count(), 2);
+    }
+}
+
+#[test]
+fn mqtt5_publish_topic_alias_rejects_missing_or_too_small_negotiation_before_publish() {
+    for connack in [vec![0x20, 3, 0, 0, 0], vec![0x20, 6, 0, 0, 3, 0x22, 0, 0]] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            assert_eq!(packet(&mut stream).0, 0x10);
+            stream.write_all(&connack).unwrap();
+            let mut probe = [0];
+            assert_eq!(stream.read(&mut probe).unwrap(), 0);
+        });
+        let output = finish(child(
+            port,
+            "pub",
+            &[
+                "--protocol-version",
+                "5",
+                "--message",
+                "hello",
+                "--repeat",
+                "2",
+                "--repeat-interval-ms",
+                "5",
+                "--publish-topic-alias",
+                "1",
+            ],
+        ));
+        server.join().unwrap();
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("Topic Alias Maximum"));
+    }
+}
+
+#[test]
 fn mqtt5_repeat_stops_on_second_refused_puback_without_third_publish() {
     let listener = listener();
     let port = listener.local_addr().unwrap().port();

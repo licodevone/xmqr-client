@@ -1,0 +1,6 @@
+# C83 — Topic Alias compacto no publisher MQTT 5
+
+- [Prompt C83](../clients/83-publish-topic-alias-mqtt5.md) criado antes do código. Base releases broker 0.23.0 e client 0.21.0; fase 6C global aberta.
+- Implementação: flag `--publish-topic-alias 1..16` somente para `pub` MQTT 5 com repetição; verifica limite CONNACK antes do primeiro PUBLISH, envia tópico completo na primeira mensagem e vazio nas posteriores da mesma conexão. Propriedades, QoS, retained e ordenação C81 preservados. Sem alias automático/reconnect/persistência.
+- Gates locais: 57 testes CLI e 57 wire PASS, incluindo CONNACK ausente/zero, QoS0/1/2 e tópico vazio; `cargo fmt --check`, Clippy `-D warnings`, build release e licenças PASS. [Integração C83](../../validation/C83-publish-topic-alias-mqtt5.py) PASS contra broker XMQR 0.23.0 e Mosquitto 2.0.22 descartável, imagem `sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21`, QoS0/1/2 com propriedades/ACKs. Regressões C78/C80/C81 PASS; containers removidos. Sem ensaio físico ESP32.
+- Aceite CI e commit/push pendentes; sem release isolada ou aceite global da fase 6C.

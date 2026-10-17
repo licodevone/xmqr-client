@@ -2,6 +2,8 @@
 
 ## Em desenvolvimento após 0.21.0
 
+- C83: `pub` MQTT 5 pode usar `--publish-topic-alias 1..16` com repetição sequencial; exige negociação no CONNACK, estabelece tópico completo e envia tópicos vazios na mesma conexão. Ausência ou limite insuficiente falha antes da primeira publicação.
+
 ## 0.21.0 — metadados no assinante e repetição MQTT 5, experimental
 
 - C80: `sub --protocol-version 5 --output jsonl` exibe propriedades PUBLISH recebidas, inclusive Correlation Data binária em hexadecimal e User Property como pares ordenados; formatos text/hex/raw e MQTT 3.1.1 mantidos.

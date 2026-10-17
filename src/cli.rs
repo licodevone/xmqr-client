@@ -109,6 +109,7 @@ pub struct Cli {
     pub receive_maximum: Option<u16>,
     pub maximum_packet_size: Option<u32>,
     pub topic_alias_maximum: Option<u16>,
+    pub publish_topic_alias: Option<u16>,
     pub transport_mode: TransportMode,
 }
 
@@ -116,7 +117,7 @@ pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO 
 
 pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --session-expiry-seconds 0..4294967294|never, --receive-maximum 1..65535 (somente sub), --maximum-packet-size 5..65536 (somente sub), --topic-alias-maximum 0..16 (somente sub), --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes), --will-delay-seconds 0..4294967295 (exige Will). PUBLISH: --message-expiry-seconds 0..4294967295, --payload-format 0|1, --content-type TEXTO (ate 256 bytes; somente pub MQTT 5). Nao inclua segredos em argumentos.\n";
 
-pub const V5_PUBLISH_USAGE: &str = "MQTT 5 PUBLISH adicional: --response-topic TOPICO (sem curingas), --correlation-data-hex HEX (ate 256 bytes), --publish-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes).\n";
+pub const V5_PUBLISH_USAGE: &str = "MQTT 5 PUBLISH adicional: --response-topic TOPICO (sem curingas), --correlation-data-hex HEX (ate 256 bytes), --publish-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes), --publish-topic-alias 1..16 (pub repetido; exige broker anunciar suporte).\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -167,6 +168,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut receive_maximum = None;
     let mut maximum_packet_size = None;
     let mut topic_alias_maximum = None;
+    let mut publish_topic_alias = None;
     let mut transport_mode = None;
     let mut will_topic = None;
     let mut will_message = None;
@@ -253,6 +255,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             "--receive-maximum" => &mut receive_maximum,
             "--maximum-packet-size" => &mut maximum_packet_size,
             "--topic-alias-maximum" => &mut topic_alias_maximum,
+            "--publish-topic-alias" => &mut publish_topic_alias,
             "--output" => &mut output,
             "--reconnect-attempts" => &mut reconnect_attempts,
             "--repeat" => &mut repeat,
@@ -463,6 +466,19 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                 .ok()
                 .filter(|value| *value <= 16)
                 .ok_or("--topic-alias-maximum deve ser 0..16".to_owned())
+        })
+        .transpose()?;
+    if publish_topic_alias.is_some()
+        && (protocol_version != ProtocolVersion::Mqtt5 || command != "pub" || repeat_count < 2)
+    {
+        return Err("--publish-topic-alias exige pub --protocol-version 5 --repeat 2..1000".into());
+    }
+    let publish_topic_alias = publish_topic_alias
+        .map(|raw| {
+            raw.parse::<u16>()
+                .ok()
+                .filter(|value| (1..=16).contains(value))
+                .ok_or("--publish-topic-alias deve ser 1..16".to_owned())
         })
         .transpose()?;
     let parse_request_flag = |raw: Option<String>, flag: &str| -> Result<Option<u8>, String> {
@@ -753,6 +769,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         receive_maximum,
         maximum_packet_size,
         topic_alias_maximum,
+        publish_topic_alias,
         transport_mode,
     })
 }
@@ -1764,6 +1781,65 @@ mod tests {
             "10".into(),
         ]);
         assert!(parse(args).is_err());
+    }
+
+    #[test]
+    fn publish_topic_alias_requires_mqtt5_repeated_pub_and_valid_range() {
+        for alias in ["1", "16"] {
+            let mut args = base("pub");
+            args.extend([
+                "--message".into(),
+                "x".into(),
+                "--protocol-version".into(),
+                "5".into(),
+                "--repeat".into(),
+                "2".into(),
+                "--repeat-interval-ms".into(),
+                "1".into(),
+                "--publish-topic-alias".into(),
+                alias.into(),
+            ]);
+            assert_eq!(parse(args).unwrap().publish_topic_alias, alias.parse().ok());
+        }
+        for alias in ["0", "17", "-1", "x"] {
+            let mut args = base("pub");
+            args.extend([
+                "--message".into(),
+                "x".into(),
+                "--protocol-version".into(),
+                "5".into(),
+                "--repeat".into(),
+                "2".into(),
+                "--repeat-interval-ms".into(),
+                "1".into(),
+                "--publish-topic-alias".into(),
+                alias.into(),
+            ]);
+            assert!(parse(args).is_err());
+        }
+        for (mode, mqtt5, repeat) in [
+            ("pub", false, true),
+            ("pub", true, false),
+            ("sub", true, false),
+        ] {
+            let mut args = base(mode);
+            if mode == "pub" {
+                args.extend(["--message".into(), "x".into()]);
+            }
+            if mqtt5 {
+                args.extend(["--protocol-version".into(), "5".into()]);
+            }
+            if repeat {
+                args.extend([
+                    "--repeat".into(),
+                    "2".into(),
+                    "--repeat-interval-ms".into(),
+                    "1".into(),
+                ]);
+            }
+            args.extend(["--publish-topic-alias".into(), "1".into()]);
+            assert!(parse(args).is_err());
+        }
     }
 
     #[test]
