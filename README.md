@@ -1,5 +1,10 @@
 # xmqr-client
 
+O marco experimental 0.18.0 acrescenta `--receive-maximum` e
+`--maximum-packet-size` para assinaturas MQTT 5. Veja a
+[nota de release](docs/releases/0.18.0.md). O broker parceiro 0.20.0 conserva
+o documento durável v8; a fase 6C ainda não está completa.
+
 Em C72, `mqtt-client sub --protocol-version 5 --receive-maximum 1..65535`
 anuncia no CONNECT o máximo de publicações QoS1/2 que o assinante aceita em voo
 nessa conexão. Sem a opção, a propriedade é omitida. A opção é exclusiva de

@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.18.0 — limites de recebimento MQTT 5, experimental
+
+- C72: `sub --protocol-version 5 --receive-maximum` anuncia a quota de PUBLISH QoS1/2 em voo.
+- C73: `sub --protocol-version 5 --maximum-packet-size` anuncia o maior pacote MQTT aceito, até 64 KiB.
+- O broker parceiro 0.20.0 aplica ambos; fases 6A–6D seguem abertas.
+
 ## 0.17.0 — validade de publicação e Will MQTT 5, experimental
 
 - C70: Will MQTT 5 com `--will-delay-seconds` opcional, validado e enviado no CONNECT.
