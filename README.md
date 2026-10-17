@@ -1,5 +1,11 @@
 # xmqr-client
 
+A árvore após 0.26.0 também acrescenta C98: `--client-id` aceita 1..254
+caracteres ASCII alfanuméricos, `-` ou `_` em MQTT 5, suficientes para
+reutilizar o ID de 37 caracteres atribuído pelo broker XMQR. MQTT 3.1.1
+mantém o limite de 23. Isto não guarda o fluxo QoS da CLI para retomada
+automática. [Prompt C98](prompts/clients/98-long-client-id-mqtt5.md).
+
 A árvore após 0.26.0 acrescenta C97: `--server-assigned-client-id` envia
 Client Identifier vazio no CONNECT MQTT 5 e exige o ID atribuído em CONNACK.
 O ID aparece em stderr; stdout permanece reservado às mensagens. A opção

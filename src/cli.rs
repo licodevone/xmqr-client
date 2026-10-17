@@ -770,15 +770,20 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     } else {
         let client_id =
             client_id.unwrap_or_else(|| format!("mqtt-{command}-{}", std::process::id()));
+        let maximum = if protocol_version == ProtocolVersion::Mqtt5 {
+            254
+        } else {
+            23
+        };
         if client_id.is_empty()
-            || client_id.len() > 23
+            || client_id.len() > maximum
             || !client_id
                 .bytes()
                 .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
         {
-            return Err(
-                "--client-id deve ter 1 a 23 caracteres ASCII alfanumericos, '-' ou '_'".into(),
-            );
+            return Err(format!(
+                "--client-id deve ter 1 a {maximum} caracteres ASCII alfanumericos, '-' ou '_'"
+            ));
         }
         client_id
     };
@@ -2052,6 +2057,29 @@ mod tests {
         let mut legacy = base("sub");
         legacy.push("--server-assigned-client-id".into());
         assert!(parse(legacy).is_err());
+    }
+
+    #[test]
+    fn mqtt5_reuses_assigned_length_ids_but_legacy_keeps_23_byte_limit() {
+        for (protocol, length, accepted) in [
+            ("3.1.1", 23, true),
+            ("3.1.1", 24, false),
+            ("5", 23, true),
+            ("5", 24, true),
+            ("5", 37, true),
+            ("5", 254, true),
+            ("5", 255, false),
+            ("5", 0, false),
+        ] {
+            let mut args = base("sub");
+            args.extend([
+                "--protocol-version".into(),
+                protocol.into(),
+                "--client-id".into(),
+                "x".repeat(length),
+            ]);
+            assert_eq!(parse(args).is_ok(), accepted, "{protocol} length {length}");
+        }
     }
 
     #[test]

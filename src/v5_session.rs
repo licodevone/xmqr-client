@@ -24,7 +24,7 @@ type AppResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 mod assigned_client_id_tests {
     use super::{configure_options, validate_connack};
     use bytes::BytesMut;
-    use rumqttc::v5::mqttbytes::v5::{ConnAck, Packet};
+    use rumqttc::v5::mqttbytes::v5::{ConnAck, Connect, Packet};
 
     fn cli(assigned: bool) -> crate::cli::Cli {
         let mut args = vec![
@@ -68,6 +68,40 @@ mod assigned_client_id_tests {
     fn duplicate_assigned_identifier_is_malformed_on_wire() {
         let mut bytes = BytesMut::from(&b"\x20\x0b\x00\x00\x08\x12\x00\x01a\x12\x00\x01b"[..]);
         assert!(Packet::read(&mut bytes, Some(65_536)).is_err());
+    }
+
+    #[test]
+    fn mqtt5_connect_encodes_reused_assigned_id_length() {
+        let id = "xmqr-0123456789abcdef0123456789abcdef";
+        let cli = crate::cli::parse(
+            [
+                "sub",
+                "--open-lab",
+                "--topic",
+                "x",
+                "--protocol-version",
+                "5",
+                "--client-id",
+                id,
+                "--clean-start",
+                "false",
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        )
+        .unwrap();
+        let options = configure_options(&cli, None).unwrap();
+        let mut wire = BytesMut::new();
+        Connect {
+            client_id: options.client_id(),
+            keep_alive: u16::try_from(options.keep_alive().as_secs()).unwrap(),
+            clean_start: options.clean_start(),
+            properties: options.connect_properties(),
+        }
+        .write(&None, &None, &mut wire)
+        .unwrap();
+        assert_eq!(&wire[13..15], &[0, 37]);
+        assert_eq!(&wire[15..], id.as_bytes());
     }
 }
 
