@@ -4,6 +4,7 @@
 
 - C83: `pub` MQTT 5 pode usar `--publish-topic-alias 1..16` com repetição sequencial; exige negociação no CONNACK, estabelece tópico completo e envia tópicos vazios na mesma conexão. Ausência ou limite insuficiente falha antes da primeira publicação.
 - C84: `sub --protocol-version 5 --retain-handling 0|1|2` envia a opção Retain Handling por filtro; os filtros locais de saída continuam independentes.
+- C85: `sub --protocol-version 5 --no-local --retain-as-published` envia os bits de opção por filtro; a validação recusa publisher e MQTT 3.1.1 antes da rede. O broker XMQR ainda aguarda P148.
 
 ## 0.21.0 — metadados no assinante e repetição MQTT 5, experimental
 

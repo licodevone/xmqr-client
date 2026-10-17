@@ -1301,6 +1301,53 @@ fn mqtt5_subscribe_retain_handling_bits_are_sent_per_filter() {
 }
 
 #[test]
+fn mqtt5_subscribe_no_local_and_retain_as_published_bits_are_independent() {
+    for (flags, expected) in [
+        (vec!["--no-local"], 0x04),
+        (vec!["--retain-as-published"], 0x08),
+        (
+            vec![
+                "--no-local",
+                "--retain-as-published",
+                "--retain-handling",
+                "2",
+            ],
+            0x2c,
+        ),
+    ] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            assert_eq!(packet(&mut stream).0, 0x10);
+            stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+            let (header, subscribe) = packet(&mut stream);
+            assert_eq!(header, 0x82);
+            assert_eq!(*subscribe.last().unwrap(), expected);
+            stream
+                .write_all(&[0x90, 4, subscribe[0], subscribe[1], 0, 0])
+                .unwrap();
+            stream.write_all(&[0x30, 5, 0, 1, b't', 0, b'x']).unwrap();
+            let (header, unsubscribe) = packet(&mut stream);
+            assert_eq!(header, 0xa2);
+            stream
+                .write_all(&[0xb0, 4, unsubscribe[0], unsubscribe[1], 0, 0])
+                .unwrap();
+            assert_eq!(packet(&mut stream), (0xe0, vec![]));
+        });
+        let mut args = vec!["--protocol-version", "5", "--count", "1"];
+        args.extend(flags);
+        let output = finish(child(port, "sub", &args));
+        server.join().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+
+#[test]
 fn mqtt5_subscribe_maximum_packet_size_connect_wire() {
     let listener = listener();
     let port = listener.local_addr().unwrap().port();

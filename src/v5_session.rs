@@ -509,10 +509,12 @@ fn resolved_incoming_topic(
 fn subscription_filter(
     topic: String,
     qos: rumqttc::v5::mqttbytes::QoS,
-    retain_handling: u8,
+    options: crate::cli::SubscriptionOptions,
 ) -> Filter {
     let mut request = Filter::new(topic, qos);
-    request.retain_forward_rule = match retain_handling {
+    request.nolocal = options.no_local;
+    request.preserve_retain = options.retain_as_published;
+    request.retain_forward_rule = match options.retain_handling {
         1 => RetainForwardRule::OnNewSubscribe,
         2 => RetainForwardRule::Never,
         _ => RetainForwardRule::OnEverySubscribe,
@@ -544,7 +546,7 @@ async fn subscribe(
             filters
                 .iter()
                 .cloned()
-                .map(|filter| subscription_filter(filter, qos, cli.retain_handling)),
+                .map(|filter| subscription_filter(filter, qos, cli.subscription_options)),
         )
         .await?;
     let mut acknowledged = false;

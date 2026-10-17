@@ -20,6 +20,12 @@ momento. `--ignore-retained` e `--retained-only` continuam filtros locais da
 saída; não mudam o pacote SUBSCRIBE. O broker P147 aplica a opção por filtro,
 inclusive ao retomar uma sessão persistente.
 
+Em desenvolvimento após 0.21.0, C85 acrescenta `--no-local` e
+`--retain-as-published` ao assinante MQTT 5. São bits do SUBSCRIBE por filtro,
+combináveis com `--retain-handling`; nenhum altera os filtros locais da saída.
+O client foi validado com Mosquitto 2.0.22. O broker XMQR ainda rejeita os
+dois bits até P148, portanto esta opção ainda não é interoperável com ele.
+
 No marco experimental 0.20.0, `mqtt-client pub --protocol-version 5
 --payload-format 1 --content-type text/plain` envia as propriedades MQTT 5.
 O payload deve ser UTF-8 válido com indicador 1; o client recusa bytes inválidos
