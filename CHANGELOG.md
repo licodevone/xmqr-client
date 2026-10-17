@@ -1,8 +1,9 @@
 # Histórico de versões
 
-## Em desenvolvimento — diagnóstico DISCONNECT MQTT 5
+## 0.28.0 — diagnóstico e propriedades de assinatura MQTT 5 (experimental)
 
 - C101: a CLI informa nome e código do DISCONNECT enviado pelo broker sem ecoar Reason String não confiável. Teste TCP cobre `0x95` e texto sentinela; sem tag isolada.
+- C102: `sub` MQTT 5 aceita User Property repetível em SUBSCRIBE e UNSUBSCRIBE, inclusive junto de Subscription Identifier; a segunda flag exige `--count N`. Limites e interoperabilidade XMQR/Mosquitto validados.
 
 ## 0.27.0 — Client Identifier atribuído no MQTT 5 (experimental)
 

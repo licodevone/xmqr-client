@@ -1,5 +1,12 @@
 # Versionamento
 
+O candidato 0.28.0 reúne C101/C102: diagnóstico seguro de DISCONNECT MQTT 5 e
+User Property contextual de SUBSCRIBE/UNSUBSCRIBE. O broker parceiro 0.33.0
+conterá P180/P181. Sem persistência do fluxo QoS local; MQTT 3.1.1 mantém o
+contrato anterior. Publicação requer CI, pacote Ubuntu 26.04, imagem numerada,
+upgrade/rollback descartável, hashes remotos e tag anotada. Fases 6A–6D e
+7–9 continuam abertas. [Nota](docs/releases/0.28.0.md).
+
 A versão 0.27.0 publicada reúne C97–C99: solicitação do Client Identifier MQTT 5
 ao broker, reutilização manual de ID longo e sessão durável com expiração.
 O broker 0.30.0/P166 é o par. Não há persistência do estado QoS da CLI;
