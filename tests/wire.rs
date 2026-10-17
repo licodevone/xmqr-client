@@ -475,6 +475,52 @@ fn mqtt5_publish_message_expiry_property_wire() {
 }
 
 #[test]
+fn mqtt5_connect_will_delay_property_wire() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x10);
+        assert_eq!(body[7] & 0x06, 0x06);
+        let expected = [
+            5, 0x18, 0, 0, 0, 2, 0, 4, b'l', b'a', b's', b't', 0, 3, b'b', b'y', b'e',
+        ];
+        assert!(
+            body.windows(expected.len()).any(|part| part == expected),
+            "{body:?}"
+        );
+        stream
+            .write_all(&[0x20, 8, 0, 0, 5, 0x27, 0, 1, 0, 0])
+            .unwrap();
+        assert_eq!(packet(&mut stream).0, 0x30);
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(
+        port,
+        "pub",
+        &[
+            "--protocol-version",
+            "5",
+            "--message",
+            "hello",
+            "--will-topic",
+            "last",
+            "--will-message",
+            "bye",
+            "--will-delay-seconds",
+            "2",
+        ],
+    ));
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
 fn mqtt5_connect_informational_properties_have_versioned_wire() {
     let listener = listener();
     let port = listener.local_addr().unwrap().port();

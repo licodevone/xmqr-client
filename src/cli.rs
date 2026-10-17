@@ -67,6 +67,7 @@ pub struct Will {
     pub message: Vec<u8>,
     pub qos: QoS,
     pub retain: bool,
+    pub delay_seconds: Option<u32>,
 }
 
 #[derive(Debug)]
@@ -105,7 +106,7 @@ pub struct Cli {
 
 pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\nTLS com senha, sem certificado de cliente:\n  mqtt-client pub|sub --tls-password --topic TOPICO --username USUARIO --ca CA.crt [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO | --will-message-file PATH [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --protocol-version 3.1.1|5 (padrao 3.1.1; MQTT5 inicial pub/sub QoS0/1/2), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl|hex|raw (hex/raw apenas sub; raw exige --count 1), --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --repeat 1..1000 --repeat-interval-ms 1..60000 (pub, fonte unica), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --exclude-topic FILTRO (sub, repetivel), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
-pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --session-expiry-seconds 0..4294967294|never, --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes). PUBLISH: --message-expiry-seconds 0..4294967295 (somente pub MQTT 5). Nao inclua segredos em argumentos.\n";
+pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --session-expiry-seconds 0..4294967294|never, --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes), --will-delay-seconds 0..4294967295 (exige Will). PUBLISH: --message-expiry-seconds 0..4294967295 (somente pub MQTT 5). Nao inclua segredos em argumentos.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -154,6 +155,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut will_message_file = None;
     let mut will_qos = None;
     let mut will_retain = None;
+    let mut will_delay = None;
 
     while let Some(flag) = args.next() {
         if flag == "--ignore-retained" || flag == "--retained-only" {
@@ -234,6 +236,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             "--will-message-file" => &mut will_message_file,
             "--will-qos" => &mut will_qos,
             "--will-retain" => &mut will_retain,
+            "--will-delay-seconds" => &mut will_delay,
             "--message-file" => &mut message_file,
             "--message" => &mut message,
             "--count" => &mut count,
@@ -482,6 +485,15 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     };
 
     let will_from_file = will_message_file.is_some();
+    if will_delay.is_some() && protocol_version != ProtocolVersion::Mqtt5 {
+        return Err("--will-delay-seconds exige --protocol-version 5".into());
+    }
+    let will_delay = will_delay
+        .map(|raw| {
+            raw.parse::<u32>()
+                .map_err(|_| "--will-delay-seconds deve ser 0..4294967295".to_owned())
+        })
+        .transpose()?;
     let will = match (will_topic, will_message, will_message_file) {
         (Some(topic), Some(message), None) | (Some(topic), None, Some(message)) => {
             if topic.is_empty()
@@ -512,9 +524,14 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                 message,
                 qos,
                 retain,
+                delay_seconds: will_delay,
             })
         }
-        (None, None, None) if will_qos.is_none() && will_retain.is_none() => None,
+        (None, None, None)
+            if will_qos.is_none() && will_retain.is_none() && will_delay.is_none() =>
+        {
+            None
+        }
         _ => return Err("Will exige --will-topic e uma unica fonte de mensagem".into()),
     };
     let output = match output.as_deref().unwrap_or("text") {
@@ -562,11 +579,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         })
         .transpose()?;
     if protocol_version == ProtocolVersion::Mqtt5
-        && (will.is_some()
-            || line_mode
-            || repeat_count != 1
-            || reconnect_attempts != 0
-            || keepalive_seconds < 5)
+        && (line_mode || repeat_count != 1 || reconnect_attempts != 0 || keepalive_seconds < 5)
     {
         return Err(
             "MQTT 5 inicial exige ausencia de Will, lotes e reconexao; keepalive >= 5".into(),
@@ -809,6 +822,56 @@ fn subscribe_packet_size(filters: &[String]) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn mqtt5_will_delay_requires_will_and_version_five() {
+        use super::parse;
+        let base = ["pub", "--open-lab", "--topic", "t", "--message", "x"];
+        let args = |extra: &[&str]| {
+            base.iter()
+                .chain(extra)
+                .map(|s| (*s).to_owned())
+                .collect::<Vec<_>>()
+        };
+        let good = parse(args(&[
+            "--protocol-version",
+            "5",
+            "--will-topic",
+            "last",
+            "--will-message",
+            "bye",
+            "--will-delay-seconds",
+            "2",
+        ]))
+        .unwrap();
+        assert_eq!(good.will.unwrap().delay_seconds, Some(2));
+        for extra in [
+            vec!["--will-delay-seconds", "2"],
+            vec!["--protocol-version", "5", "--will-delay-seconds", "2"],
+            vec![
+                "--protocol-version",
+                "5",
+                "--will-topic",
+                "last",
+                "--will-message",
+                "bye",
+                "--will-delay-seconds",
+                "-1",
+            ],
+            vec![
+                "--protocol-version",
+                "5",
+                "--will-topic",
+                "last",
+                "--will-message",
+                "bye",
+                "--will-delay-seconds",
+                "4294967296",
+            ],
+        ] {
+            assert!(parse(args(&extra)).is_err(), "{extra:?}");
+        }
+    }
+
     #[test]
     fn mqtt5_message_expiry_is_pub_only_and_bounded() {
         use super::parse;

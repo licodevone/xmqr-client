@@ -2,8 +2,8 @@
 use std::{error::Error, io, time::Duration};
 
 use rumqttc::v5::mqttbytes::v5::{
-    ConnectReturnCode, Filter, PubAckReason, PubCompReason, PubRecReason, PublishProperties,
-    SubscribeReasonCode, UnsubAckReason,
+    ConnectReturnCode, Filter, LastWill, LastWillProperties, PubAckReason, PubCompReason,
+    PubRecReason, PublishProperties, SubscribeReasonCode, UnsubAckReason,
 };
 use rumqttc::{
     Outgoing, QoS, Transport,
@@ -236,6 +236,29 @@ fn configure_options(cli: &Cli, password: Option<String>) -> AppResult<MqttOptio
     }
     options.set_keep_alive(Duration::from_secs(u64::from(cli.keepalive_seconds)));
     configure_connect_properties(&mut options, cli);
+    if let Some(will) = &cli.will {
+        let qos = match will.qos {
+            QoS::AtMostOnce => rumqttc::v5::mqttbytes::QoS::AtMostOnce,
+            QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
+            QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
+        };
+        let properties = will.delay_seconds.map(|seconds| LastWillProperties {
+            delay_interval: Some(seconds),
+            payload_format_indicator: None,
+            message_expiry_interval: None,
+            content_type: None,
+            response_topic: None,
+            correlation_data: None,
+            user_properties: Vec::new(),
+        });
+        options.set_last_will(LastWill::new(
+            will.topic.clone(),
+            will.message.clone(),
+            qos,
+            will.retain,
+            properties,
+        ));
+    }
     if matches!(
         cli.transport_mode,
         TransportMode::Secure | TransportMode::TlsPassword
