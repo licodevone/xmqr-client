@@ -1,5 +1,12 @@
 # xmqr-client
 
+Na árvore após 0.25.0, C95 acrescenta `--will-message-expiry-seconds
+0..4294967295` ao Will MQTT 5. Essa opção é distinta de
+`--message-expiry-seconds` do PUBLISH e pode ser usada com Will Delay e os
+metadados de C94. O broker P164 inicia a contagem na publicação efetiva;
+nenhuma dessas opções faz parte da release 0.25.0.
+[Prompt C95](prompts/clients/95-will-message-expiry-mqtt5.md).
+
 Na árvore após 0.25.0, C94 permite combinar `--will-payload-format 0|1`,
 `--will-content-type TEXTO`, `--will-response-topic TOPICO`,
 `--will-correlation-data-hex HEX` e `--will-user-property CHAVE=VALOR`

@@ -269,6 +269,7 @@ fn configure_options(cli: &Cli, password: Option<&str>) -> AppResult<MqttOptions
             QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
         };
         let has_properties = will.delay_seconds.is_some()
+            || will.message_expiry_seconds.is_some()
             || will.payload_format_indicator.is_some()
             || will.content_type.is_some()
             || will.response_topic.is_some()
@@ -277,7 +278,7 @@ fn configure_options(cli: &Cli, password: Option<&str>) -> AppResult<MqttOptions
         let properties = has_properties.then(|| LastWillProperties {
             delay_interval: will.delay_seconds,
             payload_format_indicator: will.payload_format_indicator,
-            message_expiry_interval: None,
+            message_expiry_interval: will.message_expiry_seconds,
             content_type: will.content_type.clone(),
             response_topic: will.response_topic.clone(),
             correlation_data: will.correlation_data.clone().map(Into::into),

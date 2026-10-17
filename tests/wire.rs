@@ -898,14 +898,17 @@ fn mqtt5_connect_will_metadata_wire_preserves_user_property_order() {
         let (header, body) = packet(&mut stream);
         assert_eq!(header, 0x10);
         let properties = [
-            0x18, 0, 0, 0, 2, 0x01, 1, 0x03, 0, 4, b't', b'e', b'x', b't', 0x08, 0, 5, b'r', b'e',
-            b'p', b'l', b'y', 0x09, 0, 2, 0, 0xaf, 0x26, 0, 1, b'a', 0, 1, b'1', 0x26, 0, 1, b'a',
-            0, 1, b'2',
+            0x18, 0, 0, 0, 2, 0x01, 1, 0x02, 0, 0, 0, 3, 0x03, 0, 4, b't', b'e', b'x', b't', 0x08,
+            0, 5, b'r', b'e', b'p', b'l', b'y', 0x09, 0, 2, 0, 0xaf, 0x26, 0, 1, b'a', 0, 1, b'1',
+            0x26, 0, 1, b'a', 0, 1, b'2',
         ];
-        let offset = body
-            .iter()
-            .position(|&b| b == u8::try_from(properties.len()).unwrap())
-            .unwrap();
+        let client_id_len_at = 11 + usize::from(body[10]);
+        let client_id_len = usize::from(u16::from_be_bytes([
+            body[client_id_len_at],
+            body[client_id_len_at + 1],
+        ]));
+        let offset = client_id_len_at + 2 + client_id_len;
+        assert_eq!(body[offset], u8::try_from(properties.len()).unwrap());
         assert_eq!(&body[offset + 1..offset + 1 + properties.len()], properties);
         stream
             .write_all(&[0x20, 8, 0, 0, 5, 0x27, 0, 1, 0, 0])
@@ -938,6 +941,8 @@ fn mqtt5_connect_will_metadata_wire_preserves_user_property_order() {
             "bye",
             "--will-delay-seconds",
             "2",
+            "--will-message-expiry-seconds",
+            "3",
             "--will-payload-format",
             "1",
             "--will-qos",

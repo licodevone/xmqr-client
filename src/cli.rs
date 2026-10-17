@@ -74,6 +74,7 @@ pub struct Will {
     pub qos: QoS,
     pub retain: bool,
     pub delay_seconds: Option<u32>,
+    pub message_expiry_seconds: Option<u32>,
     pub payload_format_indicator: Option<u8>,
     pub content_type: Option<String>,
     pub response_topic: Option<String>,
@@ -141,7 +142,7 @@ pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --
 
 pub const V5_PUBLISH_USAGE: &str = "MQTT 5 PUBLISH adicional: --response-topic TOPICO (sem curingas), --correlation-data-hex HEX (ate 256 bytes), --publish-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes), --publish-topic-alias 1..16 (pub repetido; exige broker anunciar suporte).\n";
 pub const AUTH_USAGE: &str = "Autenticacao MQTT 5: --auth-method plain (somente TLS, com --protocol-version 5; senha por arquivo privado ou prompt). --reauth-before-io confirma AUTH PLAIN apos CONNACK e antes de pub/sub; reautenticacao periodica ainda indisponivel.\n";
-pub const V5_WILL_USAGE: &str = "MQTT 5 Will: --will-payload-format 0|1, --will-content-type TEXTO (ate 256 bytes), --will-response-topic TOPICO (sem curingas), --will-correlation-data-hex HEX (ate 256 bytes), --will-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes). Exige --will-topic, mensagem Will e --protocol-version 5.\n";
+pub const V5_WILL_USAGE: &str = "MQTT 5 Will: --will-message-expiry-seconds 0..4294967295, --will-payload-format 0|1, --will-content-type TEXTO (ate 256 bytes), --will-response-topic TOPICO (sem curingas), --will-correlation-data-hex HEX (ate 256 bytes), --will-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes). Exige --will-topic, mensagem Will e --protocol-version 5.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -207,6 +208,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut will_qos = None;
     let mut will_retain = None;
     let mut will_delay = None;
+    let mut will_message_expiry = None;
     let mut will_payload_format = None;
     let mut will_content_type = None;
     let mut will_response_topic = None;
@@ -328,6 +330,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             "--will-qos" => &mut will_qos,
             "--will-retain" => &mut will_retain,
             "--will-delay-seconds" => &mut will_delay,
+            "--will-message-expiry-seconds" => &mut will_message_expiry,
             "--will-payload-format" => &mut will_payload_format,
             "--will-content-type" => &mut will_content_type,
             "--will-response-topic" => &mut will_response_topic,
@@ -766,13 +769,21 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     };
 
     let will_from_file = will_message_file.is_some();
-    if will_delay.is_some() && protocol_version != ProtocolVersion::Mqtt5 {
-        return Err("--will-delay-seconds exige --protocol-version 5".into());
+    if (will_delay.is_some() || will_message_expiry.is_some())
+        && protocol_version != ProtocolVersion::Mqtt5
+    {
+        return Err("Will Delay/Message Expiry exige --protocol-version 5".into());
     }
     let will_delay = will_delay
         .map(|raw| {
             raw.parse::<u32>()
                 .map_err(|_| "--will-delay-seconds deve ser 0..4294967295".to_owned())
+        })
+        .transpose()?;
+    let will_message_expiry = will_message_expiry
+        .map(|raw| {
+            raw.parse::<u32>()
+                .map_err(|_| "--will-message-expiry-seconds deve ser 0..4294967295".to_owned())
         })
         .transpose()?;
     if (will_payload_format.is_some()
@@ -882,6 +893,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                 qos,
                 retain,
                 delay_seconds: will_delay,
+                message_expiry_seconds: will_message_expiry,
                 payload_format_indicator: will_payload_format,
                 content_type: will_content_type,
                 response_topic: will_response_topic,
@@ -893,6 +905,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             if will_qos.is_none()
                 && will_retain.is_none()
                 && will_delay.is_none()
+                && will_message_expiry.is_none()
                 && will_payload_format.is_none()
                 && will_content_type.is_none()
                 && will_response_topic.is_none()
@@ -1305,6 +1318,75 @@ mod tests {
             too_many.extend(["--will-user-property".into(), "a=b".into()]);
         }
         assert!(parse(too_many).is_err());
+    }
+
+    #[test]
+    fn mqtt5_will_message_expiry_requires_complete_will_and_preserves_zero() {
+        use super::parse;
+        let base = ["pub", "--open-lab", "--topic", "t", "--message", "x"];
+        let args = |extra: &[&str]| {
+            base.iter()
+                .chain(extra)
+                .map(|s| (*s).to_owned())
+                .collect::<Vec<_>>()
+        };
+        let will = parse(args(&[
+            "--protocol-version",
+            "5",
+            "--will-topic",
+            "last",
+            "--will-message",
+            "bye",
+            "--will-message-expiry-seconds",
+            "0",
+        ]))
+        .unwrap()
+        .will
+        .unwrap();
+        assert_eq!(will.message_expiry_seconds, Some(0));
+        for extra in [
+            vec!["--will-message-expiry-seconds", "1"],
+            vec![
+                "--protocol-version",
+                "5",
+                "--will-message-expiry-seconds",
+                "1",
+            ],
+            vec![
+                "--protocol-version",
+                "5",
+                "--will-topic",
+                "last",
+                "--will-message",
+                "bye",
+                "--will-message-expiry-seconds",
+                "-1",
+            ],
+            vec![
+                "--protocol-version",
+                "5",
+                "--will-topic",
+                "last",
+                "--will-message",
+                "bye",
+                "--will-message-expiry-seconds",
+                "4294967296",
+            ],
+            vec![
+                "--protocol-version",
+                "5",
+                "--will-topic",
+                "last",
+                "--will-message",
+                "bye",
+                "--will-message-expiry-seconds",
+                "1",
+                "--will-message-expiry-seconds",
+                "2",
+            ],
+        ] {
+            assert!(parse(args(&extra)).is_err(), "{extra:?}");
+        }
     }
 
     #[test]
