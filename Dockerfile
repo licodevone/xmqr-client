@@ -8,6 +8,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
+COPY vendor ./vendor
 COPY scripts/collect_notices.py ./scripts/collect_notices.py
 COPY packaging/notices ./packaging/notices
 RUN apt-get update \

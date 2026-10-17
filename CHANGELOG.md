@@ -2,6 +2,7 @@
 
 ## Em desenvolvimento após 0.24.0
 
+- C92: `--reauth-before-io` em MQTT 5 PLAIN/TLS envia AUTH `0x19`, aguarda AUTH `0x00` com o mesmo método e só então publica ou assina. Timeout, método divergente e resposta inválida encerram sem expor senha. Patch local de `rumqttc` 0.25.1 documentado em `vendor/rumqttc-0.25.1/XMQR-PATCHES.md`; reautenticação periódica continua ausente.
 - C91: `--auth-method plain` em MQTT 5 sobre TLS envia Authentication Method/Data SASL PLAIN sem duplicar Username/Password; exige confirmação `PLAIN` no CONNACK. Senha continua fora dos argumentos, por prompt ou arquivo privado. AUTH posterior e reautenticação permanecem pendentes.
 
 ## 0.24.0 — shared subscriptions MQTT 5 (experimental)

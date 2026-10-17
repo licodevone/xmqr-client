@@ -39,6 +39,12 @@ pub enum ProtocolVersion {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReauthMode {
+    Off,
+    BeforeIo,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SessionStart {
     Clean,
     Resume,
@@ -74,6 +80,7 @@ pub struct Will {
 pub struct Cli {
     pub protocol_version: ProtocolVersion,
     pub auth_method: Option<String>,
+    pub reauth_mode: ReauthMode,
     pub request_problem_info: Option<u8>,
     pub request_response_info: Option<u8>,
     pub connect_user_properties: Vec<(String, String)>,
@@ -128,7 +135,7 @@ pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO 
 pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --session-expiry-seconds 0..4294967294|never, --receive-maximum 1..65535 (somente sub), --maximum-packet-size 5..65536 (somente sub), --topic-alias-maximum 0..16 (somente sub), --retain-handling 0|1|2, --no-local, --retain-as-published, --subscription-identifier 1..268435455 (somente sub), --topic '$share/grupo/filtro' (somente sub MQTT 5; sem --no-local), --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes), --will-delay-seconds 0..4294967295 (exige Will). PUBLISH: --message-expiry-seconds 0..4294967295, --payload-format 0|1, --content-type TEXTO (ate 256 bytes; somente pub MQTT 5). Nao inclua segredos em argumentos.\n";
 
 pub const V5_PUBLISH_USAGE: &str = "MQTT 5 PUBLISH adicional: --response-topic TOPICO (sem curingas), --correlation-data-hex HEX (ate 256 bytes), --publish-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes), --publish-topic-alias 1..16 (pub repetido; exige broker anunciar suporte).\n";
-pub const AUTH_USAGE: &str = "Autenticacao inicial MQTT 5: --auth-method plain (somente TLS, com --protocol-version 5; senha por arquivo privado ou prompt). Reautenticacao AUTH ainda indisponivel.\n";
+pub const AUTH_USAGE: &str = "Autenticacao MQTT 5: --auth-method plain (somente TLS, com --protocol-version 5; senha por arquivo privado ou prompt). --reauth-before-io confirma AUTH PLAIN apos CONNACK e antes de pub/sub; reautenticacao periodica ainda indisponivel.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -141,6 +148,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut output = None;
     let mut protocol_version = None;
     let mut auth_method = None;
+    let mut reauth_before_io = false;
     let mut request_problem_info = None;
     let mut request_response_info = None;
     let mut raw_connect_user_properties = Vec::new();
@@ -194,6 +202,12 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut will_delay = None;
 
     while let Some(flag) = args.next() {
+        if flag == "--reauth-before-io" {
+            if std::mem::replace(&mut reauth_before_io, true) {
+                return Err(format!("opcao repetida: {flag}"));
+            }
+            continue;
+        }
         if flag == "--no-local" || flag == "--retain-as-published" {
             let target = if flag == "--no-local" {
                 &mut no_local
@@ -641,6 +655,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             return Err("--auth-method plain exige TLS".into());
         }
     }
+    if reauth_before_io && auth_method.as_deref() != Some("plain") {
+        return Err("--reauth-before-io exige --auth-method plain".into());
+    }
     let lab_mode = matches!(
         transport_mode,
         TransportMode::OpenLab | TransportMode::PlainAuthLab
@@ -831,6 +848,11 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     Ok(Cli {
         protocol_version,
         auth_method,
+        reauth_mode: if reauth_before_io {
+            ReauthMode::BeforeIo
+        } else {
+            ReauthMode::Off
+        },
         request_problem_info,
         request_response_info,
         connect_user_properties,
@@ -2434,6 +2456,25 @@ mod tests {
             "plain",
         ];
         assert!(parse(lab.into_iter().map(str::to_owned)).is_err());
+    }
+
+    #[test]
+    fn reauth_requires_explicit_plain_method() {
+        let mut args = base("sub");
+        args.push("--reauth-before-io".into());
+        assert!(parse(args.clone()).is_err());
+        args.extend([
+            "--protocol-version".into(),
+            "5".into(),
+            "--auth-method".into(),
+            "plain".into(),
+        ]);
+        assert_eq!(
+            parse(args.clone()).unwrap().reauth_mode,
+            super::ReauthMode::BeforeIo
+        );
+        args.push("--reauth-before-io".into());
+        assert!(parse(args).is_err());
     }
 
     #[test]

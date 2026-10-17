@@ -51,7 +51,12 @@ class DistributionContract(unittest.TestCase):
         self.assertEqual(rules[0], '**')
         self.assertEqual({r for r in rules if r.startswith('!')}, {
             '!Cargo.toml', '!Cargo.lock', '!Dockerfile', '!.dockerignore', '!LICENSE',
-            '!src/', '!src/**', '!docs/', '!docs/third-party-licenses.md',
+            '!src/', '!src/**', '!vendor/', '!vendor/rumqttc-0.25.1/',
+            '!vendor/rumqttc-0.25.1/Cargo.toml',
+            '!vendor/rumqttc-0.25.1/src/', '!vendor/rumqttc-0.25.1/src/**',
+            '!vendor/rumqttc-0.25.1/LICENSE',
+            '!vendor/rumqttc-0.25.1/XMQR-PATCHES.md',
+            '!docs/', '!docs/third-party-licenses.md',
             '!scripts/', '!scripts/collect_notices.py', '!packaging/',
             '!packaging/notices/', '!packaging/notices/valuable-0.1.1/',
             '!packaging/notices/valuable-0.1.1/LICENSE',
@@ -59,6 +64,7 @@ class DistributionContract(unittest.TestCase):
         for pattern in ['**/.env*', '**/*.key', '**/*.pem', '**/*.crt', '**/*.wal', '**/*.db']:
             self.assertIn(pattern, rules)
             self.assertGreater(rules.index(pattern), rules.index('!src/**'))
+            self.assertGreater(rules.index(pattern), rules.index('!vendor/rumqttc-0.25.1/src/**'))
 
     def test_provenance_accepts_only_expected_version_revision_and_runtime(self):
         metadata = {'Id': 'sha256:fixture', 'Os': 'linux', 'Architecture': 'amd64',

@@ -2,9 +2,9 @@
 use std::{collections::HashMap, error::Error, io, time::Duration};
 
 use rumqttc::v5::mqttbytes::v5::{
-    ConnectReturnCode, Filter, LastWill, LastWillProperties, PubAckReason, PubCompReason,
-    PubRecReason, Publish, PublishProperties, RetainForwardRule, SubscribeProperties,
-    SubscribeReasonCode, UnsubAckReason,
+    Auth, AuthProperties, AuthReasonCode, ConnAck, ConnectReturnCode, Filter, LastWill,
+    LastWillProperties, PubAckReason, PubCompReason, PubRecReason, Publish, PublishProperties,
+    RetainForwardRule, SubscribeProperties, SubscribeReasonCode, UnsubAckReason,
 };
 use rumqttc::{
     Outgoing, QoS, Transport,
@@ -13,7 +13,7 @@ use rumqttc::{
 use tokio::time::{Instant, timeout, timeout_at};
 
 use crate::{
-    cli::{Cli, Mode, TransportMode},
+    cli::{Cli, Mode, ReauthMode, TransportMode},
     payload::Publication,
     tls,
 };
@@ -245,7 +245,7 @@ fn configure_connect_properties(options: &mut MqttOptions, cli: &Cli) {
     }
 }
 
-fn configure_options(cli: &Cli, password: Option<String>) -> AppResult<MqttOptions> {
+fn configure_options(cli: &Cli, password: Option<&str>) -> AppResult<MqttOptions> {
     let mut options = MqttOptions::new(&cli.client_id, &cli.host, cli.port);
     options.set_clean_start(cli.clean_start == super::cli::SessionStart::Clean);
     if cli.session_expiry != 0 {
@@ -297,22 +297,26 @@ fn configure_options(cli: &Cli, password: Option<String>) -> AppResult<MqttOptio
     Ok(options)
 }
 
-fn configure_auth(options: &mut MqttOptions, cli: &Cli, password: Option<String>) -> AppResult<()> {
+fn plain_auth_data(cli: &Cli, password: &str) -> AppResult<Vec<u8>> {
+    let username = cli
+        .username
+        .as_ref()
+        .ok_or_else(|| protocol_error("usuario ausente"))?;
+    let mut data = Vec::with_capacity(username.len() + password.len() + 2);
+    data.push(0);
+    data.extend_from_slice(username.as_bytes());
+    data.push(0);
+    data.extend_from_slice(password.as_bytes());
+    Ok(data)
+}
+
+fn configure_auth(options: &mut MqttOptions, cli: &Cli, password: Option<&str>) -> AppResult<()> {
     if cli.auth_method.as_deref() == Some("plain") {
-        let username = cli
-            .username
-            .as_ref()
-            .ok_or_else(|| protocol_error("usuario ausente"))?;
         let password = password.ok_or_else(|| protocol_error("senha ausente"))?;
-        let mut data = Vec::with_capacity(username.len() + password.len() + 2);
-        data.push(0);
-        data.extend_from_slice(username.as_bytes());
-        data.push(0);
-        data.extend_from_slice(password.as_bytes());
         options.set_authentication_method(Some("PLAIN".to_owned()));
-        options.set_authentication_data(Some(data.into()));
+        options.set_authentication_data(Some(plain_auth_data(cli, password)?.into()));
     } else if let (Some(username), Some(password)) = (cli.username.clone(), password) {
-        options.set_credentials(username, password);
+        options.set_credentials(username, password.to_owned());
     }
     Ok(())
 }
@@ -322,6 +326,73 @@ fn confirm_auth_method(cli: &Cli, method: Option<&str>) -> AppResult<()> {
         return Err(protocol_error("CONNACK MQTT 5 nao confirmou o metodo PLAIN").into());
     }
     Ok(())
+}
+
+fn validate_connack(cli: &Cli, ack: &ConnAck) -> AppResult<()> {
+    confirm_auth_method(
+        cli,
+        ack.properties
+            .as_ref()
+            .and_then(|p| p.authentication_method.as_deref()),
+    )?;
+    if ack.session_present && cli.clean_start == super::cli::SessionStart::Clean {
+        return Err(
+            protocol_error("CONNACK MQTT 5 informou sessao anterior apos Clean Start").into(),
+        );
+    }
+    check_subscription_features(
+        cli,
+        ack.properties
+            .as_ref()
+            .and_then(|p| p.subscription_identifiers_available),
+        ack.properties
+            .as_ref()
+            .and_then(|p| p.shared_subscription_available),
+    )
+}
+
+fn plain_reauth_request(cli: &Cli, password: &str) -> AppResult<Auth> {
+    Ok(Auth {
+        code: AuthReasonCode::ReAuthentivate,
+        properties: Some(AuthProperties {
+            method: Some("PLAIN".to_owned()),
+            data: Some(plain_auth_data(cli, password)?.into()),
+            ..AuthProperties::default()
+        }),
+    })
+}
+
+async fn reauthenticate(
+    cli: &Cli,
+    password: &str,
+    client: &AsyncClient,
+    events: &mut rumqttc::v5::EventLoop,
+    limit: Duration,
+) -> AppResult<()> {
+    let request = plain_reauth_request(cli, password)?;
+    client
+        .auth(request)
+        .await
+        .map_err(|_| protocol_error("falha ao enviar AUTH MQTT 5"))?;
+    loop {
+        let event = timeout(limit, events.poll())
+            .await
+            .map_err(|_| protocol_error("tempo esgotado aguardando AUTH MQTT 5"))?
+            .map_err(|_| protocol_error("falha aguardando AUTH MQTT 5"))?;
+        match event {
+            Event::Incoming(Incoming::Auth(auth))
+                if auth.code == AuthReasonCode::Success
+                    && auth.properties.as_ref().and_then(|p| p.method.as_deref())
+                        == Some("PLAIN") =>
+            {
+                return Ok(());
+            }
+            Event::Outgoing(_) => {}
+            Event::Incoming(_) => {
+                return Err(protocol_error("AUTH MQTT 5 nao confirmou PLAIN").into());
+            }
+        }
+    }
 }
 
 async fn send_publication(
@@ -373,7 +444,7 @@ async fn run_inner(
     password: Option<String>,
     publication: Option<Publication>,
 ) -> AppResult<()> {
-    let options = configure_options(cli, password)?;
+    let options = configure_options(cli, password.as_deref())?;
     let (client, mut events) = AsyncClient::new(options, 8);
     let limit = Duration::from_secs(u64::from(cli.timeout_seconds));
     let broker_topic_alias_maximum = loop {
@@ -386,27 +457,7 @@ async fn run_inner(
             })?;
         match event {
             Event::Incoming(Incoming::ConnAck(ack)) if ack.code == ConnectReturnCode::Success => {
-                confirm_auth_method(
-                    cli,
-                    ack.properties
-                        .as_ref()
-                        .and_then(|p| p.authentication_method.as_deref()),
-                )?;
-                if ack.session_present && cli.clean_start == super::cli::SessionStart::Clean {
-                    return Err(protocol_error(
-                        "CONNACK MQTT 5 informou sessao anterior apos Clean Start",
-                    )
-                    .into());
-                }
-                check_subscription_features(
-                    cli,
-                    ack.properties
-                        .as_ref()
-                        .and_then(|properties| properties.subscription_identifiers_available),
-                    ack.properties
-                        .as_ref()
-                        .and_then(|properties| properties.shared_subscription_available),
-                )?;
+                validate_connack(cli, &ack)?;
                 break ack
                     .properties
                     .as_ref()
@@ -422,6 +473,12 @@ async fn run_inner(
             }
         }
     };
+    if cli.reauth_mode == ReauthMode::BeforeIo {
+        let password = password
+            .as_deref()
+            .ok_or_else(|| protocol_error("senha ausente"))?;
+        reauthenticate(cli, password, &client, &mut events, limit).await?;
+    }
     let Mode::Pub { topic, .. } = &cli.mode else {
         return subscribe(cli, &client, &mut events, limit).await;
     };
@@ -719,7 +776,9 @@ async fn subscribe(
 
 #[cfg(test)]
 mod plain_auth_tests {
-    use super::{MqttOptions, configure_auth, confirm_auth_method};
+    use super::{MqttOptions, configure_auth, confirm_auth_method, plain_reauth_request};
+    use bytes::BytesMut;
+    use rumqttc::v5::mqttbytes::v5::Packet;
 
     #[test]
     fn plain_data_uses_auth_properties_without_legacy_credentials() {
@@ -739,7 +798,7 @@ mod plain_auth_tests {
         ];
         let cli = crate::cli::parse(args.into_iter().map(str::to_owned)).unwrap();
         let mut options = MqttOptions::new("test-client", "localhost", 8883);
-        configure_auth(&mut options, &cli, Some("test-secret".into())).unwrap();
+        configure_auth(&mut options, &cli, Some("test-secret")).unwrap();
         assert_eq!(options.authentication_method().as_deref(), Some("PLAIN"));
         assert_eq!(
             options.authentication_data().as_deref(),
@@ -749,5 +808,67 @@ mod plain_auth_tests {
         assert!(confirm_auth_method(&cli, Some("PLAIN")).is_ok());
         assert!(confirm_auth_method(&cli, None).is_err());
         assert!(confirm_auth_method(&cli, Some("OTHER")).is_err());
+    }
+
+    #[test]
+    fn reauth_request_uses_exact_wire_lengths_and_method() {
+        let args = [
+            "sub",
+            "--tls-password",
+            "--topic",
+            "p160/value",
+            "--username",
+            "device",
+            "--ca",
+            "ca.crt",
+            "--protocol-version",
+            "5",
+            "--auth-method",
+            "plain",
+            "--reauth-before-io",
+        ];
+        let cli = crate::cli::parse(args.into_iter().map(str::to_owned)).unwrap();
+        let request = plain_reauth_request(&cli, "test-secret").unwrap();
+        let mut wire = BytesMut::new();
+        request.write(&mut wire).unwrap();
+        assert_eq!(request.size(), wire.len());
+        assert_eq!(
+            wire.as_ref(),
+            b"\xf0\x20\x19\x1e\x15\x00\x05PLAIN\x16\x00\x13\0device\0test-secret"
+        );
+        assert_eq!(
+            Packet::read(&mut wire, Some(65536)).unwrap(),
+            Packet::Auth(request)
+        );
+    }
+
+    #[test]
+    fn reauth_large_secret_uses_variable_length_packet_and_properties() {
+        let args = [
+            "sub",
+            "--tls-password",
+            "--topic",
+            "p160/value",
+            "--username",
+            "device",
+            "--ca",
+            "ca.crt",
+            "--protocol-version",
+            "5",
+            "--auth-method",
+            "plain",
+            "--reauth-before-io",
+        ];
+        let cli = crate::cli::parse(args.into_iter().map(str::to_owned)).unwrap();
+        let request = plain_reauth_request(&cli, &"s".repeat(200)).unwrap();
+        let mut wire = BytesMut::new();
+        request.write(&mut wire).unwrap();
+        assert_ne!(wire[1] & 0x80, 0);
+        assert_ne!(wire[4] & 0x80, 0);
+        assert_eq!(request.size(), wire.len());
+        assert_eq!(
+            Packet::read(&mut wire, Some(65536)).unwrap(),
+            Packet::Auth(request)
+        );
     }
 }

@@ -7,6 +7,13 @@
 !LICENSE
 !src/
 !src/**
+!vendor/
+!vendor/rumqttc-0.25.1/
+!vendor/rumqttc-0.25.1/Cargo.toml
+!vendor/rumqttc-0.25.1/src/
+!vendor/rumqttc-0.25.1/src/**
+!vendor/rumqttc-0.25.1/LICENSE
+!vendor/rumqttc-0.25.1/XMQR-PATCHES.md
 !docs/
 !docs/third-party-licenses.md
 !scripts/

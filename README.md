@@ -1,5 +1,16 @@
 # xmqr-client
 
+A árvore após 0.24.0 inclui C92: `--reauth-before-io` combinado com
+`--protocol-version 5 --auth-method plain` solicita reautenticação `PLAIN`
+após o CONNACK sobre TLS e espera AUTH de sucesso antes de pub/sub. A opção
+é explícita; por padrão não há AUTH adicional. O client usa uma cópia local
+identificada de `rumqttc` 0.25.1 para expor AUTH na mesma conexão e corrigir
+o enquadramento desse pacote; [patches e licença](vendor/rumqttc-0.25.1/XMQR-PATCHES.md).
+Não há reautenticação periódica nem rotação de senha durante a sessão nesta
+fatia. O broker P160 da árvore posterior a 0.27.0 é o par testado; as tags
+publicadas anteriores não incluem C92/P160.
+[Prompt C92](prompts/clients/92-plain-reauth-mqtt5.md).
+
 A árvore após 0.24.0 inclui C91: `mqtt-client pub|sub --protocol-version 5
 --auth-method plain --tls-password --ca CA.crt --username USUARIO` usa
 autenticação inicial SASL PLAIN sobre TLS, com senha lida de arquivo privado
