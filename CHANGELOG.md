@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## Em desenvolvimento — diagnóstico DISCONNECT MQTT 5
+
+- C101: a CLI informa nome e código do DISCONNECT enviado pelo broker sem ecoar Reason String não confiável. Teste TCP cobre `0x95` e texto sentinela; sem tag isolada.
+
 ## 0.27.0 — Client Identifier atribuído no MQTT 5 (experimental)
 
 - C99: `--server-assigned-client-id` permite Session Expiry finita ou infinita com Clean Start verdadeiro. O ID mostrado em stderr pode ser reutilizado manualmente com C98; a CLI não persiste estado QoS local.

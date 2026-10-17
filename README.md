@@ -1,5 +1,10 @@
 # xmqr-client
 
+Após 0.27.0, C101 mostra o código do DISCONNECT MQTT 5 enviado pelo broker
+sem reproduzir Reason String remota no terminal. O client continua encerrando
+com erro; nenhuma reconexão automática ou release isolada foi acrescentada.
+[Registro C101](prompts/registros/C101-server-disconnect-diagnostic-mqtt5.md).
+
 A release experimental 0.27.0 distribui C97–C99: peça um ID ao broker MQTT 5, guarde o
 valor mostrado em stderr e reconecte manualmente com `--client-id ID
 --clean-start false`. Para preservar a sessão no broker, defina
