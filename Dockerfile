@@ -17,7 +17,7 @@ RUN apt-get update \
 RUN cargo build --locked --release --bin mqtt-client
 
 FROM debian:bookworm-slim AS runtime
-ARG VERSION=0.20.0
+ARG VERSION=0.21.0
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="XMQR Client" \
       org.opencontainers.image.version="${VERSION}" \

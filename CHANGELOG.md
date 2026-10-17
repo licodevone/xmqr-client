@@ -1,6 +1,11 @@
 # Histórico de versões
 
-## Em desenvolvimento após 0.20.0
+## Em desenvolvimento após 0.21.0
+
+## 0.21.0 — metadados no assinante e repetição MQTT 5, experimental
+
+- C80: `sub --protocol-version 5 --output jsonl` exibe propriedades PUBLISH recebidas, inclusive Correlation Data binária em hexadecimal e User Property como pares ordenados; formatos text/hex/raw e MQTT 3.1.1 mantidos.
+- C81: `pub --protocol-version 5 --repeat` publica uma fonte única em série, aguardando confirmação antes da próxima e reaplicando propriedades. Erro ou timeout interrompe o lote sem replay automático. Fluxos QoS locais não são retomados.
 
 ## 0.20.0 — metadados de publicação MQTT 5, experimental
 

@@ -1,20 +1,23 @@
 # xmqr-client
 
+No marco experimental 0.21.0, C80 exibe propriedades PUBLISH MQTT 5 recebidas
+em `sub --output jsonl` e C81 permite `pub --protocol-version 5 --repeat` em
+série. [Nota de release](docs/releases/0.21.0.md). A fase 6C segue aberta.
+
 No marco experimental 0.20.0, `mqtt-client pub --protocol-version 5
 --payload-format 1 --content-type text/plain` envia as propriedades MQTT 5.
 O payload deve ser UTF-8 válido com indicador 1; o client recusa bytes inválidos
-antes de conectar. C80 acrescenta os metadados recebidos a `sub --output jsonl`
-na árvore de desenvolvimento, ainda sem nova release.
+antes de conectar.
 Em C81, `pub --protocol-version 5 --repeat 3 --repeat-interval-ms 20`
 publica uma fonte única três vezes, reaplica as propriedades MQTT 5 e aguarda
 o envio/ACK terminal de cada mensagem antes da próxima. O intervalo mantém
 a conexão viva; se uma publicação falhar, as já confirmadas ficam visíveis e
 o lote restante não é reenviado. Modo linha e retomada local de QoS continuam
-pendentes em MQTT 5. C80/C81 ainda não têm release própria.
+pendentes em MQTT 5.
 Em C78, `pub --protocol-version 5` aceita `--response-topic reply/t`,
 `--correlation-data-hex 00ff07` e `--publish-user-property trace=one` repetível
 (até 16 pares e 2048 bytes codificados). A validação ocorre antes da conexão;
-o assinante instalado da release 0.20.0 ainda não exibe esses metadados. Veja a
+o assinante da release 0.20.0 ainda não exibia esses metadados. Veja a
 [nota de release](docs/releases/0.20.0.md). A fase 6C global segue aberta.
 
 No marco experimental 0.19.0, `mqtt-client sub --protocol-version 5
