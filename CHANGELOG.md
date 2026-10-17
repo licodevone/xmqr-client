@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## Em desenvolvimento — Client Identifier atribuído no MQTT 5
+
+- C97: `--server-assigned-client-id` solicita ID no broker MQTT 5, valida CONNACK obrigatório e único, exibe ID somente em stderr e restringe a sessão limpa sem expiração. O parser vendorizado rejeita duplicata da propriedade `0x12`. Sem tag/release isolada.
+
 ## 0.26.0 — metadados e expiração do Will MQTT 5 (experimental)
 
 - C95: `--will-message-expiry-seconds` envia Message Expiry Interval no Will MQTT 5, com validação pré-rede e sem confundir com a expiração do PUBLISH. Broker parceiro P164 inicia o prazo na publicação.

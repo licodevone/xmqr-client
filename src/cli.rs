@@ -39,6 +39,12 @@ pub enum ProtocolVersion {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClientIdMode {
+    Provided,
+    ServerAssigned,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReauthMode {
     Off,
     BeforeIo,
@@ -107,6 +113,7 @@ pub struct Cli {
     pub cert: Option<PathBuf>,
     pub key: Option<PathBuf>,
     pub client_id: String,
+    pub client_id_mode: ClientIdMode,
     pub username: Option<String>,
     pub password_file: Option<PathBuf>,
     pub qos: QoS,
@@ -138,7 +145,7 @@ pub struct SubscriptionOptions {
 
 pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\nTLS com senha, sem certificado de cliente:\n  mqtt-client pub|sub --tls-password --topic TOPICO --username USUARIO --ca CA.crt [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO | --will-message-file PATH [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --protocol-version 3.1.1|5 (padrao 3.1.1; MQTT5 inicial pub/sub QoS0/1/2), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl|hex|raw (hex/raw apenas sub; raw exige --count 1), --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --repeat 1..1000 --repeat-interval-ms 1..60000 (pub, fonte unica), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --exclude-topic FILTRO (sub, repetivel), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
-pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --session-expiry-seconds 0..4294967294|never, --receive-maximum 1..65535 (somente sub), --maximum-packet-size 5..65536 (somente sub), --topic-alias-maximum 0..16 (somente sub), --retain-handling 0|1|2, --no-local, --retain-as-published, --subscription-identifier 1..268435455 (somente sub), --topic '$share/grupo/filtro' (somente sub MQTT 5; sem --no-local), --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes), --will-delay-seconds 0..4294967295 (exige Will). PUBLISH: --message-expiry-seconds 0..4294967295, --payload-format 0|1, --content-type TEXTO (ate 256 bytes; somente pub MQTT 5). Nao inclua segredos em argumentos.\n";
+pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --server-assigned-client-id (ID vazio, sessao limpa/sem expiracao; ID atribuido em stderr), --clean-start true|false, --session-expiry-seconds 0..4294967294|never, --receive-maximum 1..65535 (somente sub), --maximum-packet-size 5..65536 (somente sub), --topic-alias-maximum 0..16 (somente sub), --retain-handling 0|1|2, --no-local, --retain-as-published, --subscription-identifier 1..268435455 (somente sub), --topic '$share/grupo/filtro' (somente sub MQTT 5; sem --no-local), --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes), --will-delay-seconds 0..4294967295 (exige Will). PUBLISH: --message-expiry-seconds 0..4294967295, --payload-format 0|1, --content-type TEXTO (ate 256 bytes; somente pub MQTT 5). Nao inclua segredos em argumentos.\n";
 
 pub const V5_PUBLISH_USAGE: &str = "MQTT 5 PUBLISH adicional: --response-topic TOPICO (sem curingas), --correlation-data-hex HEX (ate 256 bytes), --publish-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes), --publish-topic-alias 1..16 (pub repetido; exige broker anunciar suporte).\n";
 pub const AUTH_USAGE: &str = "Autenticacao MQTT 5: --auth-method plain (somente TLS, com --protocol-version 5; senha por arquivo privado ou prompt). --reauth-before-io confirma AUTH PLAIN apos CONNACK e antes de pub/sub; reautenticacao periodica ainda indisponivel.\n";
@@ -181,6 +188,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut cert = None;
     let mut key = None;
     let mut client_id = None;
+    let mut server_assigned_client_id = false;
     let mut username = None;
     let mut password_file = None;
     let mut qos = None;
@@ -215,6 +223,12 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut will_correlation_data_hex = None;
 
     while let Some(flag) = args.next() {
+        if flag == "--server-assigned-client-id" {
+            if std::mem::replace(&mut server_assigned_client_id, true) {
+                return Err(format!("opcao repetida: {flag}"));
+            }
+            continue;
+        }
         if flag == "--reauth-before-io" {
             if std::mem::replace(&mut reauth_before_io, true) {
                 return Err(format!("opcao repetida: {flag}"));
@@ -743,17 +757,31 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                 .ok_or("informe --key ou MQTT_DEVICE_KEY")
         })
         .transpose()?;
-    let client_id = client_id.unwrap_or_else(|| format!("mqtt-{command}-{}", std::process::id()));
-    if client_id.is_empty()
-        || client_id.len() > 23
-        || !client_id
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+    if server_assigned_client_id
+        && (client_id.is_some()
+            || protocol_version != ProtocolVersion::Mqtt5
+            || clean_start != SessionStart::Clean
+            || session_expiry != 0)
     {
-        return Err(
-            "--client-id deve ter 1 a 23 caracteres ASCII alfanumericos, '-' ou '_'".into(),
-        );
+        return Err("--server-assigned-client-id exige MQTT 5, sessao limpa sem expiracao e sem --client-id".into());
     }
+    let client_id = if server_assigned_client_id {
+        String::new()
+    } else {
+        let client_id =
+            client_id.unwrap_or_else(|| format!("mqtt-{command}-{}", std::process::id()));
+        if client_id.is_empty()
+            || client_id.len() > 23
+            || !client_id
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+        {
+            return Err(
+                "--client-id deve ter 1 a 23 caracteres ASCII alfanumericos, '-' ou '_'".into(),
+            );
+        }
+        client_id
+    };
 
     let username = if transport_mode == TransportMode::OpenLab {
         None
@@ -993,6 +1021,11 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         cert,
         key,
         client_id,
+        client_id_mode: if server_assigned_client_id {
+            ClientIdMode::ServerAssigned
+        } else {
+            ClientIdMode::Provided
+        },
         username,
         password_file: password_file.map(PathBuf::from),
         qos,
@@ -1993,6 +2026,32 @@ mod tests {
         .into_iter()
         .map(str::to_owned)
         .collect()
+    }
+
+    #[test]
+    fn assigned_client_id_requires_clean_nonpersistent_mqtt5_without_manual_id() {
+        let mut accepted = base("sub");
+        accepted.extend([
+            "--protocol-version".into(),
+            "5".into(),
+            "--server-assigned-client-id".into(),
+        ]);
+        let cli = parse(accepted.clone()).unwrap();
+        assert_eq!(cli.client_id_mode, super::ClientIdMode::ServerAssigned);
+        assert_eq!(cli.client_id, "");
+        for extra in [
+            vec!["--client-id", "manual"],
+            vec!["--clean-start", "false"],
+            vec!["--session-expiry-seconds", "1"],
+            vec!["--server-assigned-client-id"],
+        ] {
+            let mut args = accepted.clone();
+            args.extend(extra.into_iter().map(str::to_owned));
+            assert!(parse(args).is_err());
+        }
+        let mut legacy = base("sub");
+        legacy.push("--server-assigned-client-id".into());
+        assert!(parse(legacy).is_err());
     }
 
     #[test]

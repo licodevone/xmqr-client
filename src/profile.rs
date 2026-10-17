@@ -53,6 +53,10 @@ fn expand_with(
             flag.as_str(),
             "--stdin"
                 | "--line-mode"
+                | "--server-assigned-client-id"
+                | "--reauth-before-io"
+                | "--no-local"
+                | "--retain-as-published"
                 | "--ignore-retained"
                 | "--retained-only"
                 | "--open-lab"
@@ -222,6 +226,32 @@ mod tests {
         assert!(parse_profile(text, &["--host", "a", "--host", "b"]).is_err());
         assert!(parse_profile(text, &["--profile", "other.toml"]).is_err());
         assert!(parse_profile(text, &["--open-lab"]).is_err());
+    }
+
+    #[test]
+    fn assigned_id_flag_before_profile_preserves_profile_position() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("connection.toml");
+        std::fs::write(&path, "version=1\n[connection]\nprotocol_version='5'\n").unwrap();
+        let args = [
+            "sub".to_owned(),
+            "--topic".to_owned(),
+            "test/#".to_owned(),
+            "--server-assigned-client-id".to_owned(),
+            "--profile".to_owned(),
+            path.to_string_lossy().into_owned(),
+        ];
+        let expanded = super::expand_with(args.into(), |_| Ok(None)).unwrap();
+        assert!(
+            expanded
+                .iter()
+                .any(|flag| flag == "--server-assigned-client-id")
+        );
+        assert!(
+            expanded
+                .windows(2)
+                .any(|pair| pair == ["--protocol-version", "5"])
+        );
     }
 
     #[test]

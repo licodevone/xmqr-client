@@ -13,12 +13,63 @@ use rumqttc::{
 use tokio::time::{Instant, timeout, timeout_at};
 
 use crate::{
-    cli::{Cli, Mode, ReauthMode, TransportMode},
+    cli::{Cli, ClientIdMode, Mode, ReauthMode, TransportMode},
     payload::Publication,
     tls,
 };
 
 type AppResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
+
+#[cfg(test)]
+mod assigned_client_id_tests {
+    use super::{configure_options, validate_connack};
+    use bytes::BytesMut;
+    use rumqttc::v5::mqttbytes::v5::{ConnAck, Packet};
+
+    fn cli(assigned: bool) -> crate::cli::Cli {
+        let mut args = vec![
+            "sub",
+            "--open-lab",
+            "--topic",
+            "x",
+            "--protocol-version",
+            "5",
+        ];
+        if assigned {
+            args.push("--server-assigned-client-id");
+        }
+        crate::cli::parse(args.into_iter().map(str::to_owned)).unwrap()
+    }
+
+    fn connack(wire: &[u8]) -> ConnAck {
+        let mut bytes = BytesMut::from(wire);
+        match Packet::read(&mut bytes, Some(65_536)).unwrap() {
+            Packet::ConnAck(ack) => ack,
+            _ => panic!("expected CONNACK"),
+        }
+    }
+
+    #[test]
+    fn empty_connect_id_requires_valid_assigned_connack_property() {
+        let assigned = cli(true);
+        assert_eq!(configure_options(&assigned, None).unwrap().client_id(), "");
+        let id_packet = connack(b"\x20\x0b\x00\x00\x08\x12\x00\x05xmqr1");
+        assert_eq!(
+            validate_connack(&assigned, &id_packet).unwrap(),
+            Some("xmqr1".into())
+        );
+        assert!(validate_connack(&assigned, &connack(b"\x20\x03\x00\x00\x00")).is_err());
+        assert!(validate_connack(&cli(false), &id_packet).is_err());
+        let invalid = connack(b"\x20\x07\x00\x00\x04\x12\x00\x01\n");
+        assert!(validate_connack(&assigned, &invalid).is_err());
+    }
+
+    #[test]
+    fn duplicate_assigned_identifier_is_malformed_on_wire() {
+        let mut bytes = BytesMut::from(&b"\x20\x0b\x00\x00\x08\x12\x00\x01a\x12\x00\x01b"[..]);
+        assert!(Packet::read(&mut bytes, Some(65_536)).is_err());
+    }
+}
 
 fn protocol_error(message: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
@@ -335,7 +386,7 @@ fn confirm_auth_method(cli: &Cli, method: Option<&str>) -> AppResult<()> {
     Ok(())
 }
 
-fn validate_connack(cli: &Cli, ack: &ConnAck) -> AppResult<()> {
+fn validate_connack(cli: &Cli, ack: &ConnAck) -> AppResult<Option<String>> {
     confirm_auth_method(
         cli,
         ack.properties
@@ -347,6 +398,29 @@ fn validate_connack(cli: &Cli, ack: &ConnAck) -> AppResult<()> {
             protocol_error("CONNACK MQTT 5 informou sessao anterior apos Clean Start").into(),
         );
     }
+    let assigned = ack
+        .properties
+        .as_ref()
+        .and_then(|properties| properties.assigned_client_identifier.as_deref());
+    if cli.client_id_mode == ClientIdMode::ServerAssigned {
+        let id = assigned
+            .ok_or_else(|| protocol_error("CONNACK MQTT 5 omitiu Client Identifier atribuido"))?;
+        if id.is_empty()
+            || id.len() > 256
+            || id.chars().any(|ch| {
+                let code = ch as u32;
+                ch == '\0'
+                    || ch.is_control()
+                    || (0xfdd0..=0xfdef).contains(&code)
+                    || code & 0xffff == 0xfffe
+                    || code & 0xffff == 0xffff
+            })
+        {
+            return Err(protocol_error("CONNACK MQTT 5 trouxe Client Identifier invalido").into());
+        }
+    } else if assigned.is_some() {
+        return Err(protocol_error("CONNACK MQTT 5 atribuiu ID sem solicitação").into());
+    }
     check_subscription_features(
         cli,
         ack.properties
@@ -355,7 +429,8 @@ fn validate_connack(cli: &Cli, ack: &ConnAck) -> AppResult<()> {
         ack.properties
             .as_ref()
             .and_then(|p| p.shared_subscription_available),
-    )
+    )?;
+    Ok(assigned.map(str::to_owned))
 }
 
 fn plain_reauth_request(cli: &Cli, password: &str) -> AppResult<Auth> {
@@ -464,7 +539,9 @@ async fn run_inner(
             })?;
         match event {
             Event::Incoming(Incoming::ConnAck(ack)) if ack.code == ConnectReturnCode::Success => {
-                validate_connack(cli, &ack)?;
+                if let Some(id) = validate_connack(cli, &ack)? {
+                    eprintln!("MQTT 5 Client Identifier atribuido: {id}");
+                }
                 break ack
                     .properties
                     .as_ref()

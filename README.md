@@ -1,5 +1,12 @@
 # xmqr-client
 
+A árvore após 0.26.0 acrescenta C97: `--server-assigned-client-id` envia
+Client Identifier vazio no CONNECT MQTT 5 e exige o ID atribuído em CONNACK.
+O ID aparece em stderr; stdout permanece reservado às mensagens. A opção
+exige sessão limpa sem expiração e não aceita `--client-id`, porque esta CLI
+ainda não guarda estado de QoS para retomar automaticamente uma sessão.
+O broker P166 é o par. [Prompt C97](prompts/clients/97-assigned-client-id-mqtt5.md).
+
 A release experimental 0.26.0 reúne C94/C95: metadados e Message Expiry
 do Will MQTT 5 com validação local e flags próprias, separadas de PUBLISH.
 O broker 0.29.0/P163–P164 inicia o prazo do Will quando o publica, mesmo com

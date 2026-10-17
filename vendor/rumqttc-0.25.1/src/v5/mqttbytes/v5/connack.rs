@@ -245,6 +245,9 @@ impl ConnAckProperties {
                     cursor += 1;
                 }
                 PropertyType::AssignedClientIdentifier => {
+                    if assigned_client_identifier.is_some() {
+                        return Err(Error::MalformedPacket);
+                    }
                     let id = read_mqtt_string(bytes)?;
                     cursor += 2 + id.len();
                     assigned_client_identifier = Some(id);
