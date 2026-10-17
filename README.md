@@ -13,6 +13,13 @@ vazio na mesma conexão, com as propriedades PUBLISH preservadas. Se o broker
 não anunciar suporte suficiente, a operação falha antes do primeiro envio.
 O alias é local à conexão; não há reconexão/replay MQTT 5 automático.
 
+Em desenvolvimento após 0.21.0, C84 acrescenta
+`sub --protocol-version 5 --retain-handling 0|1|2`. Zero pede mensagens
+retidas no SUBSCRIBE, um apenas para assinatura nova e dois não as pede nesse
+momento. `--ignore-retained` e `--retained-only` continuam filtros locais da
+saída; não mudam o pacote SUBSCRIBE. O broker P147 aplica a opção por filtro,
+inclusive ao retomar uma sessão persistente.
+
 No marco experimental 0.20.0, `mqtt-client pub --protocol-version 5
 --payload-format 1 --content-type text/plain` envia as propriedades MQTT 5.
 O payload deve ser UTF-8 válido com indicador 1; o client recusa bytes inválidos

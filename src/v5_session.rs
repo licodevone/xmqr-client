@@ -3,7 +3,8 @@ use std::{collections::HashMap, error::Error, io, time::Duration};
 
 use rumqttc::v5::mqttbytes::v5::{
     ConnectReturnCode, Filter, LastWill, LastWillProperties, PubAckReason, PubCompReason,
-    PubRecReason, Publish, PublishProperties, SubscribeReasonCode, UnsubAckReason,
+    PubRecReason, Publish, PublishProperties, RetainForwardRule, SubscribeReasonCode,
+    UnsubAckReason,
 };
 use rumqttc::{
     Outgoing, QoS, Transport,
@@ -505,6 +506,20 @@ fn resolved_incoming_topic(
         .ok_or_else(|| protocol_error("Topic Alias MQTT 5 desconhecido").into())
 }
 
+fn subscription_filter(
+    topic: String,
+    qos: rumqttc::v5::mqttbytes::QoS,
+    retain_handling: u8,
+) -> Filter {
+    let mut request = Filter::new(topic, qos);
+    request.retain_forward_rule = match retain_handling {
+        1 => RetainForwardRule::OnNewSubscribe,
+        2 => RetainForwardRule::Never,
+        _ => RetainForwardRule::OnEverySubscribe,
+    };
+    request
+}
+
 async fn subscribe(
     cli: &Cli,
     client: &AsyncClient,
@@ -529,7 +544,7 @@ async fn subscribe(
             filters
                 .iter()
                 .cloned()
-                .map(|filter| Filter::new(filter, qos)),
+                .map(|filter| subscription_filter(filter, qos, cli.retain_handling)),
         )
         .await?;
     let mut acknowledged = false;

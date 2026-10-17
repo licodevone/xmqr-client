@@ -45,7 +45,7 @@ Esta matriz não declara conformidade integral ou paridade exaustiva.
 | Keepalive | --keepalive-seconds 1..65535, default30 | Zero fora do contrato | src/session.rs; tests/wire.rs |
 | Timeouts | --timeout-seconds 1..300, default8; idle90s preservado | Não é timeout total/espera de aplicação | src/session.rs; registroC37 |
 | Perfis reutilizáveis | CLI/algumas variáveis, configuração systemd | Prompt próprio de perfis | README; packaging |
-| MQTT5/WS/WSS | MQTT5 pub/sub QoS0/1/2, opções de sessão, propriedades PUBLISH no publisher C77/C78, JSONL do assinante C80, repetição sequencial C81 e Topic Alias compacto C83; WS/WSS ausentes | Fluxo QoS próprio não retoma; demais fases pendentes | src/cli.rs; src/v5_session.rs; C57–C83 |
+| MQTT5/WS/WSS | MQTT5 pub/sub QoS0/1/2, opções de sessão, propriedades PUBLISH no publisher C77/C78, JSONL do assinante C80, repetição sequencial C81, Topic Alias compacto C83 e Retain Handling C84; WS/WSS ausentes | Fluxo QoS próprio não retoma; demais opções de assinatura pendentes | src/cli.rs; src/v5_session.rs; C57–C84 |
 
 Mosquitto oferece opções de protocolo, keepalive, repetição e propriedadesMQTT5; sub oferece timeout, exclusão de tópicos e filtros retained. Referências consultadas: [pub](https://mosquitto.org/man/mosquitto_pub-1.html), [sub](https://mosquitto.org/man/mosquitto_sub-1.html). Há opções específicas de2.1; registrar mosquitto --version/compilação antes da campanha. Não assumir equivalência a toda versão instalada.
 

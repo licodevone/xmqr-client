@@ -1256,6 +1256,51 @@ fn mqtt5_subscribe_receive_maximum_connect_wire() {
 }
 
 #[test]
+fn mqtt5_subscribe_retain_handling_bits_are_sent_per_filter() {
+    for handling in 0_u8..=2 {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            assert_eq!(packet(&mut stream).0, 0x10);
+            stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+            let (header, subscribe) = packet(&mut stream);
+            assert_eq!(header, 0x82);
+            assert_eq!(*subscribe.last().unwrap(), handling << 4);
+            stream
+                .write_all(&[0x90, 4, subscribe[0], subscribe[1], 0, 0])
+                .unwrap();
+            stream.write_all(&[0x30, 5, 0, 1, b't', 0, b'x']).unwrap();
+            let (header, unsubscribe) = packet(&mut stream);
+            assert_eq!(header, 0xa2);
+            stream
+                .write_all(&[0xb0, 4, unsubscribe[0], unsubscribe[1], 0, 0])
+                .unwrap();
+            assert_eq!(packet(&mut stream), (0xe0, vec![]));
+        });
+        let handling_arg = handling.to_string();
+        let output = finish(child(
+            port,
+            "sub",
+            &[
+                "--protocol-version",
+                "5",
+                "--retain-handling",
+                &handling_arg,
+                "--count",
+                "1",
+            ],
+        ));
+        server.join().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+
+#[test]
 fn mqtt5_subscribe_maximum_packet_size_connect_wire() {
     let listener = listener();
     let port = listener.local_addr().unwrap().port();

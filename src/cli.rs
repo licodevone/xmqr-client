@@ -109,13 +109,14 @@ pub struct Cli {
     pub receive_maximum: Option<u16>,
     pub maximum_packet_size: Option<u32>,
     pub topic_alias_maximum: Option<u16>,
+    pub retain_handling: u8,
     pub publish_topic_alias: Option<u16>,
     pub transport_mode: TransportMode,
 }
 
 pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\nTLS com senha, sem certificado de cliente:\n  mqtt-client pub|sub --tls-password --topic TOPICO --username USUARIO --ca CA.crt [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO | --will-message-file PATH [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --protocol-version 3.1.1|5 (padrao 3.1.1; MQTT5 inicial pub/sub QoS0/1/2), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl|hex|raw (hex/raw apenas sub; raw exige --count 1), --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --repeat 1..1000 --repeat-interval-ms 1..60000 (pub, fonte unica), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --exclude-topic FILTRO (sub, repetivel), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
-pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --session-expiry-seconds 0..4294967294|never, --receive-maximum 1..65535 (somente sub), --maximum-packet-size 5..65536 (somente sub), --topic-alias-maximum 0..16 (somente sub), --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes), --will-delay-seconds 0..4294967295 (exige Will). PUBLISH: --message-expiry-seconds 0..4294967295, --payload-format 0|1, --content-type TEXTO (ate 256 bytes; somente pub MQTT 5). Nao inclua segredos em argumentos.\n";
+pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --session-expiry-seconds 0..4294967294|never, --receive-maximum 1..65535 (somente sub), --maximum-packet-size 5..65536 (somente sub), --topic-alias-maximum 0..16 (somente sub), --retain-handling 0|1|2 (somente sub), --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes), --will-delay-seconds 0..4294967295 (exige Will). PUBLISH: --message-expiry-seconds 0..4294967295, --payload-format 0|1, --content-type TEXTO (ate 256 bytes; somente pub MQTT 5). Nao inclua segredos em argumentos.\n";
 
 pub const V5_PUBLISH_USAGE: &str = "MQTT 5 PUBLISH adicional: --response-topic TOPICO (sem curingas), --correlation-data-hex HEX (ate 256 bytes), --publish-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes), --publish-topic-alias 1..16 (pub repetido; exige broker anunciar suporte).\n";
 
@@ -168,6 +169,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut receive_maximum = None;
     let mut maximum_packet_size = None;
     let mut topic_alias_maximum = None;
+    let mut retain_handling = None;
     let mut publish_topic_alias = None;
     let mut transport_mode = None;
     let mut will_topic = None;
@@ -255,6 +257,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             "--receive-maximum" => &mut receive_maximum,
             "--maximum-packet-size" => &mut maximum_packet_size,
             "--topic-alias-maximum" => &mut topic_alias_maximum,
+            "--retain-handling" => &mut retain_handling,
             "--publish-topic-alias" => &mut publish_topic_alias,
             "--output" => &mut output,
             "--reconnect-attempts" => &mut reconnect_attempts,
@@ -468,6 +471,19 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                 .ok_or("--topic-alias-maximum deve ser 0..16".to_owned())
         })
         .transpose()?;
+    if retain_handling.is_some() && (protocol_version != ProtocolVersion::Mqtt5 || command != "sub")
+    {
+        return Err("--retain-handling exige sub --protocol-version 5".into());
+    }
+    let retain_handling = retain_handling
+        .map(|raw| {
+            raw.parse::<u8>()
+                .ok()
+                .filter(|value| *value <= 2)
+                .ok_or("--retain-handling deve ser 0, 1 ou 2".to_owned())
+        })
+        .transpose()?
+        .unwrap_or(0);
     if publish_topic_alias.is_some()
         && (protocol_version != ProtocolVersion::Mqtt5 || command != "pub" || repeat_count < 2)
     {
@@ -769,6 +785,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         receive_maximum,
         maximum_packet_size,
         topic_alias_maximum,
+        retain_handling,
         publish_topic_alias,
         transport_mode,
     })
@@ -1840,6 +1857,43 @@ mod tests {
             args.extend(["--publish-topic-alias".into(), "1".into()]);
             assert!(parse(args).is_err());
         }
+    }
+
+    #[test]
+    fn retain_handling_is_sub_only_mqtt5_and_bounded() {
+        for (raw, expected) in [("0", 0), ("1", 1), ("2", 2)] {
+            let mut args = base("sub");
+            args.extend([
+                "--protocol-version".into(),
+                "5".into(),
+                "--retain-handling".into(),
+                raw.into(),
+            ]);
+            assert_eq!(parse(args).unwrap().retain_handling, expected);
+        }
+        for raw in ["3", "-1", "x", "256"] {
+            let mut args = base("sub");
+            args.extend([
+                "--protocol-version".into(),
+                "5".into(),
+                "--retain-handling".into(),
+                raw.into(),
+            ]);
+            assert!(parse(args).is_err());
+        }
+        let mut mqtt311 = base("sub");
+        mqtt311.extend(["--retain-handling".into(), "1".into()]);
+        assert!(parse(mqtt311).is_err());
+        let mut publisher = base("pub");
+        publisher.extend([
+            "--message".into(),
+            "x".into(),
+            "--protocol-version".into(),
+            "5".into(),
+            "--retain-handling".into(),
+            "1".into(),
+        ]);
+        assert!(parse(publisher).is_err());
     }
 
     #[test]
