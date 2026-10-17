@@ -438,6 +438,43 @@ fn mqtt5_publish_qos0_qos1_qos2_and_refusal_wire() {
 }
 
 #[test]
+fn mqtt5_publish_message_expiry_property_wire() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream
+            .write_all(&[0x20, 8, 0, 0, 5, 0x27, 0, 1, 0, 0])
+            .unwrap();
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x30);
+        assert_eq!(&body[..3], &[0, 1, b't']);
+        assert_eq!(&body[3..9], &[5, 2, 0, 0, 0, 7]);
+        assert_eq!(&body[9..], b"hello");
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(
+        port,
+        "pub",
+        &[
+            "--protocol-version",
+            "5",
+            "--message",
+            "hello",
+            "--message-expiry-seconds",
+            "7",
+        ],
+    ));
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
 fn mqtt5_connect_informational_properties_have_versioned_wire() {
     let listener = listener();
     let port = listener.local_addr().unwrap().port();

@@ -2,8 +2,8 @@
 use std::{error::Error, io, time::Duration};
 
 use rumqttc::v5::mqttbytes::v5::{
-    ConnectReturnCode, Filter, PubAckReason, PubCompReason, PubRecReason, SubscribeReasonCode,
-    UnsubAckReason,
+    ConnectReturnCode, Filter, PubAckReason, PubCompReason, PubRecReason, PublishProperties,
+    SubscribeReasonCode, UnsubAckReason,
 };
 use rumqttc::{
     Outgoing, QoS, Transport,
@@ -250,6 +250,36 @@ fn configure_options(cli: &Cli, password: Option<String>) -> AppResult<MqttOptio
     Ok(options)
 }
 
+async fn send_publication(
+    client: &AsyncClient,
+    cli: &Cli,
+    topic: &str,
+    payload: Vec<u8>,
+) -> AppResult<()> {
+    let qos = match cli.qos {
+        QoS::AtMostOnce => rumqttc::v5::mqttbytes::QoS::AtMostOnce,
+        QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
+        QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
+    };
+    if let Some(seconds) = cli.message_expiry {
+        client
+            .publish_with_properties(
+                topic,
+                qos,
+                cli.retain,
+                payload,
+                PublishProperties {
+                    message_expiry_interval: Some(seconds),
+                    ..PublishProperties::default()
+                },
+            )
+            .await?;
+    } else {
+        client.publish(topic, qos, cli.retain, payload).await?;
+    }
+    Ok(())
+}
+
 async fn run_inner(
     cli: &Cli,
     password: Option<String>,
@@ -289,14 +319,7 @@ async fn run_inner(
         return subscribe(cli, &client, &mut events, limit).await;
     };
     let publication = publication.ok_or_else(|| protocol_error("payload ausente"))?;
-    let v5_qos = match cli.qos {
-        QoS::AtMostOnce => rumqttc::v5::mqttbytes::QoS::AtMostOnce,
-        QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
-        QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
-    };
-    client
-        .publish(topic, v5_qos, cli.retain, publication.first)
-        .await?;
+    send_publication(&client, cli, topic, publication.first).await?;
     loop {
         let event = timeout(limit, events.poll()).await.map_err(|_| {
             protocol_error("publicacao MQTT 5 sem confirmacao; resultado desconhecido")

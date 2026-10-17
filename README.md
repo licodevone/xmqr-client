@@ -1,5 +1,11 @@
 # xmqr-client
 
+Na árvore de desenvolvimento após 0.16.0, C69 acrescenta
+`mqtt-client pub --protocol-version 5 --message-expiry-seconds 0..4294967295`.
+A opção envia a validade da publicação e exige broker que aceite a propriedade
+MQTT 5, como o P130. O broker P130 migra estado durável para v7; faça backup
+privado antes de atualizá-lo.
+
 O marco experimental 0.16.0 acrescenta Clean Start e Session Expiry
 zero, finita ou infinita ao subconjunto MQTT 5. Veja a
 [nota de release](docs/releases/0.16.0.md) antes de atualizar.
