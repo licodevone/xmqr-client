@@ -39,6 +39,12 @@ pub enum ProtocolVersion {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SessionStart {
+    Clean,
+    Resume,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RetainedFilter {
     All,
     Ignore,
@@ -91,12 +97,14 @@ pub struct Cli {
     pub qos: QoS,
     pub retain: bool,
     pub clean_session: bool,
+    pub clean_start: SessionStart,
+    pub session_expiry: u32,
     pub transport_mode: TransportMode,
 }
 
 pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\nTLS com senha, sem certificado de cliente:\n  mqtt-client pub|sub --tls-password --topic TOPICO --username USUARIO --ca CA.crt [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO | --will-message-file PATH [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --protocol-version 3.1.1|5 (padrao 3.1.1; MQTT5 inicial pub/sub QoS0/1/2), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl|hex|raw (hex/raw apenas sub; raw exige --count 1), --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --repeat 1..1000 --repeat-interval-ms 1..60000 (pub, fonte unica), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --exclude-topic FILTRO (sub, repetivel), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
-pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes). Nao inclua segredos em argumentos.\n";
+pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --session-expiry-seconds 0|never, --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes). Nao inclua segredos em argumentos.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -136,6 +144,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut qos = None;
     let mut retain = None;
     let mut clean_session = None;
+    let mut clean_start = None;
+    let mut session_expiry = None;
     let mut transport_mode = None;
     let mut will_topic = None;
     let mut will_message = None;
@@ -235,6 +245,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             "--qos" => &mut qos,
             "--retain" => &mut retain,
             "--clean-session" => &mut clean_session,
+            "--clean-start" => &mut clean_start,
+            "--session-expiry-seconds" => &mut session_expiry,
             _ => return Err(format!("opcao desconhecida: {flag}")),
         };
         if slot.replace(value).is_some() {
@@ -299,7 +311,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     if protocol_version != ProtocolVersion::Mqtt5
         && (request_problem_info.is_some()
             || request_response_info.is_some()
-            || !raw_connect_user_properties.is_empty())
+            || !raw_connect_user_properties.is_empty()
+            || clean_start.is_some()
+            || session_expiry.is_some())
     {
         return Err("propriedades CONNECT exigem --protocol-version 5".into());
     }
@@ -344,10 +358,23 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         return Err("--retain somente vale para pub".into());
     }
     let retain = parse_bool(retain.as_deref().unwrap_or("false"), "--retain")?;
+    if protocol_version == ProtocolVersion::Mqtt5 && clean_session.is_some() {
+        return Err("--clean-session pertence a MQTT 3.1.1; use --clean-start".into());
+    }
     let clean_session = parse_bool(
         clean_session.as_deref().unwrap_or("true"),
         "--clean-session",
     )?;
+    let clean_start = if parse_bool(clean_start.as_deref().unwrap_or("true"), "--clean-start")? {
+        SessionStart::Clean
+    } else {
+        SessionStart::Resume
+    };
+    let session_expiry = match session_expiry.as_deref().unwrap_or("0") {
+        "0" => 0,
+        "never" => u32::MAX,
+        _ => return Err("--session-expiry-seconds deve ser 0 ou never".into()),
+    };
 
     let transport_mode = transport_mode.unwrap_or(TransportMode::Secure);
     let lab_mode = matches!(
@@ -520,14 +547,13 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         .transpose()?;
     if protocol_version == ProtocolVersion::Mqtt5
         && (will.is_some()
-            || !clean_session
             || line_mode
             || repeat_count != 1
             || reconnect_attempts != 0
             || keepalive_seconds < 5)
     {
         return Err(
-            "MQTT 5 inicial exige Clean Start, sem Will, lotes ou reconexao; keepalive >= 5".into(),
+            "MQTT 5 inicial exige ausencia de Will, lotes e reconexao; keepalive >= 5".into(),
         );
     }
     Ok(Cli {
@@ -557,6 +583,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         qos,
         retain,
         clean_session,
+        clean_start,
+        session_expiry,
         transport_mode,
     })
 }
@@ -853,10 +881,33 @@ mod tests {
                 .protocol_version,
             ProtocolVersion::Mqtt5
         );
+        let persistent = parse(arguments(&[
+            "--protocol-version",
+            "5",
+            "--clean-start",
+            "false",
+            "--session-expiry-seconds",
+            "never",
+        ]))
+        .unwrap();
+        assert_eq!(persistent.clean_start, super::SessionStart::Resume);
+        assert_eq!(persistent.session_expiry, u32::MAX);
         for extra in [
             vec!["--protocol-version", "6"],
             vec!["--protocol-version", "5", "--clean-session", "false"],
             vec!["--protocol-version", "5", "--reconnect-attempts", "1"],
+            vec!["--clean-start", "false"],
+            vec!["--session-expiry-seconds", "never"],
+            vec!["--protocol-version", "5", "--session-expiry-seconds", "5"],
+            vec!["--protocol-version", "5", "--clean-start", "yes"],
+            vec![
+                "--protocol-version",
+                "5",
+                "--clean-start",
+                "true",
+                "--clean-start",
+                "false",
+            ],
         ] {
             assert!(parse(arguments(&extra)).is_err());
         }

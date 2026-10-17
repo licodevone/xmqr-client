@@ -22,6 +22,13 @@ Em C64, use `--request-problem-info 0|1`, `--request-response-info 0|1` ou
 `--connect-user-property CHAVE=VALOR` (repetível) com MQTT 5. Cada campo aceita
 até 1024 bytes e os pares até 4096 bytes codificados; não passe segredos nessas
 opções. O broker P123 valida os pares, sem armazená-los ou devolvê-los.
+Em C66, `--clean-start true|false` e `--session-expiry-seconds 0|never`
+permitem criar ou retomar uma sessão MQTT 5 com o broker P127. A expiração
+`never` mantém assinaturas e entregas QoS pendentes após desconexão/reinício;
+`0` remove a sessão ao desconectar. Intervalos finitos ainda não são aceitos.
+Use um `--client-id` estável para retomar. `--clean-session` permanece exclusivo
+de MQTT 3.1.1. Um novo processo do client não restaura os próprios fluxos QoS
+em andamento, por isso esta opção não promete retomada completa do lado client.
 Com perfil TOML, use
 `protocol_version = "5"` ou `MQTT_CLIENT_PROTOCOL_VERSION=5`.
 

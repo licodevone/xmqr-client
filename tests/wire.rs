@@ -496,6 +496,71 @@ fn mqtt5_connect_informational_properties_have_versioned_wire() {
 }
 
 #[test]
+fn mqtt5_persistent_connect_sends_clean_start_and_expiry() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x10);
+        assert_eq!(&body[..10], &[0, 4, b'M', b'Q', b'T', b'T', 5, 0, 0, 30]);
+        assert_eq!(&body[10..16], &[5, 0x11, 255, 255, 255, 255]);
+        stream
+            .write_all(&[0x20, 8, 1, 0, 5, 0x27, 0, 1, 0, 0])
+            .unwrap();
+        let (header, publish) = packet(&mut stream);
+        assert_eq!(header, 0x32);
+        stream
+            .write_all(&[0x40, 2, publish[3], publish[4]])
+            .unwrap();
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(
+        port,
+        "pub",
+        &[
+            "--protocol-version",
+            "5",
+            "--clean-start",
+            "false",
+            "--session-expiry-seconds",
+            "never",
+            "--qos",
+            "1",
+            "--message",
+            "x",
+        ],
+    ));
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn mqtt5_clean_start_rejects_false_session_present() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x10);
+        assert_eq!(body[7] & 2, 2);
+        stream.write_all(&[0x20, 3, 1, 0, 0]).unwrap();
+    });
+    let output = finish(child(
+        port,
+        "pub",
+        &["--protocol-version", "5", "--message", "x"],
+    ));
+    server.join().unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("sessao anterior"));
+}
+
+#[test]
 fn mqtt5_puback_not_authorized_is_reported_without_success_output() {
     let listener = listener();
     let port = listener.local_addr().unwrap().port();

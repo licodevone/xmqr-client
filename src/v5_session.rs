@@ -228,13 +228,12 @@ fn configure_connect_properties(options: &mut MqttOptions, cli: &Cli) {
     }
 }
 
-async fn run_inner(
-    cli: &Cli,
-    password: Option<String>,
-    publication: Option<Publication>,
-) -> AppResult<()> {
+fn configure_options(cli: &Cli, password: Option<String>) -> AppResult<MqttOptions> {
     let mut options = MqttOptions::new(&cli.client_id, &cli.host, cli.port);
-    options.set_clean_start(true);
+    options.set_clean_start(cli.clean_start == super::cli::SessionStart::Clean);
+    if cli.session_expiry != 0 {
+        options.set_session_expiry_interval(Some(cli.session_expiry));
+    }
     options.set_keep_alive(Duration::from_secs(u64::from(cli.keepalive_seconds)));
     configure_connect_properties(&mut options, cli);
     if matches!(
@@ -248,7 +247,15 @@ async fn run_inner(
     if let (Some(username), Some(password)) = (cli.username.clone(), password) {
         options.set_credentials(username, password);
     }
-    // Only informational CONNECT properties from P123/C64 are sent.
+    Ok(options)
+}
+
+async fn run_inner(
+    cli: &Cli,
+    password: Option<String>,
+    publication: Option<Publication>,
+) -> AppResult<()> {
+    let options = configure_options(cli, password)?;
     let (client, mut events) = AsyncClient::new(options, 8);
     let limit = Duration::from_secs(u64::from(cli.timeout_seconds));
     loop {
@@ -261,6 +268,12 @@ async fn run_inner(
             })?;
         match event {
             Event::Incoming(Incoming::ConnAck(ack)) if ack.code == ConnectReturnCode::Success => {
+                if ack.session_present && cli.clean_start == super::cli::SessionStart::Clean {
+                    return Err(protocol_error(
+                        "CONNACK MQTT 5 informou sessao anterior apos Clean Start",
+                    )
+                    .into());
+                }
                 break;
             }
             Event::Incoming(Incoming::ConnAck(ack)) => {
