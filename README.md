@@ -1,5 +1,9 @@
 # xmqr-client
 
+O marco experimental 0.16.0 acrescenta Clean Start e Session Expiry
+zero, finita ou infinita ao subconjunto MQTT 5. Veja a
+[nota de release](docs/releases/0.16.0.md) antes de atualizar.
+
 O marco experimental 0.15.0 amplia MQTT 5 para QoS2, UNSUBACK, diagnóstico
 de recusas e propriedades informativas de CONNECT. Veja a
 [nota de release](docs/releases/0.15.0.md); o suporte MQTT 5 integral ainda

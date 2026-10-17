@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.16.0 — sessões MQTT 5, experimental
+
+- C67: `--session-expiry-seconds 0..4294967294|never`, validado e enviado no CONNECT MQTT 5.
+- C66: `--clean-start true|false` independente da expiração, rejeição de opções de sessão 3.1.1 em MQTT 5 e CONNACK incoerente.
+
 ## 0.15.0 — MQTT 5 ampliado, experimental
 
 - C64: flags MQTT 5 para Request Problem/Response Information e pares repetíveis de User Property no CONNECT; validação local de valores e limite 4096 bytes, sem alterar MQTT 3.1.1.
