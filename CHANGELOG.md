@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## Em desenvolvimento após 0.24.0
+
+- C91: `--auth-method plain` em MQTT 5 sobre TLS envia Authentication Method/Data SASL PLAIN sem duplicar Username/Password; exige confirmação `PLAIN` no CONNACK. Senha continua fora dos argumentos, por prompt ou arquivo privado. AUTH posterior e reautenticação permanecem pendentes.
+
 ## 0.24.0 — shared subscriptions MQTT 5 (experimental)
 
 - C89: `sub --protocol-version 5 --topic '$share/grupo/filtro'` valida grupo/filtro, recusa No Local e falha antes do SUBSCRIBE quando o CONNACK anuncia shared subscriptions indisponíveis. Integração externa com Mosquitto 2.0.22 e broker XMQR após P153/P154; broker 0.25.0 publicado ainda não implementa o roteamento compartilhado.

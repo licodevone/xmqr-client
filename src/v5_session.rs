@@ -293,10 +293,35 @@ fn configure_options(cli: &Cli, password: Option<String>) -> AppResult<MqttOptio
             tls::build_client_config(cli)?.into(),
         ));
     }
-    if let (Some(username), Some(password)) = (cli.username.clone(), password) {
+    configure_auth(&mut options, cli, password)?;
+    Ok(options)
+}
+
+fn configure_auth(options: &mut MqttOptions, cli: &Cli, password: Option<String>) -> AppResult<()> {
+    if cli.auth_method.as_deref() == Some("plain") {
+        let username = cli
+            .username
+            .as_ref()
+            .ok_or_else(|| protocol_error("usuario ausente"))?;
+        let password = password.ok_or_else(|| protocol_error("senha ausente"))?;
+        let mut data = Vec::with_capacity(username.len() + password.len() + 2);
+        data.push(0);
+        data.extend_from_slice(username.as_bytes());
+        data.push(0);
+        data.extend_from_slice(password.as_bytes());
+        options.set_authentication_method(Some("PLAIN".to_owned()));
+        options.set_authentication_data(Some(data.into()));
+    } else if let (Some(username), Some(password)) = (cli.username.clone(), password) {
         options.set_credentials(username, password);
     }
-    Ok(options)
+    Ok(())
+}
+
+fn confirm_auth_method(cli: &Cli, method: Option<&str>) -> AppResult<()> {
+    if cli.auth_method.as_deref() == Some("plain") && method != Some("PLAIN") {
+        return Err(protocol_error("CONNACK MQTT 5 nao confirmou o metodo PLAIN").into());
+    }
+    Ok(())
 }
 
 async fn send_publication(
@@ -361,6 +386,12 @@ async fn run_inner(
             })?;
         match event {
             Event::Incoming(Incoming::ConnAck(ack)) if ack.code == ConnectReturnCode::Success => {
+                confirm_auth_method(
+                    cli,
+                    ack.properties
+                        .as_ref()
+                        .and_then(|p| p.authentication_method.as_deref()),
+                )?;
                 if ack.session_present && cli.clean_start == super::cli::SessionStart::Clean {
                     return Err(protocol_error(
                         "CONNACK MQTT 5 informou sessao anterior apos Clean Start",
@@ -683,5 +714,40 @@ async fn subscribe(
                 return Err(protocol_error("resposta MQTT 5 inesperada na assinatura").into());
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod plain_auth_tests {
+    use super::{MqttOptions, configure_auth, confirm_auth_method};
+
+    #[test]
+    fn plain_data_uses_auth_properties_without_legacy_credentials() {
+        let args = [
+            "sub",
+            "--tls-password",
+            "--topic",
+            "p159/value",
+            "--username",
+            "device",
+            "--ca",
+            "ca.crt",
+            "--protocol-version",
+            "5",
+            "--auth-method",
+            "plain",
+        ];
+        let cli = crate::cli::parse(args.into_iter().map(str::to_owned)).unwrap();
+        let mut options = MqttOptions::new("test-client", "localhost", 8883);
+        configure_auth(&mut options, &cli, Some("test-secret".into())).unwrap();
+        assert_eq!(options.authentication_method().as_deref(), Some("PLAIN"));
+        assert_eq!(
+            options.authentication_data().as_deref(),
+            Some(b"\0device\0test-secret".as_slice())
+        );
+        assert!(options.credentials().is_none());
+        assert!(confirm_auth_method(&cli, Some("PLAIN")).is_ok());
+        assert!(confirm_auth_method(&cli, None).is_err());
+        assert!(confirm_auth_method(&cli, Some("OTHER")).is_err());
     }
 }

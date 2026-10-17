@@ -1,5 +1,13 @@
 # xmqr-client
 
+A árvore após 0.24.0 inclui C91: `mqtt-client pub|sub --protocol-version 5
+--auth-method plain --tls-password --ca CA.crt --username USUARIO` usa
+autenticação inicial SASL PLAIN sobre TLS, com senha lida de arquivo privado
+(`--password-file`) ou prompt. O client exige que o CONNACK confirme `PLAIN`;
+o modo convencional continua padrão. Esta mudança ainda não tem release e
+não implementa troca AUTH posterior ou reautenticação.
+[Prompt C91](prompts/clients/91-enhanced-plain-connect-mqtt5.md).
+
 A versão experimental 0.24.0 inclui C89: valida filtros compartilhados MQTT 5 no
 formato `$share/grupo/filtro` e o anúncio de disponibilidade no CONNACK. O
 broker XMQR 0.26.0 distribui mensagens entre membros ativos e preserva
