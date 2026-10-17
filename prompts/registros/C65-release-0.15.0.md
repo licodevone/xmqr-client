@@ -1,0 +1,7 @@
+# C65 — prerelease experimental do client 0.15.0
+
+- [Prompt C65 rev1–2](../clients/65-release-0.15.0.md) criado antes do bump. Base funcional C64: [CI `f68174b`](https://github.com/licodevone/xmqr-client/actions/runs/38983320426) PASS; broker P123/P125 [CI `bb1084b`](https://github.com/licodevone/xmqr/actions/runs/38983737064) PASS.
+- Fonte imutável: commit `e64381aa09e7f7eebff7e76d1b38bd400d7723e9`, tag anotada `v0.15.0`. [CI da fonte](https://github.com/licodevone/xmqr-client/actions/runs/38984116734) PASS em Rust e pacote/instalação Ubuntu26. Gates locais após bump: fmt, 48 unitários/40 wire, Clippy, build, inventário MIT, sete contratos de distribuição e integração real com broker0.17.0/Mosquitto 2.0.22 PASS.
+- [Prerelease](https://github.com/licodevone/xmqr-client/releases/tag/v0.15.0): `.deb` `xmqr-client_0.15.0-1_amd64.deb`, imagem Docker, dois SHA-256, manifesto e SHA-256 do manifesto (seis anexos). Nome, tamanho e digest SHA-256 de cada anexo remoto conferidos contra arquivos locais. Manifesto fixa fonte, plataforma, ID da imagem e hashes.
+- Docker Hub numerado: `lepinheiro100/xmqr-client:0.15.0` digest `sha256:577584e1c77d0e75d0d3a5461bd6eab675ac296faf9c2deaf6a43e8ab05b39ac`. Digest remoto conferido; execução por digest respondeu `mqtt-client 0.15.0`. `latest` não foi movida.
+- Rollback e limites na [nota](../../docs/releases/0.15.0.md). Pacote não foi instalado no WSL do operador. Fases 6A–6D abertas e sem alegação de conformidade MQTT 5 integral.
