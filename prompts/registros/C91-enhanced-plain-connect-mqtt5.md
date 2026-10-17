@@ -1,0 +1,6 @@
+# C91 — autenticação inicial MQTT 5 SASL PLAIN sobre TLS (aceito)
+
+- [Prompt C91](../clients/91-enhanced-plain-connect-mqtt5.md) commitado antes do código (`8b5f6d6`). Fonte `7c7fdc50e9b6840211be9a8540e6c265b7486d28` publicada em `main`; [CI do commit exato PASS](https://github.com/licodevone/xmqr-client/actions/runs/39015631167).
+- `--auth-method plain` exige MQTT 5 e TLS, envia `NUL authcid NUL passwd` em Authentication Data sem Username/Password convencional e requer confirmação `PLAIN` no CONNACK. A senha entra por arquivo privado ou prompt e não é exibida no erro. O modo convencional permanece padrão. Parser recusa método desconhecido, MQTT 3.1.1 e modo aberto.
+- 64 testes CLI e 64 testes wire PASS; fmt, Clippy sem avisos, build release, inventário de licenças e sete contratos de distribuição PASS. Com broker P159 em TLS real, `pub`/`sub` receberam a publicação e senha incorreta foi recusada sem expor o texto. O ensaio está em `xmqr/scripts/verify_mqtt5_plain_auth.py`.
+- Esta é uma parcela da fase 6D. O client não implementa desafio AUTH posterior ou reautenticação; ainda não recebeu tag/release isolada. O broker publicado 0.27.0 antecede P159, portanto este modo requer a árvore posterior a essa tag.
