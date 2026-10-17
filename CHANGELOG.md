@@ -1,6 +1,6 @@
 # Histórico de versões
 
-## Em desenvolvimento após 0.25.0
+## 0.26.0 — metadados e expiração do Will MQTT 5 (experimental)
 
 - C95: `--will-message-expiry-seconds` envia Message Expiry Interval no Will MQTT 5, com validação pré-rede e sem confundir com a expiração do PUBLISH. Broker parceiro P164 inicia o prazo na publicação.
 - C94: opções explícitas para Payload Format Indicator, Content Type, Response Topic, Correlation Data hexadecimal e User Property repetida no Will MQTT 5; validação antes da rede, ordem dos pares preservada e combinação com Will Delay. Sem Message Expiry do Will.

@@ -1,5 +1,11 @@
 # xmqr-client
 
+O candidato experimental 0.26.0 reúne C94/C95: metadados e Message Expiry
+do Will MQTT 5 com validação local e flags próprias, separadas de PUBLISH.
+O broker 0.29.0/P163–P164 inicia o prazo do Will quando o publica, mesmo com
+Will Delay e reinício. Fases 6A–6D e 7–9 seguem abertas.
+[Nota de release](docs/releases/0.26.0.md).
+
 Na árvore após 0.25.0, C95 acrescenta `--will-message-expiry-seconds
 0..4294967295` ao Will MQTT 5. Essa opção é distinta de
 `--message-expiry-seconds` do PUBLISH e pode ser usada com Will Delay e os
