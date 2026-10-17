@@ -1,10 +1,14 @@
 # xmqr-client
 
+A fonte 0.22.0 candidata reúne Topic Alias compacto e opções No Local,
+Retain As Published e Retain Handling no assinante MQTT 5. A última versão
+publicada ainda é 0.21.0; o marco 0.22.0 depende dos gates [C86](prompts/registros/C86-release-0.22.0.md).
+
 No marco experimental 0.21.0, C80 exibe propriedades PUBLISH MQTT 5 recebidas
 em `sub --output jsonl` e C81 permite `pub --protocol-version 5 --repeat` em
 série. [Nota de release](docs/releases/0.21.0.md). A fase 6C segue aberta.
 
-Em desenvolvimento após 0.21.0, C83 acrescenta
+No candidato 0.22.0, C83 acrescenta
 `pub --protocol-version 5 --repeat 3 --repeat-interval-ms 20
 --publish-topic-alias 1` (com `--topic` e `--message`/`--message-file`).
 O broker precisa anunciar Topic Alias Maximum >= 1 no CONNACK. A primeira
@@ -13,18 +17,18 @@ vazio na mesma conexão, com as propriedades PUBLISH preservadas. Se o broker
 não anunciar suporte suficiente, a operação falha antes do primeiro envio.
 O alias é local à conexão; não há reconexão/replay MQTT 5 automático.
 
-Em desenvolvimento após 0.21.0, C84 acrescenta
+No candidato 0.22.0, C84 acrescenta
 `sub --protocol-version 5 --retain-handling 0|1|2`. Zero pede mensagens
 retidas no SUBSCRIBE, um apenas para assinatura nova e dois não as pede nesse
 momento. `--ignore-retained` e `--retained-only` continuam filtros locais da
 saída; não mudam o pacote SUBSCRIBE. O broker P147 aplica a opção por filtro,
 inclusive ao retomar uma sessão persistente.
 
-Em desenvolvimento após 0.21.0, C85 acrescenta `--no-local` e
+No candidato 0.22.0, C85 acrescenta `--no-local` e
 `--retain-as-published` ao assinante MQTT 5. São bits do SUBSCRIBE por filtro,
 combináveis com `--retain-handling`; nenhum altera os filtros locais da saída.
-O client foi validado com Mosquitto 2.0.22. O broker XMQR ainda rejeita os
-dois bits até P148, portanto esta opção ainda não é interoperável com ele.
+O client foi validado com Mosquitto 2.0.22. O broker XMQR implementa os
+dois bits em P148, ainda em validação para sua próxima release.
 
 No marco experimental 0.20.0, `mqtt-client pub --protocol-version 5
 --payload-format 1 --content-type text/plain` envia as propriedades MQTT 5.
