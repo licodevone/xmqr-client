@@ -5,6 +5,12 @@ No marco experimental 0.20.0, `mqtt-client pub --protocol-version 5
 O payload deve ser UTF-8 válido com indicador 1; o client recusa bytes inválidos
 antes de conectar. C80 acrescenta os metadados recebidos a `sub --output jsonl`
 na árvore de desenvolvimento, ainda sem nova release.
+Em C81, `pub --protocol-version 5 --repeat 3 --repeat-interval-ms 20`
+publica uma fonte única três vezes, reaplica as propriedades MQTT 5 e aguarda
+o envio/ACK terminal de cada mensagem antes da próxima. O intervalo mantém
+a conexão viva; se uma publicação falhar, as já confirmadas ficam visíveis e
+o lote restante não é reenviado. Modo linha e retomada local de QoS continuam
+pendentes em MQTT 5. C80/C81 ainda não têm release própria.
 Em C78, `pub --protocol-version 5` aceita `--response-topic reply/t`,
 `--correlation-data-hex 00ff07` e `--publish-user-property trace=one` repetível
 (até 16 pares e 2048 bytes codificados). A validação ocorre antes da conexão;
@@ -534,6 +540,7 @@ por payload após esse enquadramento. Retain vale para cada linha: uma linha
 vazia com --retain true apaga o retained desse tópico.
 
 Cada publicação aguarda envio QoS0 ou ACK terminal QoS1/2 antes da seguinte.
+Essa regra também vale para `--repeat` MQTT 5 em C81, com uma mensagem por vez.
 No modo por linha, cada conclusão escreve o mesmo formato text/JSONL de C26.
 Uma falha posterior retorna erro e mantém as conclusões anteriores; não há
 rollback. Depois do primeiro PUBLISH não reconecta nem reenvia o lote.

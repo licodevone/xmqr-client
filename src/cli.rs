@@ -711,11 +711,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         })
         .transpose()?;
     if protocol_version == ProtocolVersion::Mqtt5
-        && (line_mode || repeat_count != 1 || reconnect_attempts != 0 || keepalive_seconds < 5)
+        && (line_mode || reconnect_attempts != 0 || keepalive_seconds < 5)
     {
-        return Err(
-            "MQTT 5 inicial exige ausencia de Will, lotes e reconexao; keepalive >= 5".into(),
-        );
+        return Err("MQTT 5 exige ausencia de modo linha e reconexao; keepalive >= 5".into());
     }
     Ok(Cli {
         protocol_version,
@@ -1721,6 +1719,19 @@ mod tests {
             "25".into(),
         ]);
         let cli = parse(args).unwrap();
+        assert_eq!((cli.repeat, cli.repeat_interval_ms), (3, Some(25)));
+        let mut mqtt5 = base("pub");
+        mqtt5.extend([
+            "--message".into(),
+            "x".into(),
+            "--protocol-version".into(),
+            "5".into(),
+            "--repeat".into(),
+            "3".into(),
+            "--repeat-interval-ms".into(),
+            "25".into(),
+        ]);
+        let cli = parse(mqtt5).unwrap();
         assert_eq!((cli.repeat, cli.repeat_interval_ms), (3, Some(25)));
         for tail in [
             vec!["--repeat", "0"],

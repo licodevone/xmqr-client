@@ -438,6 +438,161 @@ fn mqtt5_publish_qos0_qos1_qos2_and_refusal_wire() {
 }
 
 #[test]
+fn mqtt5_repeat_waits_for_each_ack_and_reapplies_publish_properties() {
+    for qos in [0_u8, 1, 2] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            assert_eq!(packet(&mut stream).0, 0x10);
+            stream.write_all(&[0x20, 6, 0, 0, 3, 0x21, 0, 1]).unwrap();
+            for _ in 0..3 {
+                let (header, body) = packet(&mut stream);
+                assert_eq!(header, 0x30 | (qos << 1));
+                assert_eq!(&body[..3], &[0, 1, b't']);
+                let offset = if qos == 0 { 3 } else { 5 };
+                let properties = &body[offset + 1..offset + 1 + usize::from(body[offset])];
+                assert_eq!(properties, b"\x01\x01\x26\x00\x05trace\x00\x03one");
+                assert_eq!(&body[offset + 1 + properties.len()..], b"hello");
+                if qos != 0 {
+                    stream
+                        .set_read_timeout(Some(Duration::from_millis(30)))
+                        .unwrap();
+                    let mut probe = [0];
+                    assert!(
+                        stream.read(&mut probe).is_err(),
+                        "next publication preceded ACK"
+                    );
+                    stream
+                        .set_read_timeout(Some(Duration::from_secs(3)))
+                        .unwrap();
+                    let id = [body[3], body[4]];
+                    if qos == 1 {
+                        stream.write_all(&[0x40, 2, id[0], id[1]]).unwrap();
+                    } else {
+                        stream.write_all(&[0x50, 2, id[0], id[1]]).unwrap();
+                        assert_eq!(packet(&mut stream), (0x62, id.to_vec()));
+                        stream.write_all(&[0x70, 2, id[0], id[1]]).unwrap();
+                    }
+                }
+            }
+            assert_eq!(packet(&mut stream), (0xe0, vec![]));
+        });
+        let qos_arg = qos.to_string();
+        let output = finish(child(
+            port,
+            "pub",
+            &[
+                "--protocol-version",
+                "5",
+                "--qos",
+                &qos_arg,
+                "--message",
+                "hello",
+                "--repeat",
+                "3",
+                "--repeat-interval-ms",
+                "5",
+                "--payload-format",
+                "1",
+                "--publish-user-property",
+                "trace=one",
+            ],
+        ));
+        server.join().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout).lines().count(), 3);
+    }
+}
+
+#[test]
+fn mqtt5_repeat_stops_on_second_refused_puback_without_third_publish() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+        for index in 0..2 {
+            let (header, body) = packet(&mut stream);
+            assert_eq!(header, 0x32);
+            let id = [body[3], body[4]];
+            if index == 0 {
+                stream.write_all(&[0x40, 2, id[0], id[1]]).unwrap();
+            } else {
+                stream.write_all(&[0x40, 4, id[0], id[1], 0x87, 0]).unwrap();
+            }
+        }
+        let mut probe = [0];
+        assert_eq!(stream.read(&mut probe).unwrap(), 0);
+    });
+    let output = finish(child(
+        port,
+        "pub",
+        &[
+            "--protocol-version",
+            "5",
+            "--qos",
+            "1",
+            "--message",
+            "hello",
+            "--repeat",
+            "3",
+            "--repeat-interval-ms",
+            "5",
+        ],
+    ));
+    server.join().unwrap();
+    assert!(!output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout).lines().count(), 1);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("NotAuthorized (0x87)"));
+}
+
+#[test]
+fn mqtt5_repeat_timeout_preserves_confirmed_prefix_and_does_not_replay() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x32);
+        stream.write_all(&[0x40, 2, body[3], body[4]]).unwrap();
+        assert_eq!(packet(&mut stream).0, 0x32);
+        thread::sleep(Duration::from_millis(1300));
+        let mut probe = [0];
+        assert_eq!(stream.read(&mut probe).unwrap(), 0);
+    });
+    let output = finish(child(
+        port,
+        "pub",
+        &[
+            "--protocol-version",
+            "5",
+            "--qos",
+            "1",
+            "--message",
+            "hello",
+            "--repeat",
+            "3",
+            "--repeat-interval-ms",
+            "5",
+            "--timeout-seconds",
+            "1",
+        ],
+    ));
+    server.join().unwrap();
+    assert!(!output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout).lines().count(), 1);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("resultado desconhecido"));
+}
+
+#[test]
 fn mqtt5_publish_message_expiry_property_wire() {
     let listener = listener();
     let port = listener.local_addr().unwrap().port();

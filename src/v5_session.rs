@@ -362,36 +362,13 @@ async fn run_inner(
         return subscribe(cli, &client, &mut events, limit).await;
     };
     let publication = publication.ok_or_else(|| protocol_error("payload ausente"))?;
-    send_publication(&client, cli, topic, publication.first).await?;
-    loop {
-        let event = timeout(limit, events.poll()).await.map_err(|_| {
-            protocol_error("publicacao MQTT 5 sem confirmacao; resultado desconhecido")
-        })??;
-        match event {
-            Event::Outgoing(Outgoing::Publish(0)) if cli.qos == QoS::AtMostOnce => break,
-            Event::Incoming(Incoming::PubAck(ack)) if cli.qos == QoS::AtLeastOnce => {
-                if ack.reason != PubAckReason::Success {
-                    return Err(puback_refusal(ack.reason).into());
-                }
-                break;
-            }
-            Event::Incoming(Incoming::PubRec(ack)) if cli.qos == QoS::ExactlyOnce => {
-                if !matches!(
-                    ack.reason,
-                    PubRecReason::Success | PubRecReason::NoMatchingSubscribers
-                ) {
-                    return Err(pubrec_refusal(ack.reason).into());
-                }
-            }
-            Event::Incoming(Incoming::PubComp(ack)) if cli.qos == QoS::ExactlyOnce => {
-                if ack.reason != PubCompReason::Success {
-                    return Err(pubcomp_refusal(ack.reason).into());
-                }
-                break;
-            }
-            Event::Outgoing(_) | Event::Incoming(Incoming::PingResp(_)) => {}
-            Event::Incoming(_) => return Err(protocol_error("resposta MQTT 5 inesperada").into()),
+    for index in 0..cli.repeat {
+        if index > 0 {
+            wait_repeat_interval(&mut events, cli.repeat_interval_ms.unwrap()).await?;
         }
+        send_publication(&client, cli, topic, publication.first.clone()).await?;
+        await_publish_complete(&mut events, cli.qos, limit).await?;
+        cli.output.complete(cli.qos);
     }
     client.try_disconnect()?;
     loop {
@@ -406,8 +383,68 @@ async fn run_inner(
             }
         }
     }
-    cli.output.complete(cli.qos);
     Ok(())
+}
+
+async fn wait_repeat_interval(
+    events: &mut rumqttc::v5::EventLoop,
+    milliseconds: u32,
+) -> AppResult<()> {
+    let deadline = Instant::now() + Duration::from_millis(u64::from(milliseconds));
+    loop {
+        tokio::select! {
+            biased;
+            () = tokio::time::sleep_until(deadline) => return Ok(()),
+            event = events.poll() => match event {
+                Ok(Event::Outgoing(_) | Event::Incoming(Incoming::PingResp(_))) => {},
+                Ok(_) => return Err(protocol_error("resposta MQTT 5 inesperada entre publicacoes; lote parcial, nao reenviado").into()),
+                Err(_) => return Err(protocol_error("conexao MQTT 5 interrompida entre publicacoes; lote parcial, nao reenviado").into()),
+            },
+        }
+    }
+}
+
+async fn await_publish_complete(
+    events: &mut rumqttc::v5::EventLoop,
+    qos: QoS,
+    limit: Duration,
+) -> AppResult<()> {
+    let deadline = Instant::now() + limit;
+    loop {
+        let event = timeout_at(deadline, events.poll())
+            .await
+            .map_err(|_| {
+                protocol_error("publicacao MQTT 5 sem confirmacao; resultado desconhecido")
+            })?
+            .map_err(|_| {
+                protocol_error("publicacao MQTT 5 interrompida; resultado desconhecido")
+            })?;
+        match event {
+            Event::Outgoing(Outgoing::Publish(0)) if qos == QoS::AtMostOnce => return Ok(()),
+            Event::Incoming(Incoming::PubAck(ack)) if qos == QoS::AtLeastOnce => {
+                if ack.reason != PubAckReason::Success {
+                    return Err(puback_refusal(ack.reason).into());
+                }
+                return Ok(());
+            }
+            Event::Incoming(Incoming::PubRec(ack)) if qos == QoS::ExactlyOnce => {
+                if !matches!(
+                    ack.reason,
+                    PubRecReason::Success | PubRecReason::NoMatchingSubscribers
+                ) {
+                    return Err(pubrec_refusal(ack.reason).into());
+                }
+            }
+            Event::Incoming(Incoming::PubComp(ack)) if qos == QoS::ExactlyOnce => {
+                if ack.reason != PubCompReason::Success {
+                    return Err(pubcomp_refusal(ack.reason).into());
+                }
+                return Ok(());
+            }
+            Event::Outgoing(_) | Event::Incoming(Incoming::PingResp(_)) => {}
+            Event::Incoming(_) => return Err(protocol_error("resposta MQTT 5 inesperada").into()),
+        }
+    }
 }
 
 fn resolved_incoming_topic(

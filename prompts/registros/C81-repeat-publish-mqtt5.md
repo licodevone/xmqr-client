@@ -1,0 +1,6 @@
+# C81 — repetição sequencial de PUBLISH MQTT 5
+
+- [Prompt C81](../clients/81-repeat-publish-mqtt5.md) criado antes do código. Base client C80 e broker P144 aceitos; fase 6C global aberta.
+- Implementação: MQTT 5 libera `--repeat` finito para fonte única, serializa PUBLISH com uma confirmação por mensagem e preserva as propriedades de C77/C78. Intervalo atende eventos de keepalive; falha não reenvia o lote. Modo linha, mais de uma publicação em voo e Topic Alias compacto seguem fora deste recorte.
+- Gates locais PASS: 56 testes de CLI e 55 wire, incluindo recusa e timeout do segundo PUBACK sem terceiro PUBLISH; `cargo fmt --check`, Clippy, build release e inventário de licenças. [Integração C81](../../validation/C81-repeat-mqtt5.py) PASS contra broker P144 e container descartável Mosquitto 2.0.22, imagem `sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21`, em QoS0/1/2 com propriedades e ACKs ordenados. Regressões C78/C80 PASS. O container foi removido. A execução inicial do verificador tentou iniciar Docker dentro da distro WSL e falhou porque ali há apenas um stub; prompt rev2 precedeu a adaptação para container iniciado no host Windows. Sem ensaio físico ESP32.
+- Commit e CI pendentes; sem release isolada ou aceite global da fase 6C.
