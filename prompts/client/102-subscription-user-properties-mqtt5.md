@@ -15,3 +15,5 @@ Revisão 4: a integração broker/client chegou a um timeout aguardando a linha 
 Revisão 5: a integração real recebeu JSONL com o payload em `payload_bytes` e o identificador de assinatura; a asserção foi adaptada ao contrato da saída e passou. O gate completo encontrou apenas `clippy::too_many_lines` em `subscribe`, ampliada por C102. Extrair a conclusão após `--count` para helper pequeno, sem mudar a ordem UNSUBACK/DISCONNECT, e repetir os gates completos antes de aceitar.
 
 Revisão 6: a revisão do diff identificou que `--unsubscribe-user-property` sem `--count` seria aceito sem produzir UNSUBSCRIBE. Exigir `sub --count N` para essa flag antes da rede, adicionar negativo CLI e registrar a restrição no uso. Manter a flag de SUBSCRIBE independente de `--count`; repetir gates após a mudança.
+
+Revisão 7: a integração real P180 passou e a CI da fonte está em execução. Acrescentar ensaio de interoperabilidade descartável com Mosquitto 2.0.22 fixado por digest, cobrindo SUBSCRIBE com pares repetidos e identificador, PUBLISH externo e UNSUBSCRIBE com par após `--count`; registrar resultado independente da fixture interna. Não alterar o protocolo da CLI neste ensaio.
