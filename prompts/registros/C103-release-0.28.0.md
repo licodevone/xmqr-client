@@ -1,0 +1,7 @@
+# C103 — marco client 0.28.0 publicado
+
+O [prompt C103](../clients/103-release-0.28.0.md) antecedeu a atualização de versão (`66c6741`); rev2 (`559bd06`) registrou a primeira invocação local do empacotador sem Cargo no `PATH` antes da repetição. A tag anotada `v0.28.0` aponta à fonte exata `559bd064b35d133be7a637d8cf69853ba47ce698`. [CI PASS](https://github.com/licodevone/xmqr-client/actions/runs/39029294027), incluindo Rust e pacote Ubuntu 26.04. Localmente: 78 testes CLI, 66 testes de fio, fmt, Clippy, build release, licenças, sete contratos de distribuição, wire C102, integração P180 e versão `mqtt-client 0.28.0` PASS. O ensaio C102 com Mosquitto 2.0.22 está no [registro C102](C102-subscription-user-properties-mqtt5.md).
+
+O pacote `xmqr-client_0.28.0-1_amd64.deb` tem SHA-256 `263c43806ad3c332143058ad2e2b15bb70961f3f497e042f02672e67370b69f7`. O ciclo descartável Ubuntu 26.04 broker 0.32.0/client 0.27.0 → broker 0.33.0/client 0.28.0 → rollback → remoção/purge retornou `PACKAGE_LIFECYCLE_PASS`, preservando configuração e arquivos privados. A imagem numerada `lepinheiro100/xmqr-client:0.28.0` foi executada pelo digest remoto `sha256:6d79488dd23ee0585e85b855996197ce0ad878af78b131f143acbb3ef14cb305`, com versão conferida.
+
+A [prerelease](https://github.com/licodevone/xmqr-client/releases/tag/v0.28.0) contém 6 anexos com tamanho e SHA-256 remotos iguais aos locais (`CLIENT_REMOTE_HASH_PASS 6`). O client não guarda estado QoS local. WSL do operador e Docker `latest` permaneceram intactos. Fases 6A–6D e 7–9 seguem abertas.

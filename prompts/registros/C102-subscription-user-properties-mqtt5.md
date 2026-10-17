@@ -6,4 +6,4 @@ O [prompt C102](../client/102-subscription-user-properties-mqtt5.md) foi commita
 
 Gates locais PASS: 78 testes CLI e 66 testes de fio Rust, fmt, Clippy `-D warnings`, build release, inventário de licenças, sete contratos de distribuição, `C102_SUBSCRIPTION_USER_PROPERTIES_PASS` no wire e `C102_P180_INTEGRATION_PASS` com broker XMQR P180 real (sub MQTT 5, publicação MQTT 3.1.1, identificador, UNSUBACK). `C102_MOSQUITTO_PASS` validou a mesma assinatura/cancelamento e publicação externa com Mosquitto 2.0.22, imagem `sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21`, em container descartável removido após o ensaio. Sem ensaio físico ESP32.
 
-Aceite parcial 6A/6D. Fluxo QoS local durável do client, matriz MQTT 5 completa e fases 7–9 seguem abertos. Sem tag isolada; client publicado permanece 0.27.0, broker publicado 0.32.0 ainda não contém P180.
+Aceite parcial 6A/6D. Fluxo QoS local durável do client, matriz MQTT 5 completa e fases 7–9 seguem abertos. Sem tag isolada para C102; depois foi distribuído no client 0.28.0/C103 com broker 0.33.0/P182.

@@ -1,6 +1,6 @@
 # xmqr-client
 
-O candidato experimental 0.28.0 reúne C101/C102: diagnóstico de DISCONNECT
+A release experimental 0.28.0 reúne C101/C102: diagnóstico de DISCONNECT
 MQTT 5 e propriedades contextuais de assinatura. C102 permite `sub --protocol-version 5
 --subscribe-user-property CHAVE=VALOR` e
 `--unsubscribe-user-property CHAVE=VALOR` repetíveis. Cada contexto aceita até
@@ -8,9 +8,9 @@ MQTT 5 e propriedades contextuais de assinatura. C102 permite `sub --protocol-ve
 antes da conexão. A opção de UNSUBSCRIBE exige `--count N`, pois o client só
 envia o cancelamento após receber essa quantidade de mensagens. Os pares
 mantêm ordem e podem acompanhar `--subscription-identifier`. O broker
-0.33.0/P180 será o par distribuído; broker 0.32.0 ainda não contém P180.
-[Nota candidata 0.28.0](docs/releases/0.28.0.md) e
-[registro C102](prompts/registros/C102-subscription-user-properties-mqtt5.md).
+0.33.0/P180 é o par distribuído; broker 0.32.0 ainda não contém P180.
+[Release 0.28.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.28.0),
+[nota](docs/releases/0.28.0.md) e [aceite C103](prompts/registros/C103-release-0.28.0.md).
 
 Após 0.27.0, C101 mostra o código do DISCONNECT MQTT 5 enviado pelo broker
 sem reproduzir Reason String remota no terminal. O client continua encerrando

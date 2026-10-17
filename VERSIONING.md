@@ -1,10 +1,10 @@
 # Versionamento
 
-O candidato 0.28.0 reúne C101/C102: diagnóstico seguro de DISCONNECT MQTT 5 e
+A versão 0.28.0 publicada reúne C101/C102: diagnóstico seguro de DISCONNECT MQTT 5 e
 User Property contextual de SUBSCRIBE/UNSUBSCRIBE. O broker parceiro 0.33.0
-conterá P180/P181. Sem persistência do fluxo QoS local; MQTT 3.1.1 mantém o
-contrato anterior. Publicação requer CI, pacote Ubuntu 26.04, imagem numerada,
-upgrade/rollback descartável, hashes remotos e tag anotada. Fases 6A–6D e
+contém P180/P181. Sem persistência do fluxo QoS local; MQTT 3.1.1 mantém o
+contrato anterior. Tag anotada e prerelease publicadas após CI, pacote Ubuntu
+26.04, imagem numerada, upgrade/rollback descartável e hashes conferidos. Fases 6A–6D e
 7–9 continuam abertas. [Nota](docs/releases/0.28.0.md).
 
 A versão 0.27.0 publicada reúne C97–C99: solicitação do Client Identifier MQTT 5
