@@ -1,15 +1,15 @@
 # xmqr-client
 
-O candidato experimental 0.25.0 inclui C92: `--reauth-before-io` combinado com
+A versão experimental publicada 0.25.0 inclui C92: `--reauth-before-io` combinado com
 `--protocol-version 5 --auth-method plain` solicita reautenticação `PLAIN`
 após o CONNACK sobre TLS e espera AUTH de sucesso antes de pub/sub. A opção
 é explícita; por padrão não há AUTH adicional. O client usa uma cópia local
 identificada de `rumqttc` 0.25.1 para expor AUTH na mesma conexão e corrigir
 o enquadramento desse pacote; [patches e licença](vendor/rumqttc-0.25.1/XMQR-PATCHES.md).
 Não há reautenticação periódica nem rotação de senha durante a sessão nesta
-fatia. O broker candidato 0.28.0/P160 é o par testado; tags publicadas
-anteriores não incluem C92/P160. [Nota 0.25.0](docs/releases/0.25.0.md) e
-[prompt C93](prompts/clients/93-release-0.25.0.md).
+fatia. O broker publicado 0.28.0/P160 é o par testado; tags anteriores não
+incluem C92/P160. [Release 0.25.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.25.0)
+e [aceite C93](prompts/registros/C93-release-0.25.0.md).
 
 O mesmo candidato inclui C91: `mqtt-client pub|sub --protocol-version 5
 --auth-method plain --tls-password --ca CA.crt --username USUARIO` usa
