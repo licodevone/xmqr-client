@@ -239,6 +239,9 @@ fn configure_options(cli: &Cli, password: Option<String>) -> AppResult<MqttOptio
     if let Some(maximum) = cli.receive_maximum {
         options.set_receive_maximum(Some(maximum));
     }
+    if let Some(maximum) = cli.maximum_packet_size {
+        options.set_max_packet_size(Some(maximum));
+    }
     if let Some(will) = &cli.will {
         let qos = match will.qos {
             QoS::AtMostOnce => rumqttc::v5::mqttbytes::QoS::AtMostOnce,

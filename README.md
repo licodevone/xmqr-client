@@ -5,6 +5,9 @@ anuncia no CONNECT o máximo de publicações QoS1/2 que o assinante aceita em v
 nessa conexão. Sem a opção, a propriedade é omitida. A opção é exclusiva de
 `sub` MQTT 5; o broker P134 aplica a quota inclusive a mensagens retidas e
 retomadas após reconexão.
+Em C73, `--maximum-packet-size 5..65536` limita o tamanho total de cada pacote
+MQTT que o assinante aceita. O broker P136 descarta publicações que não cabem;
+um valor pequeno demais para SUBACK encerra a conexão.
 
 O marco experimental 0.17.0 acrescenta
 `mqtt-client pub --protocol-version 5 --message-expiry-seconds 0..4294967295`
