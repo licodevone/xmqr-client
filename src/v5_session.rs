@@ -293,7 +293,13 @@ async fn send_publication(
         QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
         QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
     };
-    if cli.message_expiry.is_some() || cli.payload_format.is_some() || cli.content_type.is_some() {
+    if cli.message_expiry.is_some()
+        || cli.payload_format.is_some()
+        || cli.content_type.is_some()
+        || cli.response_topic.is_some()
+        || cli.correlation_data.is_some()
+        || !cli.publish_user_properties.is_empty()
+    {
         client
             .publish_with_properties(
                 topic,
@@ -304,6 +310,9 @@ async fn send_publication(
                     message_expiry_interval: cli.message_expiry,
                     payload_format_indicator: cli.payload_format,
                     content_type: cli.content_type.clone(),
+                    response_topic: cli.response_topic.clone(),
+                    correlation_data: cli.correlation_data.clone().map(Into::into),
+                    user_properties: cli.publish_user_properties.clone(),
                     ..PublishProperties::default()
                 },
             )

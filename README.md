@@ -4,6 +4,10 @@ Na árvore em desenvolvimento após 0.19.0, `mqtt-client pub --protocol-version 
 --payload-format 1 --content-type text/plain` envia as propriedades MQTT 5.
 O payload deve ser UTF-8 válido com indicador 1; o client recusa bytes inválidos
 antes de conectar. `sub` ainda mostra tópico e payload sem esses metadados.
+Em C78, `pub --protocol-version 5` aceita `--response-topic reply/t`,
+`--correlation-data-hex 00ff07` e `--publish-user-property trace=one` repetível
+(até 16 pares e 2048 bytes codificados). A validação ocorre antes da conexão;
+o assinante ainda não exibe esses metadados. C78 aguarda CI e aceite final.
 
 No marco experimental 0.19.0, `mqtt-client sub --protocol-version 5
 --topic-alias-maximum 1` anuncia que aceita um Topic Alias por conexão.

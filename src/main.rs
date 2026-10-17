@@ -12,7 +12,12 @@ mod v5_session;
 async fn main() {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     if arguments.len() == 1 && matches!(arguments[0].as_str(), "--help" | "-h") {
-        print!("{}{}", cli::USAGE, cli::V5_CONNECT_USAGE);
+        print!(
+            "{}{}{}",
+            cli::USAGE,
+            cli::V5_CONNECT_USAGE,
+            cli::V5_PUBLISH_USAGE
+        );
         return;
     }
 
@@ -23,7 +28,12 @@ async fn main() {
     let cli = match cli::parse(arguments) {
         Ok(cli) => cli,
         Err(message) => {
-            eprintln!("Erro: {message}\n\n{}{}", cli::USAGE, cli::V5_CONNECT_USAGE);
+            eprintln!(
+                "Erro: {message}\n\n{}{}{}",
+                cli::USAGE,
+                cli::V5_CONNECT_USAGE,
+                cli::V5_PUBLISH_USAGE
+            );
             std::process::exit(2);
         }
     };

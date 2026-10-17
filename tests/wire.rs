@@ -522,6 +522,48 @@ fn mqtt5_publish_format_content_type_and_expiry_wire() {
 }
 
 #[test]
+fn mqtt5_publish_request_properties_wire_preserves_order() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x30);
+        assert_eq!(&body[..3], &[0, 1, b't']);
+        let properties = &body[4..4 + usize::from(body[3])];
+        assert_eq!(properties, b"\x08\x00\x07reply/t\x09\x00\x03\x00\xff\x07\x26\x00\x05trace\x00\x03one\x26\x00\x05trace\x00\x03two");
+        assert_eq!(&body[4 + properties.len()..], b"hello");
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(
+        port,
+        "pub",
+        &[
+            "--protocol-version",
+            "5",
+            "--message",
+            "hello",
+            "--response-topic",
+            "reply/t",
+            "--correlation-data-hex",
+            "00ff07",
+            "--publish-user-property",
+            "trace=one",
+            "--publish-user-property",
+            "trace=two",
+        ],
+    ));
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
 fn mqtt5_payload_format_one_rejects_binary_before_network() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("binary.bin");
