@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## Em desenvolvimento após 0.19.0
+
+- C77: `pub --protocol-version 5 --payload-format 0|1 --content-type TEXTO` envia as propriedades MQTT 5 junto com Message Expiry opcional. `--payload-format 1` exige payload UTF-8 antes de abrir conexão. A saída de `sub` ainda não exibe essas propriedades.
+
 ## 0.19.0 — recepção de Topic Alias MQTT 5, experimental
 
 - C75: `sub --protocol-version 5 --topic-alias-maximum 0..16` anuncia o limite de Topic Alias recebido. O client reconstrói o nome do tópico para filtros e saída quando o broker envia a forma abreviada; um processo novo não reutiliza associações antigas. A publicação do client ainda não comprime tópicos. O Mosquitto 2.0.22 falha ao receber a forma abreviada válida em fixture independente; não se afirma interoperabilidade nessa direção.

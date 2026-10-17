@@ -293,7 +293,7 @@ async fn send_publication(
         QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
         QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
     };
-    if let Some(seconds) = cli.message_expiry {
+    if cli.message_expiry.is_some() || cli.payload_format.is_some() || cli.content_type.is_some() {
         client
             .publish_with_properties(
                 topic,
@@ -301,7 +301,9 @@ async fn send_publication(
                 cli.retain,
                 payload,
                 PublishProperties {
-                    message_expiry_interval: Some(seconds),
+                    message_expiry_interval: cli.message_expiry,
+                    payload_format_indicator: cli.payload_format,
+                    content_type: cli.content_type.clone(),
                     ..PublishProperties::default()
                 },
             )

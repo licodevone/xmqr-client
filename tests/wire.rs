@@ -475,6 +475,76 @@ fn mqtt5_publish_message_expiry_property_wire() {
 }
 
 #[test]
+fn mqtt5_publish_format_content_type_and_expiry_wire() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x30);
+        assert_eq!(&body[..3], &[0, 1, b't']);
+        assert_eq!(body[3], 20);
+        let properties = &body[4..24];
+        assert!(properties.windows(2).any(|part| part == [0x01, 1]));
+        assert!(properties.windows(5).any(|part| part == [0x02, 0, 0, 0, 7]));
+        assert!(
+            properties
+                .windows(13)
+                .any(|part| part == b"\x03\x00\x0atext/plain")
+        );
+        assert_eq!(&body[24..], b"hello");
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(
+        port,
+        "pub",
+        &[
+            "--protocol-version",
+            "5",
+            "--message",
+            "hello",
+            "--message-expiry-seconds",
+            "7",
+            "--payload-format",
+            "1",
+            "--content-type",
+            "text/plain",
+        ],
+    ));
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn mqtt5_payload_format_one_rejects_binary_before_network() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("binary.bin");
+    std::fs::write(&path, [0xff]).unwrap();
+    let listener = listener();
+    let output = finish(child(
+        listener.local_addr().unwrap().port(),
+        "pub",
+        &[
+            "--protocol-version",
+            "5",
+            "--message-file",
+            path.to_str().unwrap(),
+            "--payload-format",
+            "1",
+        ],
+    ));
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("payload UTF-8 valido"));
+    assert!(listener.accept().is_err());
+}
+
+#[test]
 fn mqtt5_connect_will_delay_property_wire() {
     let listener = listener();
     let port = listener.local_addr().unwrap().port();

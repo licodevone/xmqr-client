@@ -1,5 +1,10 @@
 # xmqr-client
 
+Na árvore em desenvolvimento após 0.19.0, `mqtt-client pub --protocol-version 5
+--payload-format 1 --content-type text/plain` envia as propriedades MQTT 5.
+O payload deve ser UTF-8 válido com indicador 1; o client recusa bytes inválidos
+antes de conectar. `sub` ainda mostra tópico e payload sem esses metadados.
+
 No marco experimental 0.19.0, `mqtt-client sub --protocol-version 5
 --topic-alias-maximum 1` anuncia que aceita um Topic Alias por conexão.
 O valor pode ser 0..16; sem a opção, o padrão é zero. O client mostra o tópico

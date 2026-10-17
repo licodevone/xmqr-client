@@ -45,6 +45,10 @@ async fn main() {
                 Err(error) => { eprintln!("Erro: {error}"); std::process::exit(2); }
             },
         };
+        if cli.payload_format == Some(1) && std::str::from_utf8(&first).is_err() {
+            eprintln!("Erro: --payload-format 1 exige payload UTF-8 valido");
+            std::process::exit(2);
+        }
         Some(payload::Publication { input, first })
     } else {
         None
