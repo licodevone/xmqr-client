@@ -1,3 +1,4 @@
 # C89 — filtros compartilhados MQTT 5 no client
 
-- [Prompt C89](../clients/89-shared-subscriptions-mqtt5.md) preparado antes da implementação. Gates e aceite pendentes.
+- [Prompt C89](../clients/89-shared-subscriptions-mqtt5.md) criado e commitado antes da implementação. CLI valida `$share/grupo/filtro` apenas no assinante MQTT 5, recusa grupo/filtro inválido e No Local; CONNACK Shared Subscription Available=0 encerra antes do SUBSCRIBE. O wire positivo envia o filtro completo e recebe PUBLISH; negativo confirma que não há SUBSCRIBE. 62 testes CLI e 64 wire PASS, fmt, Clippy, build release, inventário de licenças e sete contratos de distribuição PASS.
+- Mosquitto 2.0.22 descartável: `C89_MOSQUITTO_PASS` com dois consumidores no mesmo grupo, dez publicações sem duplicata no grupo, assinante normal recebendo cópia e ausência de retained inicial no grupo. Commit exato e CI pendentes; broker XMQR 0.25.0 ainda não implementa shared subscriptions. Sem tag/release isolada; fase 6D global aberta.

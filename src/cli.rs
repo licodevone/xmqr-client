@@ -124,7 +124,7 @@ pub struct SubscriptionOptions {
 
 pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\nTLS com senha, sem certificado de cliente:\n  mqtt-client pub|sub --tls-password --topic TOPICO --username USUARIO --ca CA.crt [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO | --will-message-file PATH [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --protocol-version 3.1.1|5 (padrao 3.1.1; MQTT5 inicial pub/sub QoS0/1/2), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl|hex|raw (hex/raw apenas sub; raw exige --count 1), --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --repeat 1..1000 --repeat-interval-ms 1..60000 (pub, fonte unica), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --exclude-topic FILTRO (sub, repetivel), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
-pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --session-expiry-seconds 0..4294967294|never, --receive-maximum 1..65535 (somente sub), --maximum-packet-size 5..65536 (somente sub), --topic-alias-maximum 0..16 (somente sub), --retain-handling 0|1|2, --no-local, --retain-as-published, --subscription-identifier 1..268435455 (somente sub), --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes), --will-delay-seconds 0..4294967295 (exige Will). PUBLISH: --message-expiry-seconds 0..4294967295, --payload-format 0|1, --content-type TEXTO (ate 256 bytes; somente pub MQTT 5). Nao inclua segredos em argumentos.\n";
+pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --session-expiry-seconds 0..4294967294|never, --receive-maximum 1..65535 (somente sub), --maximum-packet-size 5..65536 (somente sub), --topic-alias-maximum 0..16 (somente sub), --retain-handling 0|1|2, --no-local, --retain-as-published, --subscription-identifier 1..268435455 (somente sub), --topic '$share/grupo/filtro' (somente sub MQTT 5; sem --no-local), --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes), --will-delay-seconds 0..4294967295 (exige Will). PUBLISH: --message-expiry-seconds 0..4294967295, --payload-format 0|1, --content-type TEXTO (ate 256 bytes; somente pub MQTT 5). Nao inclua segredos em argumentos.\n";
 
 pub const V5_PUBLISH_USAGE: &str = "MQTT 5 PUBLISH adicional: --response-topic TOPICO (sem curingas), --correlation-data-hex HEX (ate 256 bytes), --publish-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes), --publish-topic-alias 1..16 (pub repetido; exige broker anunciar suporte).\n";
 
@@ -372,6 +372,28 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         "5" => ProtocolVersion::Mqtt5,
         _ => return Err("--protocol-version deve ser 3.1.1 ou 5".into()),
     };
+    if let Mode::Sub { filters, .. } = &mode {
+        for filter in filters {
+            if let Some(shared) = filter.strip_prefix("$share/") {
+                if protocol_version != ProtocolVersion::Mqtt5 {
+                    return Err("filtro $share/ exige sub --protocol-version 5".into());
+                }
+                let Some((group, inner)) = shared.split_once('/') else {
+                    return Err("filtro compartilhado exige grupo e filtro".into());
+                };
+                if group.is_empty()
+                    || group.contains(['+', '#'])
+                    || inner.is_empty()
+                    || !valid_filter(inner)
+                {
+                    return Err("filtro compartilhado invalido".into());
+                }
+                if no_local {
+                    return Err("--no-local e invalido com filtro compartilhado".into());
+                }
+            }
+        }
+    }
     if protocol_version != ProtocolVersion::Mqtt5
         && (request_problem_info.is_some()
             || request_response_info.is_some()
@@ -2033,6 +2055,43 @@ mod tests {
             "2".into(),
         ]);
         assert!(parse(duplicate).is_err());
+    }
+
+    #[test]
+    fn shared_subscription_filter_requires_mqtt5_valid_group_and_no_local_disabled() {
+        let shared = "$share/workers/sensor/+";
+        let mut valid = base("sub");
+        valid.extend([
+            "--protocol-version".into(),
+            "5".into(),
+            "--topic".into(),
+            shared.into(),
+        ]);
+        let parsed = parse(valid.clone()).unwrap();
+        assert!(
+            matches!(parsed.mode, super::Mode::Sub { filters, .. } if filters.contains(&shared.to_owned()))
+        );
+        for filter in [
+            "$share//sensor",
+            "$share/+/sensor",
+            "$share/#/sensor",
+            "$share/workers/",
+            "$share/workers/sensor/#/bad",
+        ] {
+            let mut args = base("sub");
+            args.extend([
+                "--protocol-version".into(),
+                "5".into(),
+                "--topic".into(),
+                filter.into(),
+            ]);
+            assert!(parse(args).is_err(), "accepted {filter}");
+        }
+        let mut mqtt311 = base("sub");
+        mqtt311.extend(["--topic".into(), shared.into()]);
+        assert!(parse(mqtt311).is_err());
+        valid.push("--no-local".into());
+        assert!(parse(valid).is_err());
     }
 
     #[test]

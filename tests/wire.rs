@@ -1422,6 +1422,104 @@ fn mqtt5_subscription_identifier_is_refused_when_connack_disables_it() {
 }
 
 #[test]
+fn mqtt5_shared_subscription_filter_is_sent_and_receives_publication() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+        let (header, subscribe) = packet(&mut stream);
+        assert_eq!(header, 0x82);
+        assert!(
+            subscribe
+                .windows(b"$share/workers/t".len())
+                .any(|item| item == b"$share/workers/t")
+        );
+        stream
+            .write_all(&[0x90, 4, subscribe[0], subscribe[1], 0, 0])
+            .unwrap();
+        stream.write_all(&[0x30, 5, 0, 1, b't', 0, b'x']).unwrap();
+        let (header, unsubscribe) = packet(&mut stream);
+        assert_eq!(header, 0xa2);
+        assert!(
+            unsubscribe
+                .windows(b"$share/workers/t".len())
+                .any(|item| item == b"$share/workers/t")
+        );
+        stream
+            .write_all(&[0xb0, 4, unsubscribe[0], unsubscribe[1], 0, 0])
+            .unwrap();
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(
+        Command::new(env!("CARGO_BIN_EXE_mqtt-client"))
+            .args([
+                "sub",
+                "--open-lab",
+                "--protocol-version",
+                "5",
+                "--topic",
+                "$share/workers/t",
+                "--port",
+                &port.to_string(),
+                "--count",
+                "1",
+                "--output",
+                "jsonl",
+            ])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("\"topic\":\"t\""));
+}
+
+#[test]
+fn mqtt5_shared_subscription_is_refused_when_connack_disables_it() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        assert_eq!(packet(&mut stream).0, 0x10);
+        stream.write_all(&[0x20, 5, 0, 0, 2, 0x2a, 0]).unwrap();
+        let mut probe = [0];
+        assert_eq!(
+            stream.read(&mut probe).unwrap(),
+            0,
+            "client sent SUBSCRIBE despite CONNACK refusal"
+        );
+    });
+    let output = finish(
+        Command::new(env!("CARGO_BIN_EXE_mqtt-client"))
+            .args([
+                "sub",
+                "--open-lab",
+                "--protocol-version",
+                "5",
+                "--topic",
+                "$share/workers/t",
+                "--port",
+                &port.to_string(),
+            ])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    server.join().unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("shared subscriptions"));
+}
+
+#[test]
 fn mqtt5_publish_with_zero_subscription_identifier_is_rejected() {
     let listener = listener();
     let port = listener.local_addr().unwrap().port();

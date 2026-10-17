@@ -24,6 +24,22 @@ fn protocol_error(message: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
 
+fn check_subscription_features(
+    cli: &Cli,
+    identifiers_available: Option<u8>,
+    shared_available: Option<u8>,
+) -> AppResult<()> {
+    if cli.subscription_options.identifier.is_some() && identifiers_available == Some(0) {
+        return Err(protocol_error("broker nao oferece Subscription Identifier MQTT 5").into());
+    }
+    if matches!(&cli.mode, Mode::Sub { filters, .. } if filters.iter().any(|filter| filter.starts_with("$share/")))
+        && shared_available == Some(0)
+    {
+        return Err(protocol_error("broker nao oferece shared subscriptions MQTT 5").into());
+    }
+    Ok(())
+}
+
 fn connack_refusal(reason: ConnectReturnCode) -> io::Error {
     let code = match reason {
         ConnectReturnCode::Success => 0x00,
@@ -351,16 +367,15 @@ async fn run_inner(
                     )
                     .into());
                 }
-                if cli.subscription_options.identifier.is_some()
-                    && ack.properties.as_ref().is_some_and(|properties| {
-                        properties.subscription_identifiers_available == Some(0)
-                    })
-                {
-                    return Err(protocol_error(
-                        "broker nao oferece Subscription Identifier MQTT 5",
-                    )
-                    .into());
-                }
+                check_subscription_features(
+                    cli,
+                    ack.properties
+                        .as_ref()
+                        .and_then(|properties| properties.subscription_identifiers_available),
+                    ack.properties
+                        .as_ref()
+                        .and_then(|properties| properties.shared_subscription_available),
+                )?;
                 break ack
                     .properties
                     .as_ref()

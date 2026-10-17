@@ -1,8 +1,12 @@
 # Histórico de versões
 
+## Em desenvolvimento após 0.23.0
+
+- C89: `sub --protocol-version 5 --topic '$share/grupo/filtro'` valida grupo/filtro, recusa No Local e falha antes do SUBSCRIBE quando o CONNACK anuncia shared subscriptions indisponíveis. Integração externa com Mosquitto 2.0.22; broker XMQR 0.25.0 ainda não implementa o roteamento compartilhado.
+
 ## 0.23.0 — Subscription Identifier MQTT 5 (experimental)
 
-- C87: `sub --protocol-version 5 --subscription-identifier N` envia propriedade MQTT 5 0x0B para todos os filtros do SUBSCRIBE, após validar 1..268435455 e o anúncio no CONNACK. JSONL preserva a lista de IDs do PUBLISH, inclusive duplicatas; ID zero recebido é recusado. Mosquitto 2.0.22 foi validado para filtros simples e sobrepostos. Broker XMQR ainda aguarda P150.
+- C87: `sub --protocol-version 5 --subscription-identifier N` envia propriedade MQTT 5 0x0B para todos os filtros do SUBSCRIBE, após validar 1..268435455 e o anúncio no CONNACK. JSONL preserva a lista de IDs do PUBLISH, inclusive duplicatas; ID zero recebido é recusado. Mosquitto 2.0.22 foi validado para filtros simples e sobrepostos. Broker XMQR implementa P150 desde 0.25.0.
 
 ## 0.22.0 — opções de assinatura e Topic Alias (experimental)
 
