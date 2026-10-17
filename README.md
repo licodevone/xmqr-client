@@ -1,22 +1,22 @@
 # xmqr-client
 
-A árvore após 0.24.0 inclui C92: `--reauth-before-io` combinado com
+O candidato experimental 0.25.0 inclui C92: `--reauth-before-io` combinado com
 `--protocol-version 5 --auth-method plain` solicita reautenticação `PLAIN`
 após o CONNACK sobre TLS e espera AUTH de sucesso antes de pub/sub. A opção
 é explícita; por padrão não há AUTH adicional. O client usa uma cópia local
 identificada de `rumqttc` 0.25.1 para expor AUTH na mesma conexão e corrigir
 o enquadramento desse pacote; [patches e licença](vendor/rumqttc-0.25.1/XMQR-PATCHES.md).
 Não há reautenticação periódica nem rotação de senha durante a sessão nesta
-fatia. O broker P160 da árvore posterior a 0.27.0 é o par testado; as tags
-publicadas anteriores não incluem C92/P160.
-[Prompt C92](prompts/clients/92-plain-reauth-mqtt5.md).
+fatia. O broker candidato 0.28.0/P160 é o par testado; tags publicadas
+anteriores não incluem C92/P160. [Nota 0.25.0](docs/releases/0.25.0.md) e
+[prompt C93](prompts/clients/93-release-0.25.0.md).
 
-A árvore após 0.24.0 inclui C91: `mqtt-client pub|sub --protocol-version 5
+O mesmo candidato inclui C91: `mqtt-client pub|sub --protocol-version 5
 --auth-method plain --tls-password --ca CA.crt --username USUARIO` usa
 autenticação inicial SASL PLAIN sobre TLS, com senha lida de arquivo privado
 (`--password-file`) ou prompt. O client exige que o CONNACK confirme `PLAIN`;
-o modo convencional continua padrão. Esta mudança ainda não tem release e
-não implementa troca AUTH posterior ou reautenticação.
+o modo convencional continua padrão. Troca AUTH posterior é implementada
+somente pela opção explícita C92 acima.
 [Prompt C91](prompts/clients/91-enhanced-plain-connect-mqtt5.md).
 
 A versão experimental 0.24.0 inclui C89: valida filtros compartilhados MQTT 5 no
