@@ -1,3 +1,3 @@
 # C90 — marco client 0.24.0
 
-- [Prompt C90](../clients/90-release-0.24.0.md) preparado antes da atualização de versão. Gates e distribuição pendentes.
+- [Prompt C90](../clients/90-release-0.24.0.md) commitado antes da atualização de versão (`59e4abc`). Cargo/lock, Dockerfile, changelog, README e [nota](../../docs/releases/0.24.0.md) preparados para 0.24.0. Fonte local: 62 testes CLI e 64 wire PASS; fmt, Clippy, build release, inventário de licenças e sete contratos de distribuição PASS. Client 0.24.0 contra broker P154/estado v13 em TCP descartável: `P154_C89_PASS`; Mosquitto 2.0.22 já validado em C89. CI do commit exato, pacote, imagem, tag e prerelease pendentes. Fases 6A–6D e 7–9 abertas, sem alegação de MQTT5 integral.

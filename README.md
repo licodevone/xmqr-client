@@ -1,10 +1,10 @@
 # xmqr-client
 
-Em desenvolvimento após 0.23.0, C89 valida filtros compartilhados MQTT 5 no
+A versão experimental 0.24.0 inclui C89: valida filtros compartilhados MQTT 5 no
 formato `$share/grupo/filtro` e o anúncio de disponibilidade no CONNACK. O
 broker XMQR 0.25.0 ainda não distribui mensagens entre membros do grupo. Na
 árvore posterior à release, P153 passou no CI com distribuição entre sessões
-temporárias ativas; persistência do grupo ainda está em desenvolvimento.
+temporárias ativas; P154 acrescenta estado persistente v13 após seus gates.
 Mosquitto 2.0.22 também foi validado em C89.
 
 A versão experimental 0.23.0 reúne C87: permite `sub --protocol-version 5

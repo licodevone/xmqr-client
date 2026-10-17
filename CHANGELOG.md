@@ -1,8 +1,8 @@
 # Histórico de versões
 
-## Em desenvolvimento após 0.23.0
+## 0.24.0 — shared subscriptions MQTT 5 (experimental)
 
-- C89: `sub --protocol-version 5 --topic '$share/grupo/filtro'` valida grupo/filtro, recusa No Local e falha antes do SUBSCRIBE quando o CONNACK anuncia shared subscriptions indisponíveis. Integração externa com Mosquitto 2.0.22; broker XMQR 0.25.0 ainda não implementa o roteamento compartilhado.
+- C89: `sub --protocol-version 5 --topic '$share/grupo/filtro'` valida grupo/filtro, recusa No Local e falha antes do SUBSCRIBE quando o CONNACK anuncia shared subscriptions indisponíveis. Integração externa com Mosquitto 2.0.22 e broker XMQR após P153/P154; broker 0.25.0 publicado ainda não implementa o roteamento compartilhado.
 
 ## 0.23.0 — Subscription Identifier MQTT 5 (experimental)
 
