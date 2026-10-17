@@ -1,8 +1,9 @@
 # xmqr-client
 
-A fonte 0.22.0 candidata reúne Topic Alias compacto e opções No Local,
-Retain As Published e Retain Handling no assinante MQTT 5. A última versão
-publicada ainda é 0.21.0; o marco 0.22.0 depende dos gates [C86](prompts/registros/C86-release-0.22.0.md).
+A versão experimental 0.22.0 reúne Topic Alias compacto e opções No Local,
+Retain As Published e Retain Handling no assinante MQTT 5. Pacotes e imagem
+numerada estão na [release 0.22.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.22.0);
+[C86](prompts/registros/C86-release-0.22.0.md) registra os gates.
 
 No marco experimental 0.21.0, C80 exibe propriedades PUBLISH MQTT 5 recebidas
 em `sub --output jsonl` e C81 permite `pub --protocol-version 5 --repeat` em
