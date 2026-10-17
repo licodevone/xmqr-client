@@ -7,7 +7,7 @@ antes de conectar. `sub` ainda mostra tópico e payload sem esses metadados.
 Em C78, `pub --protocol-version 5` aceita `--response-topic reply/t`,
 `--correlation-data-hex 00ff07` e `--publish-user-property trace=one` repetível
 (até 16 pares e 2048 bytes codificados). A validação ocorre antes da conexão;
-o assinante ainda não exibe esses metadados. C78 aguarda CI e aceite final.
+o assinante ainda não exibe esses metadados. C78 passou CI; a fase 6C global segue aberta.
 
 No marco experimental 0.19.0, `mqtt-client sub --protocol-version 5
 --topic-alias-maximum 1` anuncia que aceita um Topic Alias por conexão.
