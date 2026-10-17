@@ -1,6 +1,6 @@
 # Histórico de versões
 
-## 0.23.0 — Subscription Identifier MQTT 5 (candidato experimental)
+## 0.23.0 — Subscription Identifier MQTT 5 (experimental)
 
 - C87: `sub --protocol-version 5 --subscription-identifier N` envia propriedade MQTT 5 0x0B para todos os filtros do SUBSCRIBE, após validar 1..268435455 e o anúncio no CONNACK. JSONL preserva a lista de IDs do PUBLISH, inclusive duplicatas; ID zero recebido é recusado. Mosquitto 2.0.22 foi validado para filtros simples e sobrepostos. Broker XMQR ainda aguarda P150.
 

@@ -1,6 +1,6 @@
 # xmqr-client
 
-O candidato 0.23.0 reúne C87: permite `sub --protocol-version 5
+A versão experimental 0.23.0 reúne C87: permite `sub --protocol-version 5
 --subscription-identifier 1..268435455` e exibe
 `metadata.subscription_identifiers` em JSONL, inclusive IDs repetidos. O
 client recusa o recurso quando o CONNACK anuncia indisponibilidade. O broker
