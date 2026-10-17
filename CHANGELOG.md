@@ -1,8 +1,11 @@
 # Histórico de versões
 
-## Em desenvolvimento após 0.19.0
+## Em desenvolvimento após 0.20.0
+
+## 0.20.0 — metadados de publicação MQTT 5, experimental
 
 - C77: `pub --protocol-version 5 --payload-format 0|1 --content-type TEXTO` envia as propriedades MQTT 5 junto com Message Expiry opcional. `--payload-format 1` exige payload UTF-8 antes de abrir conexão. A saída de `sub` ainda não exibe essas propriedades.
+- C78: `pub --protocol-version 5` aceita Response Topic, Correlation Data hexadecimal e User Property repetível; valida antes da rede, preserva ordem e nomes repetidos. O assinante ainda não exibe metadados.
 
 ## 0.19.0 — recepção de Topic Alias MQTT 5, experimental
 
