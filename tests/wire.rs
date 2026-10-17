@@ -890,6 +890,83 @@ fn mqtt5_connect_will_delay_property_wire() {
 }
 
 #[test]
+fn mqtt5_connect_will_metadata_wire_preserves_user_property_order() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x10);
+        let properties = [
+            0x18, 0, 0, 0, 2, 0x01, 1, 0x03, 0, 4, b't', b'e', b'x', b't', 0x08, 0, 5, b'r', b'e',
+            b'p', b'l', b'y', 0x09, 0, 2, 0, 0xaf, 0x26, 0, 1, b'a', 0, 1, b'1', 0x26, 0, 1, b'a',
+            0, 1, b'2',
+        ];
+        let offset = body
+            .iter()
+            .position(|&b| b == u8::try_from(properties.len()).unwrap())
+            .unwrap();
+        assert_eq!(&body[offset + 1..offset + 1 + properties.len()], properties);
+        stream
+            .write_all(&[0x20, 8, 0, 0, 5, 0x27, 0, 1, 0, 0])
+            .unwrap();
+        assert_eq!(packet(&mut stream).0, 0x82);
+        stream.write_all(&[0x90, 4, 0, 1, 0, 0]).unwrap();
+        let body = b"\x00\x01t\x00hello";
+        stream
+            .write_all(&[0x30, u8::try_from(body.len()).unwrap()])
+            .unwrap();
+        stream.write_all(body).unwrap();
+        let (header, unsubscribe) = packet(&mut stream);
+        assert_eq!(header, 0xa2);
+        stream
+            .write_all(&[0xb0, 4, unsubscribe[0], unsubscribe[1], 0, 0])
+            .unwrap();
+        assert_eq!(packet(&mut stream), (0xe0, vec![]));
+    });
+    let output = finish(child(
+        port,
+        "sub",
+        &[
+            "--protocol-version",
+            "5",
+            "--session-expiry-seconds",
+            "never",
+            "--will-topic",
+            "last",
+            "--will-message",
+            "bye",
+            "--will-delay-seconds",
+            "2",
+            "--will-payload-format",
+            "1",
+            "--will-qos",
+            "1",
+            "--will-retain",
+            "true",
+            "--will-content-type",
+            "text",
+            "--will-response-topic",
+            "reply",
+            "--will-correlation-data-hex",
+            "00af",
+            "--will-user-property",
+            "a=1",
+            "--will-user-property",
+            "a=2",
+            "--count",
+            "1",
+        ],
+    ));
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
 fn mqtt5_connect_informational_properties_have_versioned_wire() {
     let listener = listener();
     let port = listener.local_addr().unwrap().port();

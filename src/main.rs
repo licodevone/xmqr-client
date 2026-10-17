@@ -13,11 +13,12 @@ async fn main() {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     if arguments.len() == 1 && matches!(arguments[0].as_str(), "--help" | "-h") {
         print!(
-            "{}{}{}{}",
+            "{}{}{}{}{}",
             cli::USAGE,
             cli::V5_CONNECT_USAGE,
             cli::V5_PUBLISH_USAGE,
-            cli::AUTH_USAGE
+            cli::AUTH_USAGE,
+            cli::V5_WILL_USAGE
         );
         return;
     }
@@ -30,11 +31,12 @@ async fn main() {
         Ok(cli) => cli,
         Err(message) => {
             eprintln!(
-                "Erro: {message}\n\n{}{}{}{}",
+                "Erro: {message}\n\n{}{}{}{}{}",
                 cli::USAGE,
                 cli::V5_CONNECT_USAGE,
                 cli::V5_PUBLISH_USAGE,
-                cli::AUTH_USAGE
+                cli::AUTH_USAGE,
+                cli::V5_WILL_USAGE
             );
             std::process::exit(2);
         }

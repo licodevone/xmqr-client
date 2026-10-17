@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## Em desenvolvimento após 0.25.0
+
+- C94: opções explícitas para Payload Format Indicator, Content Type, Response Topic, Correlation Data hexadecimal e User Property repetida no Will MQTT 5; validação antes da rede, ordem dos pares preservada e combinação com Will Delay. Sem Message Expiry do Will.
+
 ## 0.25.0 — SASL PLAIN e reautenticação explícita MQTT 5 (experimental)
 
 - C92: `--reauth-before-io` em MQTT 5 PLAIN/TLS envia AUTH `0x19`, aguarda AUTH `0x00` com o mesmo método e só então publica ou assina. Timeout, método divergente e resposta inválida encerram sem expor senha. Patch local de `rumqttc` 0.25.1 documentado em `vendor/rumqttc-0.25.1/XMQR-PATCHES.md`; reautenticação periódica continua ausente.

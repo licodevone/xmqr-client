@@ -1,5 +1,14 @@
 # xmqr-client
 
+Na árvore após 0.25.0, C94 permite combinar `--will-payload-format 0|1`,
+`--will-content-type TEXTO`, `--will-response-topic TOPICO`,
+`--will-correlation-data-hex HEX` e `--will-user-property CHAVE=VALOR`
+repetível com Will MQTT 5 e `--will-delay-seconds`. O client valida limites e
+valores antes de conectar, mantém a ordem dos pares e não interpreta as opções
+de PUBLISH como opções do Will. O broker P163 é o par de desenvolvimento;
+nenhuma dessas opções faz parte da release 0.25.0. Message Expiry do Will
+continua pendente. [Prompt C94](prompts/clients/94-will-metadata-mqtt5.md).
+
 A versão experimental publicada 0.25.0 inclui C92: `--reauth-before-io` combinado com
 `--protocol-version 5 --auth-method plain` solicita reautenticação `PLAIN`
 após o CONNACK sobre TLS e espera AUTH de sucesso antes de pub/sub. A opção

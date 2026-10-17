@@ -268,14 +268,20 @@ fn configure_options(cli: &Cli, password: Option<&str>) -> AppResult<MqttOptions
             QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
             QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
         };
-        let properties = will.delay_seconds.map(|seconds| LastWillProperties {
-            delay_interval: Some(seconds),
-            payload_format_indicator: None,
+        let has_properties = will.delay_seconds.is_some()
+            || will.payload_format_indicator.is_some()
+            || will.content_type.is_some()
+            || will.response_topic.is_some()
+            || will.correlation_data.is_some()
+            || !will.user_properties.is_empty();
+        let properties = has_properties.then(|| LastWillProperties {
+            delay_interval: will.delay_seconds,
+            payload_format_indicator: will.payload_format_indicator,
             message_expiry_interval: None,
-            content_type: None,
-            response_topic: None,
-            correlation_data: None,
-            user_properties: Vec::new(),
+            content_type: will.content_type.clone(),
+            response_topic: will.response_topic.clone(),
+            correlation_data: will.correlation_data.clone().map(Into::into),
+            user_properties: will.user_properties.clone(),
         });
         options.set_last_will(LastWill::new(
             will.topic.clone(),

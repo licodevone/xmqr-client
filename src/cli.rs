@@ -74,6 +74,11 @@ pub struct Will {
     pub qos: QoS,
     pub retain: bool,
     pub delay_seconds: Option<u32>,
+    pub payload_format_indicator: Option<u8>,
+    pub content_type: Option<String>,
+    pub response_topic: Option<String>,
+    pub correlation_data: Option<Vec<u8>>,
+    pub user_properties: Vec<(String, String)>,
 }
 
 #[derive(Debug)]
@@ -136,6 +141,7 @@ pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --
 
 pub const V5_PUBLISH_USAGE: &str = "MQTT 5 PUBLISH adicional: --response-topic TOPICO (sem curingas), --correlation-data-hex HEX (ate 256 bytes), --publish-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes), --publish-topic-alias 1..16 (pub repetido; exige broker anunciar suporte).\n";
 pub const AUTH_USAGE: &str = "Autenticacao MQTT 5: --auth-method plain (somente TLS, com --protocol-version 5; senha por arquivo privado ou prompt). --reauth-before-io confirma AUTH PLAIN apos CONNACK e antes de pub/sub; reautenticacao periodica ainda indisponivel.\n";
+pub const V5_WILL_USAGE: &str = "MQTT 5 Will: --will-payload-format 0|1, --will-content-type TEXTO (ate 256 bytes), --will-response-topic TOPICO (sem curingas), --will-correlation-data-hex HEX (ate 256 bytes), --will-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes). Exige --will-topic, mensagem Will e --protocol-version 5.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -153,6 +159,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut request_response_info = None;
     let mut raw_connect_user_properties = Vec::new();
     let mut raw_publish_user_properties = Vec::new();
+    let mut raw_will_user_properties = Vec::new();
     let mut retained_filter = None;
     let mut reconnect_attempts = None;
     let mut repeat = None;
@@ -200,6 +207,10 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut will_qos = None;
     let mut will_retain = None;
     let mut will_delay = None;
+    let mut will_payload_format = None;
+    let mut will_content_type = None;
+    let mut will_response_topic = None;
+    let mut will_correlation_data_hex = None;
 
     while let Some(flag) = args.next() {
         if flag == "--reauth-before-io" {
@@ -284,6 +295,10 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             raw_publish_user_properties.push(value);
             continue;
         }
+        if flag == "--will-user-property" {
+            raw_will_user_properties.push(value);
+            continue;
+        }
         let slot = match flag.as_str() {
             "--protocol-version" => &mut protocol_version,
             "--auth-method" => &mut auth_method,
@@ -313,6 +328,10 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             "--will-qos" => &mut will_qos,
             "--will-retain" => &mut will_retain,
             "--will-delay-seconds" => &mut will_delay,
+            "--will-payload-format" => &mut will_payload_format,
+            "--will-content-type" => &mut will_content_type,
+            "--will-response-topic" => &mut will_response_topic,
+            "--will-correlation-data-hex" => &mut will_correlation_data_hex,
             "--message-file" => &mut message_file,
             "--message" => &mut message,
             "--count" => &mut count,
@@ -756,6 +775,79 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                 .map_err(|_| "--will-delay-seconds deve ser 0..4294967295".to_owned())
         })
         .transpose()?;
+    if (will_payload_format.is_some()
+        || will_content_type.is_some()
+        || will_response_topic.is_some()
+        || will_correlation_data_hex.is_some()
+        || !raw_will_user_properties.is_empty())
+        && protocol_version != ProtocolVersion::Mqtt5
+    {
+        return Err("propriedades Will exigem --protocol-version 5".into());
+    }
+    let will_payload_format = will_payload_format
+        .map(|raw| match raw.as_str() {
+            "0" => Ok(0),
+            "1" => Ok(1),
+            _ => Err("--will-payload-format deve ser 0 ou 1".to_owned()),
+        })
+        .transpose()?;
+    if will_content_type
+        .as_ref()
+        .is_some_and(|value| value.len() > 256 || !valid_mqtt5_property_text(value))
+    {
+        return Err(
+            "--will-content-type contem texto MQTT 5 invalido ou acima de 256 bytes".into(),
+        );
+    }
+    if will_response_topic.as_ref().is_some_and(|value| {
+        value.is_empty()
+            || value.len() > MAX_TOPIC_BYTES
+            || value.contains(['+', '#'])
+            || !valid_mqtt5_property_text(value)
+    }) {
+        return Err("--will-response-topic exige topico MQTT 5 valido sem curingas".into());
+    }
+    let will_correlation_data = will_correlation_data_hex
+        .map(|raw: String| {
+            if raw.len() > 512 || !raw.len().is_multiple_of(2) || !raw.is_ascii() {
+                return Err(
+                    "--will-correlation-data-hex exige ate 256 bytes em hexadecimal".to_owned(),
+                );
+            }
+            raw.as_bytes()
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|pair| {
+                    let hex = std::str::from_utf8(pair).expect("ASCII verificado");
+                    u8::from_str_radix(hex, 16).map_err(|_| {
+                        "--will-correlation-data-hex exige bytes em hexadecimal".to_owned()
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()?;
+    let mut will_user_properties = Vec::new();
+    let mut will_property_bytes = 0_usize;
+    for raw in raw_will_user_properties {
+        let (key, value) = raw
+            .split_once('=')
+            .ok_or("--will-user-property exige CHAVE=VALOR")?;
+        if key.len() > 256
+            || value.len() > 256
+            || !valid_mqtt5_property_text(key)
+            || !valid_mqtt5_property_text(value)
+        {
+            return Err("--will-user-property contem texto MQTT 5 invalido".into());
+        }
+        will_property_bytes = will_property_bytes
+            .checked_add(5 + key.len() + value.len())
+            .ok_or("propriedades Will excedem 2048 bytes")?;
+        if will_user_properties.len() >= 16 || will_property_bytes > 2048 {
+            return Err("propriedades Will excedem limite de 16 pares ou 2048 bytes".into());
+        }
+        will_user_properties.push((key.to_owned(), value.to_owned()));
+    }
     let will = match (will_topic, will_message, will_message_file) {
         (Some(topic), Some(message), None) | (Some(topic), None, Some(message)) => {
             if topic.is_empty()
@@ -774,6 +866,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                 }
                 message.into_bytes()
             };
+            if will_payload_format == Some(1) && std::str::from_utf8(&message).is_err() {
+                return Err("--will-payload-format 1 exige payload UTF-8 valido".into());
+            }
             let qos = match will_qos.as_deref().unwrap_or("0") {
                 "0" => QoS::AtMostOnce,
                 "1" => QoS::AtLeastOnce,
@@ -787,10 +882,22 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
                 qos,
                 retain,
                 delay_seconds: will_delay,
+                payload_format_indicator: will_payload_format,
+                content_type: will_content_type,
+                response_topic: will_response_topic,
+                correlation_data: will_correlation_data,
+                user_properties: will_user_properties,
             })
         }
         (None, None, None)
-            if will_qos.is_none() && will_retain.is_none() && will_delay.is_none() =>
+            if will_qos.is_none()
+                && will_retain.is_none()
+                && will_delay.is_none()
+                && will_payload_format.is_none()
+                && will_content_type.is_none()
+                && will_response_topic.is_none()
+                && will_correlation_data.is_none()
+                && will_user_properties.is_empty() =>
         {
             None
         }
@@ -1103,6 +1210,103 @@ fn subscribe_packet_size(filters: &[String]) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn mqtt5_will_metadata_is_scoped_bounded_and_ordered() {
+        use super::parse;
+        let base = [
+            "pub",
+            "--open-lab",
+            "--topic",
+            "t",
+            "--message",
+            "x",
+            "--protocol-version",
+            "5",
+            "--will-topic",
+            "last",
+            "--will-message",
+            "bye",
+        ];
+        let args = |extra: &[&str]| {
+            base.iter()
+                .chain(extra)
+                .map(|s| (*s).to_owned())
+                .collect::<Vec<_>>()
+        };
+        let cli = parse(args(&[
+            "--will-payload-format",
+            "1",
+            "--will-content-type",
+            "text/plain",
+            "--will-response-topic",
+            "reply/t",
+            "--will-correlation-data-hex",
+            "00aF",
+            "--will-user-property",
+            "a=1",
+            "--will-user-property",
+            "a=2",
+            "--will-delay-seconds",
+            "2",
+        ]))
+        .unwrap();
+        let will = cli.will.unwrap();
+        assert_eq!(will.payload_format_indicator, Some(1));
+        assert_eq!(will.content_type.as_deref(), Some("text/plain"));
+        assert_eq!(will.response_topic.as_deref(), Some("reply/t"));
+        assert_eq!(will.correlation_data.as_deref(), Some(&[0, 0xaf][..]));
+        assert_eq!(
+            will.user_properties,
+            [("a".into(), "1".into()), ("a".into(), "2".into())]
+        );
+        assert_eq!(will.delay_seconds, Some(2));
+        for extra in [
+            vec!["--will-payload-format", "2"],
+            vec!["--will-payload-format", "1", "--will-payload-format", "0"],
+            vec!["--will-response-topic", "bad/+"],
+            vec!["--will-content-type", "bad\0type"],
+            vec!["--will-correlation-data-hex", "a"],
+            vec!["--will-correlation-data-hex", "xy"],
+            vec!["--will-user-property", "missing-equals"],
+            vec!["--will-user-property", "x=bad\0value"],
+        ] {
+            assert!(parse(args(&extra)).is_err(), "{extra:?}");
+        }
+        let no_will = vec![
+            "pub",
+            "--open-lab",
+            "--topic",
+            "t",
+            "--message",
+            "x",
+            "--protocol-version",
+            "5",
+            "--will-content-type",
+            "text/plain",
+        ];
+        assert!(parse(no_will.into_iter().map(str::to_owned)).is_err());
+        let legacy = vec![
+            "pub",
+            "--open-lab",
+            "--topic",
+            "t",
+            "--message",
+            "x",
+            "--will-topic",
+            "last",
+            "--will-message",
+            "bye",
+            "--will-content-type",
+            "text/plain",
+        ];
+        assert!(parse(legacy.into_iter().map(str::to_owned)).is_err());
+        let mut too_many = args(&[]);
+        for _ in 0..17 {
+            too_many.extend(["--will-user-property".into(), "a=b".into()]);
+        }
+        assert!(parse(too_many).is_err());
+    }
+
     #[test]
     fn mqtt5_will_delay_requires_will_and_version_five() {
         use super::parse;
