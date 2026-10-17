@@ -104,7 +104,7 @@ pub struct Cli {
 
 pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\nTLS com senha, sem certificado de cliente:\n  mqtt-client pub|sub --tls-password --topic TOPICO --username USUARIO --ca CA.crt [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO | --will-message-file PATH [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --protocol-version 3.1.1|5 (padrao 3.1.1; MQTT5 inicial pub/sub QoS0/1/2), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl|hex|raw (hex/raw apenas sub; raw exige --count 1), --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --repeat 1..1000 --repeat-interval-ms 1..60000 (pub, fonte unica), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --exclude-topic FILTRO (sub, repetivel), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
-pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --session-expiry-seconds 0|never, --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes). Nao inclua segredos em argumentos.\n";
+pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --clean-start true|false, --session-expiry-seconds 0..4294967294|never, --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes). Nao inclua segredos em argumentos.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -371,9 +371,12 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         SessionStart::Resume
     };
     let session_expiry = match session_expiry.as_deref().unwrap_or("0") {
-        "0" => 0,
         "never" => u32::MAX,
-        _ => return Err("--session-expiry-seconds deve ser 0 ou never".into()),
+        raw => raw
+            .parse::<u32>()
+            .ok()
+            .filter(|value| *value != u32::MAX)
+            .ok_or("--session-expiry-seconds deve ser 0..4294967294 ou never")?,
     };
 
     let transport_mode = transport_mode.unwrap_or(TransportMode::Secure);
@@ -892,13 +895,47 @@ mod tests {
         .unwrap();
         assert_eq!(persistent.clean_start, super::SessionStart::Resume);
         assert_eq!(persistent.session_expiry, u32::MAX);
+        assert_eq!(
+            parse(arguments(&[
+                "--protocol-version",
+                "5",
+                "--session-expiry-seconds",
+                "1"
+            ]))
+            .unwrap()
+            .session_expiry,
+            1
+        );
+        assert_eq!(
+            parse(arguments(&[
+                "--protocol-version",
+                "5",
+                "--session-expiry-seconds",
+                "4294967294"
+            ]))
+            .unwrap()
+            .session_expiry,
+            u32::MAX - 1
+        );
         for extra in [
             vec!["--protocol-version", "6"],
             vec!["--protocol-version", "5", "--clean-session", "false"],
             vec!["--protocol-version", "5", "--reconnect-attempts", "1"],
             vec!["--clean-start", "false"],
             vec!["--session-expiry-seconds", "never"],
-            vec!["--protocol-version", "5", "--session-expiry-seconds", "5"],
+            vec![
+                "--protocol-version",
+                "5",
+                "--session-expiry-seconds",
+                "4294967296",
+            ],
+            vec![
+                "--protocol-version",
+                "5",
+                "--session-expiry-seconds",
+                "4294967295",
+            ],
+            vec!["--protocol-version", "5", "--session-expiry-seconds", "-1"],
             vec!["--protocol-version", "5", "--clean-start", "yes"],
             vec![
                 "--protocol-version",

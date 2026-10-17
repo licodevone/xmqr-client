@@ -25,7 +25,8 @@ opções. O broker P123 valida os pares, sem armazená-los ou devolvê-los.
 Em C66, `--clean-start true|false` e `--session-expiry-seconds 0|never`
 permitem criar ou retomar uma sessão MQTT 5 com o broker P127. A expiração
 `never` mantém assinaturas e entregas QoS pendentes após desconexão/reinício;
-`0` remove a sessão ao desconectar. Intervalos finitos ainda não são aceitos.
+`0` remove a sessão ao desconectar. Em C67, valores finitos de 1 a 4294967294
+segundos também são aceitos e enviados ao broker P128.
 Use um `--client-id` estável para retomar. `--clean-session` permanece exclusivo
 de MQTT 3.1.1. Um novo processo do client não restaura os próprios fluxos QoS
 em andamento, por isso esta opção não promete retomada completa do lado client.
