@@ -1,6 +1,12 @@
 # xmqr-client
 
-A árvore após 0.26.0 acrescenta C99: para criar uma sessão durável com ID
+O candidato 0.27.0 distribui C97–C99: peça um ID ao broker MQTT 5, guarde o
+valor mostrado em stderr e reconecte manualmente com `--client-id ID
+--clean-start false`. Para preservar a sessão no broker, defina
+`--session-expiry-seconds 60` na criação e na reconexão. A CLI não guarda seu
+estado QoS local. [Nota do candidato](docs/releases/0.27.0.md).
+
+A versão 0.27.0 acrescenta C99: para criar uma sessão durável com ID
 atribuído pelo broker, use `--protocol-version 5 --server-assigned-client-id
 --session-expiry-seconds 60` na primeira conexão (Clean Start verdadeiro).
 Guarde o ID mostrado em stderr e, antes de vencer o prazo, reconecte com
