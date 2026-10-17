@@ -18,6 +18,7 @@ jobs:
       - run: cargo test --locked
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo build --locked
+      - run: python3 scripts/verify_subscription_user_properties_mqtt5.py
       - run: python3 scripts/license_inventory.py --check
 
   ubuntu-package:

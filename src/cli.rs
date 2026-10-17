@@ -127,6 +127,8 @@ pub struct Cli {
     pub response_topic: Option<String>,
     pub correlation_data: Option<Vec<u8>>,
     pub publish_user_properties: Vec<(String, String)>,
+    pub subscribe_user_properties: Vec<(String, String)>,
+    pub unsubscribe_user_properties: Vec<(String, String)>,
     pub receive_maximum: Option<u16>,
     pub maximum_packet_size: Option<u32>,
     pub topic_alias_maximum: Option<u16>,
@@ -145,7 +147,7 @@ pub struct SubscriptionOptions {
 
 pub const USAGE: &str = "Uso seguro (padrao):\n  mqtt-client pub --topic TOPICO --message TEXTO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client sub --topic FILTRO --username USUARIO --ca CA.crt --cert client.crt --key client.key [opcoes]\n  mqtt-client pub|sub --profile PERFIL.toml [opcoes]\nTLS com senha, sem certificado de cliente:\n  mqtt-client pub|sub --tls-password --topic TOPICO --username USUARIO --ca CA.crt [opcoes]\n\nLaboratorio aberto:\n  mqtt-client pub|sub --open-lab --topic TOPICO [opcoes]\nLaboratorio com senha em texto claro:\n  mqtt-client pub|sub --plain-auth-lab --topic TOPICO --username USUARIO [opcoes]\n\nWill: --will-topic TOPICO --will-message TEXTO | --will-message-file PATH [--will-qos 0|1|2] [--will-retain true|false].\nOpcoes: --version (sozinho), --protocol-version 3.1.1|5 (padrao 3.1.1; MQTT5 inicial pub/sub QoS0/1/2), --message-file PATH | --stdin (pub, alternativos a --message), --line-mode (arquivo/stdin, LF/CRLF por mensagem), --output text|jsonl|hex|raw (hex/raw apenas sub; raw exige --count 1), --reconnect-attempts 0..10 (padrao 0; sub e conexao inicial pub), --keepalive-seconds 1..65535 (padrao 30), --timeout-seconds 1..300 (padrao 8; protocolo, nao espera de mensagens), --total-timeout-seconds 1..86400 (opcional; sessao apos payload inicial/senha, inclusive backoff), --message TEXTO (pub), --repeat 1..1000 --repeat-interval-ms 1..60000 (pub, fonte unica), --count N (sub, mensagens exibidas), --ignore-retained | --retained-only (sub), --exclude-topic FILTRO (sub, repetivel), --host 127.0.0.1, --port 1883, --qos 0|1|2, --retain true|false, --clean-session true|false, --client-id ID.\nSem --password-file, os modos autenticados solicitam a senha sem exibi-la. Nunca informe senha na linha de comando.\nOs modos de laboratorio aceitam somente loopback. --plain-auth-lab envia usuario e senha sem criptografia. Nunca use fora de aula local.\n";
 
-pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --server-assigned-client-id (ID vazio, Clean Start verdadeiro; ID atribuido em stderr), --clean-start true|false, --session-expiry-seconds 0..4294967294|never, --receive-maximum 1..65535 (somente sub), --maximum-packet-size 5..65536 (somente sub), --topic-alias-maximum 0..16 (somente sub), --retain-handling 0|1|2, --no-local, --retain-as-published, --subscription-identifier 1..268435455 (somente sub), --topic '$share/grupo/filtro' (somente sub MQTT 5; sem --no-local), --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes), --will-delay-seconds 0..4294967295 (exige Will). PUBLISH: --message-expiry-seconds 0..4294967295, --payload-format 0|1, --content-type TEXTO (ate 256 bytes; somente pub MQTT 5). Nao inclua segredos em argumentos.\n";
+pub const V5_CONNECT_USAGE: &str = "MQTT 5 CONNECT: --server-assigned-client-id (ID vazio, Clean Start verdadeiro; ID atribuido em stderr), --clean-start true|false, --session-expiry-seconds 0..4294967294|never, --receive-maximum 1..65535 (somente sub), --maximum-packet-size 5..65536 (somente sub), --topic-alias-maximum 0..16 (somente sub), --retain-handling 0|1|2, --no-local, --retain-as-published, --subscription-identifier 1..268435455 (somente sub), --subscribe-user-property CHAVE=VALOR e --unsubscribe-user-property CHAVE=VALOR (sub MQTT 5, repetiveis; 16 pares/2048 bytes por contexto), --topic '$share/grupo/filtro' (somente sub MQTT 5; sem --no-local), --request-problem-info 0|1, --request-response-info 0|1, --connect-user-property CHAVE=VALOR (repetivel; ate 4096 bytes), --will-delay-seconds 0..4294967295 (exige Will). PUBLISH: --message-expiry-seconds 0..4294967295, --payload-format 0|1, --content-type TEXTO (ate 256 bytes; somente pub MQTT 5). Nao inclua segredos em argumentos.\n";
 
 pub const V5_PUBLISH_USAGE: &str = "MQTT 5 PUBLISH adicional: --response-topic TOPICO (sem curingas), --correlation-data-hex HEX (ate 256 bytes), --publish-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes), --publish-topic-alias 1..16 (pub repetido; exige broker anunciar suporte).\n";
 pub const AUTH_USAGE: &str = "Autenticacao MQTT 5: --auth-method plain (somente TLS, com --protocol-version 5; senha por arquivo privado ou prompt). --reauth-before-io confirma AUTH PLAIN apos CONNACK e antes de pub/sub; reautenticacao periodica ainda indisponivel.\n";
@@ -167,6 +169,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut request_response_info = None;
     let mut raw_connect_user_properties = Vec::new();
     let mut raw_publish_user_properties = Vec::new();
+    let mut raw_subscribe_user_properties = Vec::new();
+    let mut raw_unsubscribe_user_properties = Vec::new();
     let mut raw_will_user_properties = Vec::new();
     let mut retained_filter = None;
     let mut reconnect_attempts = None;
@@ -309,6 +313,14 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         }
         if flag == "--publish-user-property" {
             raw_publish_user_properties.push(value);
+            continue;
+        }
+        if flag == "--subscribe-user-property" {
+            raw_subscribe_user_properties.push(value);
+            continue;
+        }
+        if flag == "--unsubscribe-user-property" {
+            raw_unsubscribe_user_properties.push(value);
             continue;
         }
         if flag == "--will-user-property" {
@@ -531,6 +543,23 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             return Err("propriedades PUBLISH excedem limite de 16 pares ou 2048 bytes".into());
         }
         publish_user_properties.push((key.to_owned(), value.to_owned()));
+    }
+    if (!raw_subscribe_user_properties.is_empty() || !raw_unsubscribe_user_properties.is_empty())
+        && (protocol_version != ProtocolVersion::Mqtt5 || command != "sub")
+    {
+        return Err("propriedades de assinatura exigem sub --protocol-version 5".into());
+    }
+    let subscribe_user_properties = parse_subscription_user_properties(
+        raw_subscribe_user_properties,
+        "--subscribe-user-property",
+    )?;
+    let unsubscribe_user_properties = parse_subscription_user_properties(
+        raw_unsubscribe_user_properties,
+        "--unsubscribe-user-property",
+    )?;
+    if !unsubscribe_user_properties.is_empty() && !matches!(&mode, Mode::Sub { count: Some(_), .. })
+    {
+        return Err("--unsubscribe-user-property exige sub --count N".into());
     }
     if receive_maximum.is_some() && (protocol_version != ProtocolVersion::Mqtt5 || command != "sub")
     {
@@ -1046,6 +1075,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         response_topic,
         correlation_data,
         publish_user_properties,
+        subscribe_user_properties,
+        unsubscribe_user_properties,
         receive_maximum,
         maximum_packet_size,
         topic_alias_maximum,
@@ -1058,6 +1089,34 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         publish_topic_alias,
         transport_mode,
     })
+}
+
+fn parse_subscription_user_properties(
+    raw_properties: Vec<String>,
+    flag: &str,
+) -> Result<Vec<(String, String)>, String> {
+    let mut properties = Vec::new();
+    let mut bytes = 0_usize;
+    for raw in raw_properties {
+        let (key, value) = raw
+            .split_once('=')
+            .ok_or_else(|| format!("{flag} exige CHAVE=VALOR"))?;
+        if key.len() > 256
+            || value.len() > 256
+            || !valid_mqtt5_property_text(key)
+            || !valid_mqtt5_property_text(value)
+        {
+            return Err(format!("{flag} contem texto MQTT 5 invalido"));
+        }
+        bytes = bytes
+            .checked_add(5 + key.len() + value.len())
+            .ok_or_else(|| format!("{flag} excede 2048 bytes"))?;
+        if properties.len() >= 16 || bytes > 2048 {
+            return Err(format!("{flag} excede 16 pares ou 2048 bytes"));
+        }
+        properties.push((key.to_owned(), value.to_owned()));
+    }
+    Ok(properties)
 }
 
 fn parse_seconds(value: Option<&str>, flag: &str, default: u16, max: u16) -> Result<u16, String> {
@@ -2428,6 +2487,94 @@ mod tests {
                 flag.into(),
             ]);
             assert!(parse(duplicate).is_err());
+        }
+    }
+
+    #[test]
+    fn subscription_user_properties_require_mqtt5_sub_and_are_bounded() {
+        let mut args = base("sub");
+        args.extend([
+            "--protocol-version".into(),
+            "5".into(),
+            "--count".into(),
+            "1".into(),
+            "--subscription-identifier".into(),
+            "3".into(),
+            "--subscribe-user-property".into(),
+            "trace=one".into(),
+            "--subscribe-user-property".into(),
+            "trace=two".into(),
+            "--unsubscribe-user-property".into(),
+            "done=yes".into(),
+        ]);
+        let parsed = parse(args).unwrap();
+        assert_eq!(
+            parsed.subscribe_user_properties,
+            [
+                ("trace".into(), "one".into()),
+                ("trace".into(), "two".into())
+            ]
+        );
+        assert_eq!(
+            parsed.unsubscribe_user_properties,
+            [("done".into(), "yes".into())]
+        );
+        assert_eq!(parsed.subscription_options.identifier, Some(3));
+        let mut no_count = base("sub");
+        no_count.extend([
+            "--protocol-version".into(),
+            "5".into(),
+            "--unsubscribe-user-property".into(),
+            "done=yes".into(),
+        ]);
+        assert!(parse(no_count).is_err());
+        for flag in ["--subscribe-user-property", "--unsubscribe-user-property"] {
+            let mut mqtt311 = base("sub");
+            mqtt311.extend([flag.into(), "k=v".into()]);
+            assert!(parse(mqtt311).is_err());
+            let mut publisher = base("pub");
+            publisher.extend([
+                "--protocol-version".into(),
+                "5".into(),
+                "--message".into(),
+                "x".into(),
+                flag.into(),
+                "k=v".into(),
+            ]);
+            assert!(parse(publisher).is_err());
+            for bad in ["missing", "bad\0key=v", "k=\u{0001}"] {
+                let mut args = base("sub");
+                args.extend([
+                    "--protocol-version".into(),
+                    "5".into(),
+                    flag.into(),
+                    bad.into(),
+                ]);
+                assert!(parse(args).is_err());
+            }
+            let mut long = base("sub");
+            long.extend([
+                "--protocol-version".into(),
+                "5".into(),
+                flag.into(),
+                format!("k={}", "v".repeat(257)),
+            ]);
+            assert!(parse(long).is_err());
+            let mut many = base("sub");
+            many.extend(["--protocol-version".into(), "5".into()]);
+            for _ in 0..17 {
+                many.extend([flag.into(), "k=v".into()]);
+            }
+            assert!(parse(many).is_err());
+            let mut large = base("sub");
+            large.extend(["--protocol-version".into(), "5".into()]);
+            for _ in 0..8 {
+                large.extend([
+                    flag.into(),
+                    format!("{}={}", "k".repeat(128), "v".repeat(128)),
+                ]);
+            }
+            assert!(parse(large).is_err());
         }
     }
 

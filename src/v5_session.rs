@@ -5,6 +5,7 @@ use rumqttc::v5::mqttbytes::v5::{
     Auth, AuthProperties, AuthReasonCode, ConnAck, ConnectReturnCode, Filter, LastWill,
     LastWillProperties, PubAckReason, PubCompReason, PubRecReason, Publish, PublishProperties,
     RetainForwardRule, SubscribeProperties, SubscribeReasonCode, UnsubAckReason,
+    UnsubscribeProperties,
 };
 use rumqttc::{
     Outgoing, QoS, Transport,
@@ -289,10 +290,20 @@ async fn unsubscribe_after_count(
     client: &AsyncClient,
     events: &mut rumqttc::v5::EventLoop,
     filters: &[String],
+    user_properties: &[(String, String)],
     limit: Duration,
 ) -> AppResult<()> {
     for (index, filter) in filters.iter().enumerate() {
-        client.try_unsubscribe(filter.clone())?;
+        if user_properties.is_empty() {
+            client.try_unsubscribe(filter.clone())?;
+        } else {
+            client.try_unsubscribe_with_properties(
+                filter.clone(),
+                UnsubscribeProperties {
+                    user_properties: user_properties.to_vec(),
+                },
+            )?;
+        }
         let deadline = Instant::now() + limit;
         loop {
             let event = timeout_at(deadline, events.poll())
@@ -791,18 +802,19 @@ async fn send_subscribe(
     filters: &[String],
     qos: rumqttc::v5::mqttbytes::QoS,
     options: crate::cli::SubscriptionOptions,
+    user_properties: &[(String, String)],
 ) -> AppResult<()> {
     let requests = filters
         .iter()
         .cloned()
         .map(|filter| subscription_filter(filter, qos, options));
-    if let Some(id) = options.identifier {
+    if options.identifier.is_some() || !user_properties.is_empty() {
         client
             .subscribe_many_with_properties(
                 requests,
                 SubscribeProperties {
-                    id: Some(id),
-                    user_properties: Vec::new(),
+                    id: options.identifier,
+                    user_properties: user_properties.to_vec(),
                 },
             )
             .await?;
@@ -845,22 +857,20 @@ async fn subscribe(
         QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
         QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
     };
-    send_subscribe(client, filters, qos, cli.subscription_options).await?;
+    send_subscribe(
+        client,
+        filters,
+        qos,
+        cli.subscription_options,
+        &cli.subscribe_user_properties,
+    )
+    .await?;
     let mut acknowledged = false;
     let mut received = 0_u64;
     let mut aliases = HashMap::new();
     loop {
         if acknowledged && count.is_some_and(|target| received >= target) {
-            unsubscribe_after_count(client, events, filters, limit).await?;
-            client.try_disconnect()?;
-            loop {
-                let event = timeout(limit, events.poll())
-                    .await
-                    .map_err(|_| protocol_error("tempo esgotado enviando DISCONNECT MQTT 5"))??;
-                if matches!(event, Event::Outgoing(Outgoing::Disconnect)) {
-                    break;
-                }
-            }
+            finish_counted_subscription(cli, client, events, filters, limit).await?;
             return Ok(());
         }
         let wait = if acknowledged {
@@ -921,6 +931,32 @@ async fn subscribe(
             Event::Incoming(_) => {
                 return Err(protocol_error("resposta MQTT 5 inesperada na assinatura").into());
             }
+        }
+    }
+}
+
+async fn finish_counted_subscription(
+    cli: &Cli,
+    client: &AsyncClient,
+    events: &mut rumqttc::v5::EventLoop,
+    filters: &[String],
+    limit: Duration,
+) -> AppResult<()> {
+    unsubscribe_after_count(
+        client,
+        events,
+        filters,
+        &cli.unsubscribe_user_properties,
+        limit,
+    )
+    .await?;
+    client.try_disconnect()?;
+    loop {
+        let event = timeout(limit, events.poll())
+            .await
+            .map_err(|_| protocol_error("tempo esgotado enviando DISCONNECT MQTT 5"))??;
+        if matches!(event, Event::Outgoing(Outgoing::Disconnect)) {
+            return Ok(());
         }
     }
 }
