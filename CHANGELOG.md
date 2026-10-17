@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.17.0 — validade de publicação e Will MQTT 5, experimental
+
+- C70: Will MQTT 5 com `--will-delay-seconds` opcional, validado e enviado no CONNECT.
+- C69: `--message-expiry-seconds` em `pub --protocol-version 5` envia Message Expiry Interval.
+- Novo processo do client ainda não retoma automaticamente seus fluxos QoS pendentes; fases 6A–6D seguem abertas.
+
 ## 0.16.0 — sessões MQTT 5, experimental
 
 - C67: `--session-expiry-seconds 0..4294967294|never`, validado e enviado no CONNECT MQTT 5.
