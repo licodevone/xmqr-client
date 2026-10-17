@@ -103,6 +103,39 @@ mod assigned_client_id_tests {
         assert_eq!(&wire[13..15], &[0, 37]);
         assert_eq!(&wire[15..], id.as_bytes());
     }
+
+    #[test]
+    fn mqtt5_empty_id_encodes_durable_session_expiry() {
+        let cli = crate::cli::parse(
+            [
+                "pub",
+                "--open-lab",
+                "--topic",
+                "x",
+                "--message",
+                "x",
+                "--protocol-version",
+                "5",
+                "--server-assigned-client-id",
+                "--session-expiry-seconds",
+                "60",
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        )
+        .unwrap();
+        let options = configure_options(&cli, None).unwrap();
+        let mut wire = BytesMut::new();
+        Connect {
+            client_id: options.client_id(),
+            keep_alive: u16::try_from(options.keep_alive().as_secs()).unwrap(),
+            clean_start: options.clean_start(),
+            properties: options.connect_properties(),
+        }
+        .write(&None, &None, &mut wire)
+        .unwrap();
+        assert_eq!(&wire[12..], b"\x05\x11\x00\x00\x00\x3c\x00\x00");
+    }
 }
 
 fn protocol_error(message: &'static str) -> io::Error {

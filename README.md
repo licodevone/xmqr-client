@@ -1,5 +1,12 @@
 # xmqr-client
 
+A árvore após 0.26.0 acrescenta C99: para criar uma sessão durável com ID
+atribuído pelo broker, use `--protocol-version 5 --server-assigned-client-id
+--session-expiry-seconds 60` na primeira conexão (Clean Start verdadeiro).
+Guarde o ID mostrado em stderr e, antes de vencer o prazo, reconecte com
+`--client-id ID --clean-start false --session-expiry-seconds 60`. A CLI não
+restaura automaticamente o estado QoS local. [Prompt C99](prompts/clients/99-durable-assigned-client-id-mqtt5.md).
+
 A árvore após 0.26.0 também acrescenta C98: `--client-id` aceita 1..254
 caracteres ASCII alfanuméricos, `-` ou `_` em MQTT 5, suficientes para
 reutilizar o ID de 37 caracteres atribuído pelo broker XMQR. MQTT 3.1.1
@@ -8,9 +15,9 @@ automática. [Prompt C98](prompts/clients/98-long-client-id-mqtt5.md).
 
 A árvore após 0.26.0 acrescenta C97: `--server-assigned-client-id` envia
 Client Identifier vazio no CONNECT MQTT 5 e exige o ID atribuído em CONNACK.
-O ID aparece em stderr; stdout permanece reservado às mensagens. A opção
-exige sessão limpa sem expiração e não aceita `--client-id`, porque esta CLI
-ainda não guarda estado de QoS para retomar automaticamente uma sessão.
+O ID aparece em stderr; stdout permanece reservado às mensagens. C97 exigia
+sessão limpa sem expiração; C99 permite expiração configurada, mantendo Clean
+Start verdadeiro e a exclusão de `--client-id` manual na conexão inicial.
 O broker P166 é o par. [Prompt C97](prompts/clients/97-assigned-client-id-mqtt5.md).
 
 A release experimental 0.26.0 reúne C94/C95: metadados e Message Expiry

@@ -2,6 +2,7 @@
 
 ## Em desenvolvimento — Client Identifier atribuído no MQTT 5
 
+- C99: `--server-assigned-client-id` permite Session Expiry finita ou infinita com Clean Start verdadeiro. O ID mostrado em stderr pode ser reutilizado manualmente com C98; a CLI não persiste estado QoS local. Sem tag/release isolada.
 - C98: `--client-id` aceita até 254 caracteres ASCII em MQTT 5 para reutilizar o ID atribuído pelo broker; MQTT 3.1.1 mantém 23. Não há retomada automática do estado QoS local. Sem tag/release isolada.
 - C97: `--server-assigned-client-id` solicita ID no broker MQTT 5, valida CONNACK obrigatório e único, exibe ID somente em stderr e restringe a sessão limpa sem expiração. O parser vendorizado rejeita duplicata da propriedade `0x12`. Sem tag/release isolada.
 
