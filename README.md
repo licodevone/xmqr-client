@@ -1,10 +1,10 @@
 # xmqr-client
 
-O candidato 0.27.0 distribui C97–C99: peça um ID ao broker MQTT 5, guarde o
+A release experimental 0.27.0 distribui C97–C99: peça um ID ao broker MQTT 5, guarde o
 valor mostrado em stderr e reconecte manualmente com `--client-id ID
 --clean-start false`. Para preservar a sessão no broker, defina
 `--session-expiry-seconds 60` na criação e na reconexão. A CLI não guarda seu
-estado QoS local. [Nota do candidato](docs/releases/0.27.0.md).
+estado QoS local. [Release 0.27.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.27.0) e [aceite C100](prompts/registros/C100-release-0.27.0.md).
 
 A versão 0.27.0 acrescenta C99: para criar uma sessão durável com ID
 atribuído pelo broker, use `--protocol-version 5 --server-assigned-client-id
