@@ -95,6 +95,8 @@ pub struct MqttState {
     pub(crate) outgoing_pub: Vec<Option<Publish>>,
     /// Packet ids of released QoS 2 publishes
     pub(crate) outgoing_rel: FixedBitSet,
+    /// QoS 2 PUBLISH packets whose PUBREL is controlled by the durable caller.
+    manual_outgoing_qos2: FixedBitSet,
     /// Packet ids on incoming QoS 2 publishes
     pub(crate) incoming_pub: FixedBitSet,
     /// Last collision due to broker not acking in order
@@ -128,6 +130,7 @@ impl MqttState {
             // index 0 is wasted as 0 is not a valid packet id
             outgoing_pub: vec![None; max_inflight as usize + 1],
             outgoing_rel: FixedBitSet::with_capacity(max_inflight as usize + 1),
+            manual_outgoing_qos2: FixedBitSet::with_capacity(max_inflight as usize + 1),
             incoming_pub: FixedBitSet::with_capacity(u16::MAX as usize + 1),
             collision: None,
             // TODO: Optimize these sizes later
@@ -184,6 +187,10 @@ impl MqttState {
                 Some(Packet::Auth(auth))
             }
             Request::Publish(publish) => self.outgoing_publish(publish)?,
+            Request::PublishManualQos2(publish) => {
+                self.manual_outgoing_qos2.insert(publish.pkid as usize);
+                self.outgoing_publish(publish)?
+            }
             Request::PubRel(pubrel) => self.outgoing_pubrel(pubrel)?,
             Request::Subscribe(subscribe) => self.outgoing_subscribe(subscribe)?,
             Request::Unsubscribe(unsubscribe) => self.outgoing_unsubscribe(unsubscribe)?,
@@ -403,6 +410,13 @@ impl MqttState {
         if publish.take().is_none() {
             error!("Unsolicited pubrec packet: {:?}", pubrec.pkid);
             return Err(StateError::Unsolicited(pubrec.pkid));
+        }
+
+        if self.manual_outgoing_qos2.contains(pubrec.pkid as usize) {
+            self.manual_outgoing_qos2.set(pubrec.pkid as usize, false);
+            self.inflight -= 1;
+            // The caller persists this transition before requesting PUBREL.
+            return Ok(None);
         }
 
         if pubrec.reason != PubRecReason::Success

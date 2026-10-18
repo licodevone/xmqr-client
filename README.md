@@ -12,15 +12,26 @@ broker confirma Session Present; caso contrário, a outbox fica preservada
 para investigação, sem publicação automática. O diretório deve existir,
 pertencer ao usuário e ter modo 0700; os arquivos usam 0600 e contêm o
 payload em claro. QoS 1 admite duplicatas; PUBACK não confirma que um
-assinante ou destino externo processou os dados. QoS 2 e assinaturas ainda não
-têm estado local durável. [Prompt C105](prompts/clients/105-durable-qos1-outbox-mqtt5.md).
+assinante ou destino externo processou os dados. [Prompt C105](prompts/clients/105-durable-qos1-outbox-mqtt5.md).
+
+C107 amplia a mesma opção `--outbox-dir` para `--qos 2` no Linux/WSL. Use um
+diretório privado por publicação, Client Identifier fixo, `--clean-start false`
+e Session Expiry positivo. Após queda antes do PUBREC, a retomada envia
+PUBLISH com DUP e o mesmo Packet Identifier; após PUBREC positivo, o journal
+registra a fase PUBREL antes de transmiti-lo e a retomada envia apenas PUBREL.
+Sem Session Present, preserva o arquivo e falha. Repita o comando exatamente;
+não compartilhe o Client Identifier com outro processo. O journal QoS 1 v1
+permanece legível, e o journal QoS 2 é separado. QoS 2 confirma a troca com o
+broker, não o processamento por assinantes, Node-RED ou Google Sheets.
+Assinaturas e múltiplas publicações pendentes ainda não têm estado local
+durável. [Prompt C107](prompts/clients/107-durable-qos2-outbox-mqtt5.md).
 
 C104 acrescenta
 `--disconnect-session-expiry-seconds 0..4294967294|never` a `pub --protocol-version 5`
 e `sub --protocol-version 5 --count N`. A opção envia Session Expiry Interval no
 DISCONNECT normal; sem ela, o pacote e o prazo do CONNECT permanecem como antes.
 Se o CONNECT anuncia zero, somente zero pode ser enviado no DISCONNECT.
-Fora da outbox C105, o client não persiste estado QoS local; a fase 6B continua aberta.
+Fora da outbox C105/C107, o client não persiste estado QoS local; a fase 6B continua aberta.
 [Prompt C104](prompts/clients/104-disconnect-session-expiry-mqtt5.md).
 [Release 0.29.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.29.0),
 [nota](docs/releases/0.29.0.md) e [aceite C106](prompts/registros/C106-release-0.29.0.md).

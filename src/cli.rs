@@ -156,7 +156,7 @@ pub const V5_PUBLISH_USAGE: &str = "MQTT 5 PUBLISH adicional: --response-topic T
 pub const V5_SUBSCRIPTION_USAGE: &str = "MQTT 5 SUBSCRIBE: --unsubscribe-user-property exige --count N; sem --count, nao ha UNSUBSCRIBE.\n";
 pub const AUTH_USAGE: &str = "Autenticacao MQTT 5: --auth-method plain (somente TLS, com --protocol-version 5; senha por arquivo privado ou prompt). --reauth-before-io confirma AUTH PLAIN apos CONNACK e antes de pub/sub; reautenticacao periodica ainda indisponivel.\n";
 pub const V5_WILL_USAGE: &str = "MQTT 5 Will: --will-message-expiry-seconds 0..4294967295, --will-payload-format 0|1, --will-content-type TEXTO (ate 256 bytes), --will-response-topic TOPICO (sem curingas), --will-correlation-data-hex HEX (ate 256 bytes), --will-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes). Exige --will-topic, mensagem Will e --protocol-version 5.\n";
-pub const OUTBOX_USAGE: &str = "Outbox duravel experimental (Linux/WSL): --outbox-dir DIRETORIO existente e privado (0700) exige pub --protocol-version 5 --qos 1 --clean-start false --session-expiry-seconds N --client-id ID fixo, uma mensagem. Repita o mesmo comando para retomar; nao remova pending.json se o broker negar Session Present. O arquivo contem payload em claro sob permissao 0600.\n";
+pub const OUTBOX_USAGE: &str = "Outbox duravel experimental (Linux/WSL): --outbox-dir DIRETORIO existente e privado (0700) exige pub --protocol-version 5 --qos 1|2 --clean-start false --session-expiry-seconds N --client-id ID fixo, uma mensagem. Repita o mesmo comando para retomar; nao remova o journal pendente se o broker negar Session Present. O arquivo contem payload em claro sob permissao 0600.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -719,7 +719,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         }
         if protocol_version != ProtocolVersion::Mqtt5
             || !matches!(&mode, Mode::Pub { .. })
-            || qos != QoS::AtLeastOnce
+            || !matches!(qos, QoS::AtLeastOnce | QoS::ExactlyOnce)
             || clean_start != SessionStart::Resume
             || session_expiry == 0
             || server_assigned_client_id
@@ -729,7 +729,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             || publish_topic_alias.is_some()
             || will_topic.is_some()
         {
-            return Err("--outbox-dir exige pub MQTT 5 QoS 1, ID fixo, Clean Start false, Session Expiry positivo e uma mensagem sem Will/alias".into());
+            return Err("--outbox-dir exige pub MQTT 5 QoS 1|2, ID fixo, Clean Start false, Session Expiry positivo e uma mensagem sem Will/alias".into());
         }
     }
     let disconnect_session_expiry = disconnect_session_expiry
@@ -1700,6 +1700,10 @@ mod tests {
                 .collect::<Vec<_>>()
         };
         assert!(parse(arguments(&[])).unwrap().outbox_dir.is_some());
+        let mut qos2 = arguments(&[]);
+        let qos_position = qos2.iter().position(|item| item == "--qos").unwrap();
+        qos2[qos_position + 1] = "2".to_owned();
+        assert!(parse(qos2).unwrap().outbox_dir.is_some());
         for extra in [
             &["--repeat", "2", "--repeat-interval-ms", "1"][..],
             &["--will-topic", "last", "--will-message", "bye"],
@@ -1710,7 +1714,7 @@ mod tests {
         for invalid in [
             ["--clean-start", "true"],
             ["--session-expiry-seconds", "0"],
-            ["--qos", "2"],
+            ["--qos", "0"],
             ["--protocol-version", "3.1.1"],
         ] {
             let mut args = arguments(&[]);

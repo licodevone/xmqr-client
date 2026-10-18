@@ -3,8 +3,8 @@
 use std::time::Duration;
 
 use super::mqttbytes::v5::{
-    Auth, DisconnectProperties, Filter, PubAck, PubRec, Publish, PublishProperties, Subscribe,
-    SubscribeProperties, Unsubscribe, UnsubscribeProperties,
+    Auth, DisconnectProperties, Filter, PubAck, PubRec, PubRel, Publish, PublishProperties,
+    Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use super::mqttbytes::QoS;
 use super::{ConnectionError, Event, EventLoop, MqttOptions, Request};
@@ -233,6 +233,30 @@ impl AsyncClient {
             && std::str::from_utf8(&publish.topic).is_ok_and(valid_topic);
         let request = Request::Publish(publish);
         if !valid {
+            return Err(ClientError::TryRequest(request));
+        }
+        self.request_tx.send_async(request).await?;
+        Ok(())
+    }
+
+    /// Enqueue a durable QoS 2 PUBLISH. PUBREL must be explicitly requested
+    /// after the caller commits the PUBREC transition to stable storage.
+    pub async fn publish_packet_manual_qos2(&self, publish: Publish) -> Result<(), ClientError> {
+        let valid = publish.qos == QoS::ExactlyOnce
+            && publish.pkid != 0
+            && std::str::from_utf8(&publish.topic).is_ok_and(valid_topic);
+        let request = Request::PublishManualQos2(publish);
+        if !valid {
+            return Err(ClientError::TryRequest(request));
+        }
+        self.request_tx.send_async(request).await?;
+        Ok(())
+    }
+
+    /// Continue or resume a durable QoS 2 exchange after the PUBREC stage.
+    pub async fn pubrel_packet(&self, pkid: u16) -> Result<(), ClientError> {
+        let request = Request::PubRel(PubRel::new(pkid, None));
+        if pkid == 0 {
             return Err(ClientError::TryRequest(request));
         }
         self.request_tx.send_async(request).await?;

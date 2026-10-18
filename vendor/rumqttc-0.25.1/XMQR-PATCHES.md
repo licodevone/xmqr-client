@@ -9,5 +9,6 @@ XMQR changes the following MQTT 5 paths:
 - Correct AUTH property byte counts and variable-length framing, reject duplicate/trailing properties, and re-export the AUTH property/reason types.
 - For C104, enqueue an explicit DISCONNECT packet carrying Session Expiry Interval while retaining the original abbreviated packet when the option is absent.
 - For C105, expose `AsyncClient::publish_packet` for a caller-owned QoS 1 Packet Identifier and DUP bit after the outbox has committed them. This does not add persistence to rumqttc itself.
+- For C107, expose `publish_packet_manual_qos2` and `pubrel_packet`: suppress automatic PUBREL for that outgoing QoS 2 PUBLISH so XMQR can commit the PUBREC transition before enqueueing PUBREL. The caller owns persistence, Packet Identifier and DUP; normal QoS 2 requests retain upstream behavior.
 
 The XMQR client does not use this copy for MQTT 3.1.1 behavior changes. When updating upstream, reapply these focused changes and run the C92 wire fixture and the existing MQTT 3.1.1/5 suite before replacing the pinned crate.

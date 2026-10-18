@@ -39,6 +39,7 @@ pub type Incoming = Packet;
 pub enum Request {
     Auth(Auth),
     Publish(Publish),
+    PublishManualQos2(Publish),
     PubAck(PubAck),
     PubRec(PubRec),
     PubComp(PubComp),

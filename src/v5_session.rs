@@ -1,4 +1,4 @@
-//! Initial MQTT 5 pub/sub path. No retransmission after an uncertain send.
+//! MQTT 5 pub/sub with explicit, single-operation durable outbox support.
 use std::{collections::HashMap, error::Error, io, time::Duration};
 
 use rumqttc::v5::mqttbytes::v5::{
@@ -20,7 +20,13 @@ use crate::{
 };
 
 #[cfg(target_os = "linux")]
-use crate::outbox::{Operation, Outbox, PendingQos1, Stage};
+use crate::outbox::{Operation, Outbox, PendingQos1, PendingQos2, Qos2Stage, Stage};
+
+#[cfg(target_os = "linux")]
+enum DurableOutboxState {
+    Qos1(Outbox, PendingQos1, bool),
+    Qos2(Outbox, PendingQos2, bool),
+}
 
 type AppResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
@@ -674,22 +680,51 @@ async fn run_inner(
     }
     let publication = publication.ok_or_else(|| protocol_error("payload ausente"))?;
     #[cfg(target_os = "linux")]
-    if let Some((outbox, pending, existed)) = outbox_state {
-        return publish_from_outbox(
-            cli,
-            &client,
-            &mut events,
-            outbox,
-            pending,
-            existed,
-            session_present,
-            limit,
-        )
-        .await;
+    if let Some(state) = outbox_state {
+        return publish_durable(cli, &client, &mut events, state, session_present, limit).await;
     }
     #[cfg(not(target_os = "linux"))]
     let _ = session_present;
     publish_regular(cli, &client, &mut events, &publication, topic, limit).await
+}
+
+#[cfg(target_os = "linux")]
+async fn publish_durable(
+    cli: &Cli,
+    client: &AsyncClient,
+    events: &mut rumqttc::v5::EventLoop,
+    state: DurableOutboxState,
+    session_present: bool,
+    limit: Duration,
+) -> AppResult<()> {
+    match state {
+        DurableOutboxState::Qos1(outbox, pending, existed) => {
+            publish_from_outbox(
+                cli,
+                client,
+                events,
+                outbox,
+                pending,
+                existed,
+                session_present,
+                limit,
+            )
+            .await
+        }
+        DurableOutboxState::Qos2(outbox, pending, existed) => {
+            publish_qos2_from_outbox(
+                cli,
+                client,
+                events,
+                outbox,
+                pending,
+                existed,
+                session_present,
+                limit,
+            )
+            .await
+        }
+    }
 }
 
 async fn publish_regular(
@@ -746,10 +781,7 @@ async fn disk_operation<T: Send + 'static>(
 }
 
 #[cfg(target_os = "linux")]
-async fn prepare_outbox(
-    cli: &Cli,
-    publication: &Publication,
-) -> io::Result<(Outbox, PendingQos1, bool)> {
+async fn prepare_outbox(cli: &Cli, publication: &Publication) -> io::Result<DurableOutboxState> {
     let Mode::Pub { topic, .. } = &cli.mode else {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -775,17 +807,36 @@ async fn prepare_outbox(
         .as_ref()
         .expect("CLI validated outbox")
         .clone();
+    let qos = cli.qos;
     disk_operation(move || {
         let outbox = Outbox::open(&directory)?;
-        match outbox.load()? {
-            Some(pending) if pending.operation == operation => Ok((outbox, pending, true)),
-            Some(_) => Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "outbox pertence a outra publicacao; conteudo preservado",
-            )),
-            None => {
-                let pending = outbox.prepare(operation)?;
-                Ok((outbox, pending, false))
+        if qos == QoS::ExactlyOnce {
+            match outbox.load_qos2()? {
+                Some(pending) if pending.operation == operation => {
+                    Ok(DurableOutboxState::Qos2(outbox, pending, true))
+                }
+                Some(_) => Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "outbox pertence a outra publicacao; conteudo preservado",
+                )),
+                None => {
+                    let pending = outbox.prepare_qos2(operation)?;
+                    Ok(DurableOutboxState::Qos2(outbox, pending, false))
+                }
+            }
+        } else {
+            match outbox.load()? {
+                Some(pending) if pending.operation == operation => {
+                    Ok(DurableOutboxState::Qos1(outbox, pending, true))
+                }
+                Some(_) => Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "outbox pertence a outra publicacao; conteudo preservado",
+                )),
+                None => {
+                    let pending = outbox.prepare(operation)?;
+                    Ok(DurableOutboxState::Qos1(outbox, pending, false))
+                }
             }
         }
     })
@@ -818,31 +869,12 @@ async fn publish_from_outbox(
         Ok((outbox, pending))
     })
     .await?;
-    let operation = pending.operation;
-    let has_properties = operation.message_expiry.is_some()
-        || operation.payload_format.is_some()
-        || operation.content_type.is_some()
-        || operation.response_topic.is_some()
-        || operation.correlation_data.is_some()
-        || !operation.user_properties.is_empty();
-    let properties = has_properties.then(|| PublishProperties {
-        message_expiry_interval: operation.message_expiry,
-        payload_format_indicator: operation.payload_format,
-        content_type: operation.content_type,
-        response_topic: operation.response_topic,
-        correlation_data: operation.correlation_data.map(Into::into),
-        user_properties: operation.user_properties,
-        ..PublishProperties::default()
-    });
-    let mut publish = Publish::new(
-        operation.topic,
+    let publish = durable_publish(
+        pending.operation,
         rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
-        operation.payload,
-        properties,
+        pending.packet_id,
+        retransmit,
     );
-    publish.pkid = pending.packet_id;
-    publish.dup = retransmit;
-    publish.retain = operation.retain;
     client.publish_packet(publish).await?;
     let deadline = Instant::now() + limit;
     let reason = loop {
@@ -864,7 +896,47 @@ async fn publish_from_outbox(
     if reason != PubAckReason::Success {
         return Err(puback_refusal(reason).into());
     }
-    cli.output.complete(QoS::AtLeastOnce);
+    finish_durable_publish(cli, client, events, QoS::AtLeastOnce, limit).await
+}
+
+#[cfg(target_os = "linux")]
+fn durable_publish(
+    operation: Operation,
+    qos: rumqttc::v5::mqttbytes::QoS,
+    packet_id: u16,
+    retransmit: bool,
+) -> Publish {
+    let has_properties = operation.message_expiry.is_some()
+        || operation.payload_format.is_some()
+        || operation.content_type.is_some()
+        || operation.response_topic.is_some()
+        || operation.correlation_data.is_some()
+        || !operation.user_properties.is_empty();
+    let properties = has_properties.then(|| PublishProperties {
+        message_expiry_interval: operation.message_expiry,
+        payload_format_indicator: operation.payload_format,
+        content_type: operation.content_type,
+        response_topic: operation.response_topic,
+        correlation_data: operation.correlation_data.map(Into::into),
+        user_properties: operation.user_properties,
+        ..PublishProperties::default()
+    });
+    let mut publish = Publish::new(operation.topic, qos, operation.payload, properties);
+    publish.pkid = packet_id;
+    publish.dup = retransmit;
+    publish.retain = operation.retain;
+    publish
+}
+
+#[cfg(target_os = "linux")]
+async fn finish_durable_publish(
+    cli: &Cli,
+    client: &AsyncClient,
+    events: &mut rumqttc::v5::EventLoop,
+    qos: QoS,
+    limit: Duration,
+) -> AppResult<()> {
+    cli.output.complete(qos);
     request_disconnect(cli, client)?;
     loop {
         let event = timeout(limit, events.poll())
@@ -874,6 +946,99 @@ async fn publish_from_outbox(
             return Ok(());
         }
     }
+}
+
+#[cfg(target_os = "linux")]
+#[allow(clippy::too_many_arguments)]
+async fn publish_qos2_from_outbox(
+    cli: &Cli,
+    client: &AsyncClient,
+    events: &mut rumqttc::v5::EventLoop,
+    outbox: Outbox,
+    pending: PendingQos2,
+    existed: bool,
+    session_present: bool,
+    limit: Duration,
+) -> AppResult<()> {
+    if (existed && pending.stage != Qos2Stage::Prepared && !session_present)
+        || (!existed && session_present)
+    {
+        return Err(protocol_error(
+            "broker nao confirmou sessao compativel; outbox QoS 2 preservada sem reenvio",
+        )
+        .into());
+    }
+    let packet_id = pending.packet_id;
+    let outbox = if pending.stage == Qos2Stage::PubRelReady {
+        outbox
+    } else {
+        let retransmit = pending.stage == Qos2Stage::PublishMayHaveSent;
+        let (outbox, pending) = disk_operation(move || {
+            let pending = outbox.mark_qos2_sending()?;
+            Ok((outbox, pending))
+        })
+        .await?;
+        let publish = durable_publish(
+            pending.operation,
+            rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
+            packet_id,
+            retransmit,
+        );
+        client.publish_packet_manual_qos2(publish).await?;
+        let deadline = Instant::now() + limit;
+        let reason = loop {
+            let event = timeout_at(deadline, events.poll())
+                .await
+                .map_err(|_| protocol_error("PUBREC pendente; outbox QoS 2 preservada"))?
+                .map_err(|_| protocol_error("conexao interrompida; outbox QoS 2 preservada"))?;
+            match event {
+                Event::Incoming(Incoming::PubRec(ack)) if ack.pkid == packet_id => {
+                    break ack.reason;
+                }
+                Event::Outgoing(_) | Event::Incoming(Incoming::PingResp(_)) => {}
+                Event::Incoming(_) => {
+                    return Err(
+                        protocol_error("resposta inesperada; outbox QoS 2 preservada").into(),
+                    );
+                }
+            }
+        };
+        if !matches!(
+            reason,
+            PubRecReason::Success | PubRecReason::NoMatchingSubscribers
+        ) {
+            disk_operation(move || outbox.complete_qos2()).await?;
+            return Err(pubrec_refusal(reason).into());
+        }
+        let (outbox, _) = disk_operation(move || {
+            let pending = outbox.mark_pubrel_ready()?;
+            Ok((outbox, pending))
+        })
+        .await?;
+        outbox
+    };
+    client.pubrel_packet(packet_id).await?;
+    let deadline = Instant::now() + limit;
+    let reason = loop {
+        let event = timeout_at(deadline, events.poll())
+            .await
+            .map_err(|_| protocol_error("PUBCOMP pendente; outbox QoS 2 preservada"))?
+            .map_err(|_| protocol_error("conexao interrompida; outbox QoS 2 preservada"))?;
+        match event {
+            Event::Incoming(Incoming::PubComp(ack)) if ack.pkid == packet_id => {
+                break ack.reason;
+            }
+            Event::Outgoing(_) | Event::Incoming(Incoming::PingResp(_)) => {}
+            Event::Incoming(_) => {
+                return Err(protocol_error("resposta inesperada; outbox QoS 2 preservada").into());
+            }
+        }
+    };
+    disk_operation(move || outbox.complete_qos2()).await?;
+    if reason != PubCompReason::Success {
+        return Err(pubcomp_refusal(reason).into());
+    }
+    finish_durable_publish(cli, client, events, QoS::ExactlyOnce, limit).await
 }
 
 async fn wait_repeat_interval(
