@@ -1,4 +1,4 @@
-# C134 v1.7 — bridge QoS 2 com journal da origem
+# C134 v1.8 — bridge QoS 2 com journal da origem
 
 ## Entrada e fonte normativa
 
@@ -102,3 +102,12 @@ ela usa Clean Session=1, perdendo a negociação PUBREC/PUBREL/PUBCOMP em voo.
 Usar sessão persistente também no destino para QoS 2 e manter ACK manual
 apenas na origem. Validar retransmissão/reconexão sem confirmar a origem antes
 do PUBCOMP, sem alterar o modo QoS 0/1. Manter o ensaio repetido.
+
+O trace revelou fechamento pelo peer repetido. A fixture executava o negativo
+de ACL `sensors/denied` **antes** de reiniciar a mesma sessão persistente;
+esse PUBLISH QoS 2 não pode receber PUBCOMP e permanece legitimamente na
+origem, bloqueando qualquer publicação posterior da instância serializada.
+A inferência anterior sobre Clean Session do destino não foi provada: reverter
+essa alteração. Isolar o negativo de perda de sessão com client IDs e journal
+novos, sem apagar a pendência nem ocultar o negativo ACL; então reexecutar as
+duas sequências. Remover o trace temporário após o diagnóstico.
