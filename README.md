@@ -1,22 +1,18 @@
 # xmqr-client
 
-## Candidato experimental 0.38.0 — C129
+## Candidato experimental 0.39.0 — C133
 
-A distribuição em preparação reúne o [journal inbound MQTT 5](docs/mqtt5-inbound-journal.md)
-para assinatura persistente Linux/WSL, incluindo recusa de órfãos, replay com
-Subscription Identifiers mutáveis e leitura validada do draft v1 antes de
-gravar v2 na transição seguinte. A janela stdout→commit não é atômica e pode
-duplicar a saída; ACK não comprova processamento por um consumidor externo.
-[Nota e cuidados de upgrade/rollback](docs/releases/0.38.0.md).
-O client 0.36.0 publicado não deve abrir diretórios C129 pendentes. Preserve
-backups privados e use binário compatível para retomar, sem apagar o journal.
-Os pacotes/imagens desta entrega contêm somente mqtt-client, não a bridge.
-CI/artefatos/publicação devem ser conferidos no [registro C131](prompts/registros/C131-release-0.38.0.md).
-Fase 6 global e homologação Windows dos journals não são declaradas concluídas.
+Este candidato reúne o [journal inbound MQTT 5](docs/mqtt5-inbound-journal.md)
+publicado no client 0.38.0 e o sidecar `mqtt-bridge` C125–C128 no `.deb` e na
+imagem. A bridge TLS/mTLS unidirecional oferece QoS 0/1 e serviço opcional,
+sem início automático. [Guia, configuração e limites](docs/bridge-one-way.md).
+O journal pode duplicar saída na janela stdout→commit; ACK não comprova
+processamento de negócio. Preserve seus diretórios privados em downgrade e
+consulte a [nota 0.38.0](docs/releases/0.38.0.md). A fase 6 global, a fase 8
+global e a homologação Windows não são declaradas concluídas.
 
-Em `main` após v0.36.0, as fatias experimentais C125–C127 acrescentam o
-sidecar `mqtt-bridge` unidirecional TLS/mTLS QoS 0/1. Ele ainda não integra o
-pacote/imagem publicados. [Guia, configuração e limites](docs/bridge-one-way.md).
+O client [0.38.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.38.0)
+publicado contém somente `mqtt-client`, sem a bridge empacotada.
 
 A prerelease experimental 0.36.0 reúne C122/C123: outbox QoS 2 e manifesto
 de assinatura MQTT 5 por WSS mTLS, com URL canônica como identidade e retomada

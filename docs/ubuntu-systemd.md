@@ -4,11 +4,12 @@ Alvo: Ubuntu26.04 amd64. Construção requer Rust, Python3 e dpkg-dev:
 
 ```sh
 python3 scripts/build_deb.py
-sudo apt install ./dist/xmqr-client_0.9.0-1_amd64.deb
+sudo apt install ./dist/xmqr-client_0.39.0-1_amd64.deb
 mqtt-client --version
+mqtt-bridge --version
 ```
 
-O pacote instala o binário em `/usr/bin`, licenças e duas units template
+O pacote instala `mqtt-client` e `mqtt-bridge` em `/usr/bin`, licenças e três units template
 opcionais. Não ativa nem inicia clientes. Cria usuário sem login `xmqr-client`.
 Copie `/usr/share/doc/xmqr-client/client.conf.example` para
 `/etc/xmqr-client/device.conf` e configure host, tópico, usuário, QoS e ClientID.
@@ -42,6 +43,30 @@ Essa unit oneshot não reinicia. Repetir start pode duplicar uma publicação;
 ACK só comprova protocolo. Não há timer instalado nem reenvio automático.
 As templates usam um filtro e TLS/mTLS; múltiplos filtros e outros parâmetros
 podem ser configurados por um override de ExecStart explícito.
+
+O sidecar experimental C125–C127 fica disponível como `mqtt-bridge`, mas não
+é iniciado pela instalação. Para uma instância `lab`, crie
+`/etc/xmqr-client/bridge-lab.toml` e o manifesto de topologia em
+`/etc/xmqr-client/bridge-topology.toml` conforme o
+[guia](bridge-one-way.md). Ambos devem pertencer a `xmqr-client:xmqr-client`
+com modo `0600`; certificados CA/públicos podem ter leitura mais ampla, mas
+senhas e chaves privadas exigem `0600` e acesso pelo mesmo usuário. Use
+caminhos absolutos dentro de `/etc/xmqr-client` no TOML. A unit não contém
+segredos nem lê variáveis de senha.
+
+```sh
+sudo chown xmqr-client:xmqr-client /etc/xmqr-client/bridge-lab.toml /etc/xmqr-client/bridge-topology.toml
+sudo chmod 0600 /etc/xmqr-client/bridge-lab.toml /etc/xmqr-client/bridge-topology.toml
+sudo systemctl enable --now xmqr-client-bridge@lab.service
+systemctl status xmqr-client-bridge@lab.service --no-pager
+journalctl -u xmqr-client-bridge@lab.service -n 50 --no-pager
+```
+
+Use um ClientID de origem estável e exclusivo por bridge QoS 1. A topologia
+deve ser idêntica entre as instâncias gerenciadas, reiniciadas após alteração.
+O pacote 0.38.0 anterior não inclui `mqtt-bridge` nem essa unit; em rollback,
+desabilite a instância antes de instalar 0.38.0. O pacote preserva os arquivos
+de configuração do operador na remoção.
 
 Upgrade/remove param as instâncias e preservam configurações externas. Após
 upgrade, reinicie as instâncias desejadas manualmente. Remove/purge não apagam

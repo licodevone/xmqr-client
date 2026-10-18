@@ -530,7 +530,7 @@ async fn main() {
     let args: Vec<_> = std::env::args().skip(1).collect();
     if args.len() == 1 && matches!(args[0].as_str(), "--version" | "-V") {
         println!(
-            "mqtt-bridge 0.1.0-dev (xmqr-client {})",
+            "mqtt-bridge 0.1.0 (xmqr-client {})",
             env!("CARGO_PKG_VERSION")
         );
         return;

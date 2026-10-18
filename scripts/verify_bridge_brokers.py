@@ -16,8 +16,8 @@ import time
 
 sys.dont_write_bytecode = True
 CLIENT_ROOT = Path(__file__).resolve().parents[1]
-CLIENT = CLIENT_ROOT / "target/debug/mqtt-client"
-BRIDGE = CLIENT_ROOT / "target/debug/mqtt-bridge"
+CLIENT = Path(os.environ.get("XMQR_CLIENT_BIN", CLIENT_ROOT / "target/debug/mqtt-client"))
+BRIDGE = Path(os.environ.get("XMQR_BRIDGE_BIN", CLIENT_ROOT / "target/debug/mqtt-bridge"))
 
 
 def private(path, contents):
@@ -105,7 +105,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--broker-root", type=Path, required=True)
     parser.add_argument("--qos1", action="store_true")
+    parser.add_argument("--skip-crash-checkpoint", action="store_true",
+                        help="release binary lacks the debug-only crash checkpoint")
     args = parser.parse_args()
+    assert not args.skip_crash_checkpoint or args.qos1
     qos = 1 if args.qos1 else 0
     broker_root = args.broker_root.resolve()
     sys.path.insert(0, str(broker_root / "scripts"))
@@ -244,7 +247,7 @@ def main():
                                       capture_output=True, timeout=5)
             assert rejected.returncode == 2, "unsafe topology accepted"
         assert subprocess.run([str(BRIDGE), "--version"], capture_output=True,
-                              timeout=5).stdout.startswith(b"mqtt-bridge 0.1.0-dev")
+                              timeout=5).stdout.startswith(b"mqtt-bridge 0.1.0")
         source = start(source_env, source_port)
         target = start(target_env, target_port)
         bridge_process = None
@@ -292,10 +295,11 @@ def main():
             if qos == 1:
                 bridge_process.terminate()
                 bridge_process.communicate(timeout=8)
+                process_env = (dict(os.environ, XMQR_BRIDGE_TEST_PAUSE_AFTER_DEST_ACK="1")
+                               if not args.skip_crash_checkpoint else None)
                 bridge_process = subprocess.Popen([str(BRIDGE), "--config", str(config)],
                                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                                  bufsize=0,
-                                                  env=dict(os.environ, XMQR_BRIDGE_TEST_PAUSE_AFTER_DEST_ACK="1"))
+                                                  bufsize=0, env=process_env)
                 wait_markers(bridge_process, ("destino conectado", "origem assinada"))
                 for attempt in range(10):
                     retained_sub = subprocess.run(command(root, target_port, "sub", "mirror/allowed",
@@ -307,23 +311,24 @@ def main():
                 else:
                     raise AssertionError(("retained replay missing", retained_sub.stdout,
                                           retained_sub.stderr))
-                subscriber = ready_subscriber(root, target_port, "mirror/crash")
-                sent = subprocess.run(command(root, source_port, "pub", "sensors/crash",
-                                              "c126-crash-redelivery", qos=1),
-                                      capture_output=True, timeout=10)
-                assert sent.returncode == 0, sent.stderr.decode(errors="replace")
-                wait_markers(bridge_process, ("checkpoint apos PUBACK do destino",))
-                first, _ = subscriber.communicate(timeout=8)
-                assert b"c126-crash-redelivery" in first, first
-                bridge_process.kill()
-                bridge_process.communicate(timeout=8)
-                subscriber = ready_subscriber(root, target_port, "mirror/crash")
-                bridge_process = subprocess.Popen([str(BRIDGE), "--config", str(config)],
-                                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                                  bufsize=0)
-                wait_markers(bridge_process, ("origem assinada",), seconds=15)
-                second, _ = subscriber.communicate(timeout=8)
-                assert b"c126-crash-redelivery" in second, second
+                if not args.skip_crash_checkpoint:
+                    subscriber = ready_subscriber(root, target_port, "mirror/crash")
+                    sent = subprocess.run(command(root, source_port, "pub", "sensors/crash",
+                                                  "c126-crash-redelivery", qos=1),
+                                          capture_output=True, timeout=10)
+                    assert sent.returncode == 0, sent.stderr.decode(errors="replace")
+                    wait_markers(bridge_process, ("checkpoint apos PUBACK do destino",))
+                    first, _ = subscriber.communicate(timeout=8)
+                    assert b"c126-crash-redelivery" in first, first
+                    bridge_process.kill()
+                    bridge_process.communicate(timeout=8)
+                    subscriber = ready_subscriber(root, target_port, "mirror/crash")
+                    bridge_process = subprocess.Popen([str(BRIDGE), "--config", str(config)],
+                                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                                      bufsize=0)
+                    wait_markers(bridge_process, ("origem assinada",), seconds=15)
+                    second, _ = subscriber.communicate(timeout=8)
+                    assert b"c126-crash-redelivery" in second, second
                 exchange(root, source_port, target_port, "denied", "c126-denied",
                          expected=False, qos=qos)
         except BaseException:
@@ -342,7 +347,8 @@ def main():
                 bridge_process.communicate(timeout=8)
             stop(source)
             stop(target)
-    print(f"C125_C126_BRIDGE_XMQR_QOS{qos}_PASS mapping, ACL, CA/SAN/password, reconnect, same endpoint")
+    scope = " (release binary, no debug crash checkpoint)" if args.skip_crash_checkpoint else ""
+    print(f"C125_C126_BRIDGE_XMQR_QOS{qos}_PASS mapping, ACL, CA/SAN/password, reconnect, same endpoint{scope}")
 
 
 if __name__ == "__main__":

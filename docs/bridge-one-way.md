@@ -1,6 +1,6 @@
 # Bridge XMQR experimental — C125/C126
 
-O binário `mqtt-bridge` é um **sidecar em `main` após v0.36.0**, ainda não incluído no `.deb`/Docker da release 0.36.0. Ele usa MQTT 3.1.1 sobre TLS/mTLS nas duas pontas. Uma instância só encaminha da origem para o destino. `route.qos=0` (padrão) mantém o modo melhor esforço C125. `route.qos=1` usa sessão persistente na origem, assinatura QoS 1, um encaminhamento em voo por vez e ACK manual da origem somente após o PUBACK do destino. O broker XMQR continua independente do processo da bridge.
+O binário `mqtt-bridge 0.1.0` é um **sidecar experimental** incluído no candidato `.deb`/imagem do client 0.39.0; a release 0.38.0 anterior não o contém. Ele usa MQTT 3.1.1 sobre TLS/mTLS nas duas pontas. Uma instância só encaminha da origem para o destino. `route.qos=0` (padrão) mantém o modo melhor esforço C125. `route.qos=1` usa sessão persistente na origem, assinatura QoS 1, um encaminhamento em voo por vez e ACK manual da origem somente após o PUBACK do destino. O broker XMQR continua independente do processo da bridge.
 
 Exemplo de configuração privada (`/etc/xmqr/bridge.toml`); substitua os caminhos, portas e identidades pelos seus. Use usuários e certificados próprios para a bridge em cada broker e conceda somente os filtros/tópicos necessários na ACL.
 

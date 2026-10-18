@@ -17,8 +17,8 @@ import time
 
 sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
-CLIENT = ROOT / "target/debug/mqtt-client"
-BRIDGE = ROOT / "target/debug/mqtt-bridge"
+CLIENT = Path(os.environ.get("XMQR_CLIENT_BIN", ROOT / "target/debug/mqtt-client"))
+BRIDGE = Path(os.environ.get("XMQR_BRIDGE_BIN", ROOT / "target/debug/mqtt-bridge"))
 from verify_bridge_brokers import private, wait_markers, exchange
 
 

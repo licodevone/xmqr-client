@@ -52,12 +52,15 @@ def main():
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target)
             target.chmod(mode)
-        binaries = ['mqtt-broker', 'mqtt-admin'] if broker else ['mqtt-client']
+        binaries = ['mqtt-broker', 'mqtt-admin'] if broker else ['mqtt-client', 'mqtt-bridge']
         for binary in binaries:
             put(bindir / binary, 'usr/bin/' + binary, 0o755)
         for unit in (root / 'packaging/systemd').glob('*.service'):
             put(unit, 'usr/lib/systemd/system/' + unit.name)
-        for file in ['LICENSE', 'docs/third-party-licenses.md', 'docs/ubuntu-systemd.md']:
+        documents = ['LICENSE', 'docs/third-party-licenses.md', 'docs/ubuntu-systemd.md']
+        if not broker:
+            documents.append('docs/bridge-one-way.md')
+        for file in documents:
             put(root / file, 'usr/share/doc/' + name + '/' + Path(file).name)
         put(root / 'LICENSE', 'usr/share/doc/' + name + '/copyright')
         shutil.copytree(notices, stage / 'usr/share/doc' / name / 'third-party')
@@ -90,7 +93,7 @@ fi
 '''
         units = 'xmqr-broker.service' if broker else ''
         stop = f'    deb-systemd-invoke stop {units}\n' if broker else '''    if [ -d /run/systemd/system ]; then
-        for unit in $(systemctl list-units --all --plain --no-legend 'xmqr-client-sub@*.service' 'xmqr-client-pub@*.service' | awk '{print $1}'); do
+        for unit in $(systemctl list-units --all --plain --no-legend 'xmqr-client-sub@*.service' 'xmqr-client-pub@*.service' 'xmqr-client-bridge@*.service' | awk '{print $1}'); do
             deb-systemd-invoke stop "$unit"
         done
     fi
