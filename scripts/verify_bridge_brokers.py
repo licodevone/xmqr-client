@@ -216,6 +216,11 @@ def main():
                                               timeout=10)
                 assert retained_sub.returncode == 0 and b"c126-retained" in retained_sub.stdout, (retained_sub.stdout, retained_sub.stderr)
             exchange(root, source_port, target_port, "allowed", "c125-first", qos=qos)
+            if qos == 1:
+                updated = subprocess.run(command(root, source_port, "pub", "sensors/allowed",
+                                                 "c126-retained-updated", qos=1, retain=True),
+                                         capture_output=True, timeout=10)
+                assert updated.returncode == 0, updated.stderr.decode(errors="replace")
             if qos == 0:
                 exchange(root, source_port, target_port, "denied", "c125-denied",
                          expected=False, qos=qos)
@@ -232,6 +237,16 @@ def main():
                                                   bufsize=0,
                                                   env=dict(os.environ, XMQR_BRIDGE_TEST_PAUSE_AFTER_DEST_ACK="1"))
                 wait_markers(bridge_process, ("destino conectado", "origem assinada"))
+                for attempt in range(10):
+                    retained_sub = subprocess.run(command(root, target_port, "sub", "mirror/allowed",
+                                                         retained_only=True), capture_output=True,
+                                                  timeout=10)
+                    if retained_sub.returncode == 0 and b"c126-retained-updated" in retained_sub.stdout:
+                        break
+                    time.sleep(.2)
+                else:
+                    raise AssertionError(("retained replay missing", retained_sub.stdout,
+                                          retained_sub.stderr))
                 subscriber = ready_subscriber(root, target_port, "mirror/crash")
                 sent = subprocess.run(command(root, source_port, "pub", "sensors/crash",
                                               "c126-crash-redelivery", qos=1),
