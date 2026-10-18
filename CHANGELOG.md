@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## Não publicado — C114 em validação
+
+- `--ws-url wss://127.0.0.1:PORTA/mqtt` opt-in no modo mTLS seguro usa a CA/certificado/chave existentes para pub/sub MQTT 3.1.1/5. Loopback apenas, sem perfil ou estado durável sobre URL; TLS/senha e WS aberto preservados.
+
 ## 0.32.0 — WebSocket MQTT de laboratório (experimental)
 
 - C112: `pub`/`sub` MQTT 3.1.1/5 aceitam `--ws-url` com `--open-lab` em IP loopback e caminho explícito. O handshake exige subprotocolo `mqtt` e a CLI rejeita URL externa, credenciais na URL, estado persistente e destino TCP simultâneo.

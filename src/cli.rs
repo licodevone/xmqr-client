@@ -161,7 +161,7 @@ pub const AUTH_USAGE: &str = "Autenticacao MQTT 5: --auth-method plain (somente 
 pub const V5_WILL_USAGE: &str = "MQTT 5 Will: --will-message-expiry-seconds 0..4294967295, --will-payload-format 0|1, --will-content-type TEXTO (ate 256 bytes), --will-response-topic TOPICO (sem curingas), --will-correlation-data-hex HEX (ate 256 bytes), --will-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes). Exige --will-topic, mensagem Will e --protocol-version 5.\n";
 pub const OUTBOX_USAGE: &str = "Outbox duravel experimental (Linux/WSL): --outbox-dir DIRETORIO existente e privado (0700) exige pub --protocol-version 5 --qos 1|2 --clean-start false --session-expiry-seconds N --client-id ID fixo, uma mensagem. Repita o mesmo comando para retomar; nao remova o journal pendente se o broker negar Session Present. O arquivo contem payload em claro sob permissao 0600.\n";
 pub const SUBSCRIPTION_STATE_USAGE: &str = "Assinatura persistente experimental (Linux/WSL): --subscription-state-dir DIRETORIO privado (0700) exige sub --protocol-version 5 --clean-start false --session-expiry-seconds N --client-id ID fixo, sem --count. Repita a mesma assinatura para retomar quando o broker confirmar Session Present; sem sessao, o manifesto e preservado e o comando falha. QoS 1/2 recebe ACK apos escrever/flush em stdout; crash pode duplicar a saida, sem garantia de persistencia do consumidor.\n";
-pub const WS_USAGE: &str = "WebSocket experimental: --ws-url ws://127.0.0.1:PORTA/CAMINHO (ou [::1]) exige --open-lab; disponivel em pub/sub MQTT 3.1.1 ou 5. Sem --host/--port, credenciais, perfil ou estado persistente local. WSS ainda indisponivel.\n";
+pub const WS_USAGE: &str = "WebSocket experimental: --ws-url ws://127.0.0.1:PORTA/CAMINHO exige --open-lab. WSS mTLS local: --ws-url wss://127.0.0.1:PORTA/mqtt exige --ca, --cert, --key e --username, sem --open-lab. IPv6 [::1] tambem aceito. Pub/sub MQTT 3.1.1 ou 5; sem --host/--port, userinfo, perfil ou estado persistente local.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -804,9 +804,6 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         TransportMode::OpenLab | TransportMode::PlainAuthLab
     );
     if let Some(value) = ws_url.as_deref() {
-        if transport_mode != TransportMode::OpenLab {
-            return Err("--ws-url exige --open-lab".into());
-        }
         if host.is_some() || port.is_some() {
             return Err("--ws-url nao aceita --host ou --port".into());
         }
@@ -814,6 +811,10 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             return Err("--ws-url ainda nao aceita estado persistente local".into());
         }
         let url = url::Url::parse(value).map_err(|_| "--ws-url invalida")?;
+        let valid_mode = matches!(
+            (url.scheme(), transport_mode),
+            ("ws", TransportMode::OpenLab) | ("wss", TransportMode::Secure)
+        );
         let loopback = matches!(
             url.host(),
             Some(url::Host::Ipv4(ip)) if ip == std::net::Ipv4Addr::LOCALHOST
@@ -821,7 +822,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             url.host(),
             Some(url::Host::Ipv6(ip)) if ip == std::net::Ipv6Addr::LOCALHOST
         );
-        if url.scheme() != "ws"
+        if !valid_mode
             || !loopback
             || url.port().is_none_or(|port| port == 0)
             || url.path().is_empty()
@@ -832,7 +833,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             || url.fragment().is_some()
         {
             return Err(
-                "--ws-url exige ws em IP loopback, porta e caminho, sem credenciais ou parametros"
+                "--ws-url exige ws com --open-lab ou wss com mTLS, em IP loopback, porta e caminho, sem credenciais ou parametros"
                     .into(),
             );
         }
@@ -3155,6 +3156,66 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn wss_url_requires_loopback_mtls_without_destination_or_durable_state() {
+        let base = [
+            "pub",
+            "--topic",
+            "test/value",
+            "--message",
+            "ok",
+            "--username",
+            "device",
+            "--ca",
+            "ca.crt",
+            "--cert",
+            "client.crt",
+            "--key",
+            "client.key",
+            "--password-file",
+            "/tmp/password",
+        ];
+        for url in ["wss://127.0.0.1:8084/mqtt", "wss://[::1]:8084/mqtt"] {
+            let parsed =
+                parse(base.into_iter().chain(["--ws-url", url]).map(str::to_owned)).unwrap();
+            assert_eq!(parsed.ws_url.as_deref(), Some(url));
+            assert_eq!(parsed.transport_mode, TransportMode::Secure);
+        }
+        for url in [
+            "ws://127.0.0.1:8084/mqtt",
+            "wss://localhost:8084/mqtt",
+            "wss://192.0.2.1:8084/mqtt",
+            "wss://127.0.0.1/mqtt",
+            "wss://127.0.0.1:0/mqtt",
+            "wss://127.0.0.1:8084/",
+            "wss://user:pass@127.0.0.1:8084/mqtt",
+            "wss://127.0.0.1:8084/mqtt?token=x",
+            "wss://127.0.0.1:8084/mqtt#fragment",
+        ] {
+            assert!(
+                parse(base.into_iter().chain(["--ws-url", url]).map(str::to_owned)).is_err(),
+                "unexpected WSS URL: {url}"
+            );
+        }
+        for extra in [
+            vec!["--host", "127.0.0.1"],
+            vec!["--port", "8883"],
+            vec!["--outbox-dir", "/tmp/outbox"],
+            vec!["--subscription-state-dir", "/tmp/sub"],
+            vec!["--tls-password"],
+        ] {
+            assert!(
+                parse(
+                    base.into_iter()
+                        .chain(["--ws-url", "wss://127.0.0.1:8084/mqtt"])
+                        .chain(extra)
+                        .map(str::to_owned)
+                )
+                .is_err()
+            );
+        }
     }
 
     #[test]

@@ -74,8 +74,8 @@ fn expand_with(
     if positions.len() != 1 || positions[0] == 0 {
         return Err("use --profile uma unica vez apos pub/sub".into());
     }
-    if explicit.contains("--open-lab") || explicit.contains("--plain-auth-lab") {
-        return Err("perfil de conexao exige mTLS".into());
+    if incompatible_with_profile(&explicit) {
+        return Err("perfil de conexao exige mTLS sem --ws-url".into());
     }
     let index = positions[0];
     let path = args
@@ -139,6 +139,12 @@ fn expand_with(
             .map(|(_, value)| value),
     );
     Ok(expanded)
+}
+
+fn incompatible_with_profile(explicit: &std::collections::BTreeSet<String>) -> bool {
+    ["--open-lab", "--plain-auth-lab", "--ws-url"]
+        .iter()
+        .any(|flag| explicit.contains(*flag))
 }
 
 fn environment_overrides(
@@ -226,6 +232,7 @@ mod tests {
         assert!(parse_profile(text, &["--host", "a", "--host", "b"]).is_err());
         assert!(parse_profile(text, &["--profile", "other.toml"]).is_err());
         assert!(parse_profile(text, &["--open-lab"]).is_err());
+        assert!(parse_profile(text, &["--ws-url", "wss://127.0.0.1:8084/mqtt"]).is_err());
     }
 
     #[test]

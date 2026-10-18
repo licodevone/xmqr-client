@@ -1,5 +1,9 @@
 # Versionamento
 
+C114 implementa WSS mTLS local em `main` sem alterar 0.32.0 ou manifestos
+duráveis. A prerelease 0.32.0 não contém C114. CI da fonte exata e registro
+de aceite são necessários antes de marcar a entrega; fase 7 global aberta.
+
 O 0.32.0 publicado distribui C112: WebSocket de laboratório em loopback para
 pub/sub MQTT 3.1.1/5. Sem WSS, perfis nem estado durável sobre WS. O broker
 0.39.0 oferece o listener local P210. CI, pacote Ubuntu 26.04,

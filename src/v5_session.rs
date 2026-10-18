@@ -438,8 +438,14 @@ fn configure_options(cli: &Cli, password: Option<&str>) -> AppResult<MqttOptions
             properties,
         ));
     }
-    if cli.ws_url.is_some() {
-        options.set_transport(Transport::ws());
+    if let Some(url) = cli.ws_url.as_deref() {
+        if url.starts_with("wss://") {
+            options.set_transport(Transport::wss_with_config(
+                tls::build_client_config(cli)?.into(),
+            ));
+        } else {
+            options.set_transport(Transport::ws());
+        }
     } else if matches!(
         cli.transport_mode,
         TransportMode::Secure | TransportMode::TlsPassword

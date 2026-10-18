@@ -38,8 +38,13 @@ pub async fn run(
         .map(|seconds| Instant::now() + Duration::from_secs(u64::from(seconds)));
     let broker_address = cli.ws_url.as_deref().unwrap_or(&cli.host);
     let mut options = MqttOptions::new(&cli.client_id, broker_address, cli.port);
-    if cli.ws_url.is_some() {
-        options.set_transport(Transport::ws());
+    if let Some(url) = cli.ws_url.as_deref() {
+        if url.starts_with("wss://") {
+            let tls_config = tls::build_client_config(&cli)?;
+            options.set_transport(Transport::wss_with_config(tls_config.into()));
+        } else {
+            options.set_transport(Transport::ws());
+        }
     } else if matches!(
         cli.transport_mode,
         TransportMode::Secure | TransportMode::TlsPassword
