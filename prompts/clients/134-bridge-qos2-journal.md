@@ -1,4 +1,4 @@
-# C134 v1.11 — bridge QoS 2 com journal da origem
+# C134 v1.12 — bridge QoS 2 com journal da origem
 
 ## Entrada e fonte normativa
 
@@ -133,3 +133,13 @@ e receber PUBREL sem PUBLISH. Implementar sessão persistente **apenas no
 destino QoS 2**, mantendo ACK manual apenas na origem; validar retomada após
 restart e uma queda determinística durante a fase em voo. A tentativa anterior
 com sessão persistente foi contaminada pelo negativo de ACL, agora isolado.
+
+O primeiro ensaio determinístico terminou o journal após restart do destino,
+mas falhou ao exigir replay retained no destino. A fixture publicou enquanto
+a bridge já estava assinada: no MQTT 3.1.1, entrega viva ao assinante vem com
+`retain=false`, mesmo que o publicador tenha gravado retained na origem.
+Publicar a amostra retained **antes** de iniciar a instância isolada para que
+a bridge a receba como replay retained (`retain=true`); então interromper o
+destino no checkpoint pós-PUBLISH, reiniciar e conferir PUBCOMP/journal e
+replay retained no destino. Não alterar a política retained do produto com
+base nesse oráculo incorreto.
