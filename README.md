@@ -1,16 +1,17 @@
 # xmqr-client
 
-C117 em `main`, ainda em validação após a prerelease 0.33.0, permite
+O candidato experimental 0.34.0 inclui C117 e permite
 `--allow-remote-wss --ws-url wss://broker.exemplo:8443/mqtt` em mTLS seguro.
 A flag é obrigatória para URL não loopback; CA/SAN, certificado cliente,
 credenciais MQTT e ACL continuam necessários. Não há fallback para WS aberto,
-nem navegador ou estado durável por URL. [Prompt C117](prompts/clients/117-remote-wss-mtls-client.md).
+nem navegador ou estado durável por URL. [Prompt C117](prompts/clients/117-remote-wss-mtls-client.md)
+e [aceite parcial](prompts/registros/C117-remote-wss-mtls-client.md).
 
-C116 em `main`, após a release 0.33.0, permite `ws_url = "wss://127.0.0.1:PORTA/mqtt"`
+C116, incluído no candidato 0.34.0, permite `ws_url = "wss://127.0.0.1:PORTA/mqtt"`
 em `[connection]` do perfil TOML v1. O perfil reutiliza CA/certificado/chave,
 usuário e arquivo privado de senha; `--ws-url` explícito tem precedência.
 `host`/`port` efetivos junto da URL são recusados. WS aberto por perfil,
-TLS-senha, estado durável por URL, navegador e acesso remoto continuam fora
+TLS-senha, estado durável por URL e navegador continuam fora
 do escopo. [Prompt C116](prompts/clients/116-wss-mtls-profile.md) e
 [registro](prompts/registros/C116-wss-mtls-profile.md).
 

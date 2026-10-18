@@ -1,5 +1,12 @@
 # Versionamento
 
+O candidato 0.34.0 inclui C116/C117: perfil WSS mTLS e acesso remoto somente
+com `--allow-remote-wss`. Manifestos duráveis não mudam; o 0.33.0 os lê, mas
+não contém esses recursos. Broker 0.41.0/P214 é o par previsto. Publicar após
+CI da fonte exata, pacote Ubuntu, rollback descartável, imagem por digest e
+verificação dos anexos. [Nota candidata](docs/releases/0.34.0.md).
+Fase 7 global aberta.
+
 A prerelease 0.33.0 distribui C114 WSS mTLS local sem alterar manifestos
 duráveis. A versão anterior 0.32.0 não contém C114. CI, pacote Ubuntu 26.04,
 upgrade/rollback descartável, imagem numerada por digest, tag e prerelease
