@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.29.0 — sessão no DISCONNECT e outbox QoS 1 (experimental)
+
+- C104: `--disconnect-session-expiry-seconds` envia Session Expiry Interval no DISCONNECT normal MQTT 5; opção omitida mantém os bytes anteriores.
+- C105: `--outbox-dir` opt-in no Linux/WSL grava uma publicação MQTT 5 QoS 1 antes da rede, preserva resultado incerto e só retransmite DUP com o mesmo Packet Identifier quando o broker confirma Session Present. QoS 2 e assinaturas locais duráveis seguem pendentes; o journal privado contém o payload em claro.
+
 ## 0.28.0 — diagnóstico e propriedades de assinatura MQTT 5 (experimental)
 
 - C101: a CLI informa nome e código do DISCONNECT enviado pelo broker sem ecoar Reason String não confiável. Teste TCP cobre `0x95` e texto sentinela; sem tag isolada.

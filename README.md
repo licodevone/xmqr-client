@@ -1,6 +1,6 @@
 # xmqr-client
 
-Na árvore de desenvolvimento após 0.28.0, C105 acrescenta uma outbox
+O candidato 0.29.0 reúne C104/C105. C105 acrescenta uma outbox
 experimental para uma publicação MQTT 5 QoS 1 por processo em Linux/WSL.
 Crie um diretório privado com `mkdir -m 700 ~/xmqr-outbox` e use, por exemplo,
 `mqtt-client pub --open-lab --protocol-version 5 --host 127.0.0.1 --port 1883
