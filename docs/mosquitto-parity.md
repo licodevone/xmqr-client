@@ -1,5 +1,20 @@
 # Paridade do mqtt-client com Mosquitto
 
+## Checkpoint C129 — 2026-10-18
+
+O [journal de recepção opt-in](mqtt5-inbound-journal.md) está integrado em
+`main`, com fases duráveis antes dos ACKsQoS1/2, retomada condicionada aSP1,
+32registros/64KiB e limites explícitos stdout→commit. Foram executados
+175testesRust,18cenáriosTCP e6regressões, com fonte/hash no
+[registroC129](../prompts/registros/C129-subscription-inbound-state.md).
+Revisão final de metadados variáveis e estado órfão continua pendente;
+isso ainda não é aceite global nem nova tag/release.
+
+Publisher serial com uma obrigação de saída é limite intencional válido,
+não suporte a múltiplos inflight de publicação. O journal de recepção
+limitado não equivale a ampliar esse pipeline. Referências mais antigas
+abaixo a nenhuma persistência local descrevem seus checkpoints históricos.
+
 ## Fase3 — C45 / C07, 2026-10-13
 
 [Robustez](client-robustness.md): totalmonotônico opcional1..86400,
