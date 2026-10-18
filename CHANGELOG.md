@@ -1,6 +1,6 @@
 # Histórico de versões
 
-## Não publicado — C119 aceito parcialmente
+## 0.35.0 — outbox QoS 1 por WSS mTLS (candidato experimental)
 
 - MQTT 5 QoS 1 com outbox privado aceita WSS mTLS local/remoto; URL WSS canônica distingue o destino dos journals TCP sem alterar o formato. WS aberto, QoS 2 e manifesto de assinatura por URL continuam recusados.
 - C120 comprovou, em fixture mTLS controlada, retransmissão com DUP e mesmo Packet ID quando Session Present=1, com remoção somente após PUBACK; Session Present=0 preserva o journal sem reenvio.

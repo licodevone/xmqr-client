@@ -1,6 +1,6 @@
 # xmqr-client
 
-C119 aceito parcialmente em `main` após a prerelease 0.34.0 permite outbox MQTT 5
+O candidato experimental 0.35.0 reúne C119 e permite outbox MQTT 5
 QoS 1 por WSS mTLS com URL canônica como identidade do destino; TCP mantém
 seus journals antigos. WS aberto, QoS 2 e manifesto de assinatura por URL
 continuam recusados. C120 validou reconexão com Session Present e DUP após
