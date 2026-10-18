@@ -1,10 +1,12 @@
 # Versionamento
 
-O candidato 0.32.0 distribui C112: WebSocket de laboratório em loopback para
+O 0.32.0 publicado distribui C112: WebSocket de laboratório em loopback para
 pub/sub MQTT 3.1.1/5. Sem WSS, perfis nem estado durável sobre WS. O broker
-P210 em `main` oferece o listener local, mas a versão publicada 0.38.0 não o
-inclui. A versão 0.32.0 depende do gate [C113](prompts/clients/113-release-0.32.0.md).
-Sem mudança do estado durável; fase 7 global aberta.
+0.39.0 oferece o listener local P210. CI, pacote Ubuntu 26.04,
+upgrade/rollback descartável, imagem numerada, tag, prerelease e seis hashes
+remotos passaram. [Nota](docs/releases/0.32.0.md) e
+[registro](prompts/registros/C113-release-0.32.0.md). Sem mudança do estado
+durável; fase 7 global aberta.
 
 O 0.31.0 publicado distribui C110: ACK QoS 1/2 da assinatura persistente
 após escrita/flush; falha de stdout não confirma. Sem journal inbound ou

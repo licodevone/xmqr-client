@@ -1,14 +1,14 @@
 # xmqr-client
 
-O candidato experimental 0.32.0 distribui C112: `--ws-url ws://127.0.0.1:PORTA/CAMINHO` (ou `[::1]`)
+A prerelease experimental 0.32.0 distribui C112: `--ws-url ws://127.0.0.1:PORTA/CAMINHO` (ou `[::1]`)
 para `pub`/`sub` MQTT 3.1.1 e 5 com `--open-lab` explícito. É um recorte
-experimental em loopback: WSS, broker XMQR via WebSocket, perfis e manifestos
-duráveis ainda não são suportados. Exemplo: `mqtt-client sub --open-lab
+experimental em loopback: WSS, perfis e manifestos duráveis ainda não são
+suportados. O broker XMQR 0.39.0 fornece WS local. Exemplo: `mqtt-client sub --open-lab
 --ws-url ws://127.0.0.1:8083/mqtt --topic 'lab/#' --count 1`.
 [Prompt C112](prompts/clients/112-loopback-websocket-transport.md) e
-[registro](prompts/registros/C112-loopback-websocket-transport.md). A versão
-publicada 0.31.0 ainda não contém C112; [gate C113](prompts/clients/113-release-0.32.0.md)
-e [nota candidata](docs/releases/0.32.0.md).
+[registro](prompts/registros/C112-loopback-websocket-transport.md).
+[Release](https://github.com/licodevone/xmqr-client/releases/tag/v0.32.0),
+[nota](docs/releases/0.32.0.md) e [registro C113](prompts/registros/C113-release-0.32.0.md).
 
 A prerelease experimental 0.31.0 distribui C110: com manifesto de assinatura
 MQTT 5 no Linux/WSL, o ACK QoS 1/2 ocorre após a saída; erro de stdout deixa

@@ -1,9 +1,9 @@
 # Histórico de versões
 
-## 0.32.0 — WebSocket MQTT de laboratório (candidato experimental)
+## 0.32.0 — WebSocket MQTT de laboratório (experimental)
 
 - C112: `pub`/`sub` MQTT 3.1.1/5 aceitam `--ws-url` com `--open-lab` em IP loopback e caminho explícito. O handshake exige subprotocolo `mqtt` e a CLI rejeita URL externa, credenciais na URL, estado persistente e destino TCP simultâneo.
-- WSS, perfis WS e durabilidade em URL WS continuam pendentes. O broker XMQR publicado 0.38.0 ainda não oferece WebSocket; P210 está em `main` para o marco broker 0.39.0. Fase 7 global aberta.
+- WSS, perfis WS e durabilidade em URL WS continuam pendentes. O broker XMQR 0.39.0 oferece WS local P210; fase 7 global aberta.
 
 ## 0.31.0 — confirmação após saída da assinatura persistente (experimental)
 
