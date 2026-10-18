@@ -161,7 +161,7 @@ pub const AUTH_USAGE: &str = "Autenticacao MQTT 5: --auth-method plain (somente 
 pub const V5_WILL_USAGE: &str = "MQTT 5 Will: --will-message-expiry-seconds 0..4294967295, --will-payload-format 0|1, --will-content-type TEXTO (ate 256 bytes), --will-response-topic TOPICO (sem curingas), --will-correlation-data-hex HEX (ate 256 bytes), --will-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes). Exige --will-topic, mensagem Will e --protocol-version 5.\n";
 pub const OUTBOX_USAGE: &str = "Outbox duravel experimental (Linux/WSL): --outbox-dir DIRETORIO existente e privado (0700) exige pub --protocol-version 5 --qos 1|2 --clean-start false --session-expiry-seconds N --client-id ID fixo, uma mensagem. Por --ws-url, somente WSS mTLS e URL exata; WS aberto e manifesto de assinatura por URL sao recusados. Repita o mesmo comando para retomar; nao remova o journal pendente se o broker negar Session Present. O arquivo contem payload em claro sob permissao 0600.\n";
 pub const SUBSCRIPTION_STATE_USAGE: &str = "Assinatura persistente experimental (Linux/WSL): --subscription-state-dir DIRETORIO privado (0700) exige sub --protocol-version 5 --clean-start false --session-expiry-seconds N --client-id ID fixo, sem --count. Repita a mesma assinatura para retomar quando o broker confirmar Session Present; sem sessao, o manifesto e preservado e o comando falha. QoS 1/2 recebe ACK apos escrever/flush em stdout; crash pode duplicar a saida, sem garantia de persistencia do consumidor.\n";
-pub const WS_USAGE: &str = "WebSocket experimental: --ws-url ws://127.0.0.1:PORTA/CAMINHO exige --open-lab. WSS mTLS local: --ws-url wss://127.0.0.1:PORTA/mqtt exige --ca, --cert, --key e --username, sem --open-lab. IPv6 [::1] tambem aceito. Pub/sub MQTT 3.1.1 ou 5; sem --host/--port, userinfo, perfil ou estado persistente local.\n";
+pub const WS_USAGE: &str = "WebSocket experimental: --ws-url ws://127.0.0.1:PORTA/CAMINHO exige --open-lab. WSS mTLS local: --ws-url wss://127.0.0.1:PORTA/mqtt exige --ca, --cert, --key e --username, sem --open-lab. IPv6 [::1] tambem aceito. Pub/sub MQTT 3.1.1 ou 5; sem --host/--port ou userinfo. Estado duravel por URL: apenas outbox MQTT 5 QoS 1/2 em WSS mTLS; assinatura persistente por URL indisponivel.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -3298,6 +3298,17 @@ mod tests {
         qos2[qos_index] = "2".to_owned();
         qos2.extend(["--ws-url", "wss://127.0.0.1:8084/mqtt"].map(str::to_owned));
         assert!(parse(qos2).unwrap().outbox_dir.is_some());
+        let mut remote_qos2 = base.into_iter().map(str::to_owned).collect::<Vec<_>>();
+        remote_qos2[qos_index] = "2".to_owned();
+        remote_qos2.extend(
+            [
+                "--allow-remote-wss",
+                "--ws-url",
+                "wss://broker.example:8084/mqtt",
+            ]
+            .map(str::to_owned),
+        );
+        assert!(parse(remote_qos2).unwrap().outbox_dir.is_some());
     }
 
     #[test]
