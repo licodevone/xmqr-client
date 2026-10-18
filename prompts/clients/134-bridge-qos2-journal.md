@@ -1,4 +1,4 @@
-# C134 v1.6 — bridge QoS 2 com journal da origem
+# C134 v1.7 — bridge QoS 2 com journal da origem
 
 ## Entrada e fonte normativa
 
@@ -95,3 +95,10 @@ build de depuração** para identificar a classe de erro sem registrar payload,
 senha ou chaves. Se a causa for uma obrigação antiga da sessão, preservar um
 ensaio de reinício repetido que a detecte e corrigir a bridge; não mascarar a
 falha com uma nova identidade de client ID antes de entender a causa.
+
+Diagnóstico do build de depuração: `destino sem ACK terminal no prazo`. A
+conexão de destino caiu e retomou durante um encaminhamento retained QoS 2;
+ela usa Clean Session=1, perdendo a negociação PUBREC/PUBREL/PUBCOMP em voo.
+Usar sessão persistente também no destino para QoS 2 e manter ACK manual
+apenas na origem. Validar retransmissão/reconexão sem confirmar a origem antes
+do PUBCOMP, sem alterar o modo QoS 0/1. Manter o ensaio repetido.
