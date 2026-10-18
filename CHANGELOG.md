@@ -1,6 +1,6 @@
 # Histórico de versões
 
-## Não publicado — C123 em validação
+## Não publicado — C123 aceito parcialmente
 
 - Manifesto MQTT 5 de assinatura persistente aceita WSS mTLS local/remoto, usando URL canônica como destino e preservando manifestos TCP. WS aberto continua sem estado local.
 
