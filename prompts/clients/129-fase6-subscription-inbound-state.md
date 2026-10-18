@@ -1,4 +1,4 @@
-# C129 v1.11 — journal inbound da assinatura persistente MQTT 5
+# C129 v1.12 — journal inbound da assinatura persistente MQTT 5
 
 18/10/2026, preparado antes do código. Pedido: fechar M03/6B do plano de
 paridade e a pendência explícita do prompt C110, coordenado pelo broker P227.
@@ -194,3 +194,41 @@ casos, prazos ou runtime congelado. Commitar esta revisão antes da alteração,
 repetir os18 no mesmo ELF109ec973... com relatório novo, registrar SHA do
 harness/relatório e resultado verdadeiro. Compatibilidade já possui marker
 específico C129_COMPATIBILITY_PASS e usa --client explícito.
+
+## Revisão v1.12 — revisão independente antes dos novos RED
+
+Entrada: clone próprio limpo5ba9cf6, runtime169c03a, ELF debug109ec97326500b8edfe9c54f09318103f661866a3e16927a9b63e8d4f473d3e9.
+O coordenador autorizou dois fixes delimitados, sem tocar C128/original,
+broker/admin/Cargo/versão. Esta revisão será commitada antes dos testes/fix.
+
+1. Diretório com subscription-inbound.json sem subscription.json é corrupção
+   órfã, não primeira assinatura. Recusar antes de criar manifesto/conectar,
+   preservando bytes inclusive de temporário inbound existente. Guardar tanto
+   abertura quanto preparação direta; lock privado existente continua válido.
+   RED unitário e TCP: remover somente manifesto após seed real, exigir recusa
+   sem CONNECT, sem recriar manifesto e sem alterar inbound/temporário.
+2. Identidade semântica de replay não inclui Subscription Identifiers: ordem
+   irrelevante (§3.3.4-4) e conjunto pode mudar em retransmissão (§3.8.3.1).
+   Preservar valores/ordem originais no wire guardado e no checksum do documento;
+   somente comparação da obrigação ignora esses metadados mutáveis, como já
+   ignora expiry restante/DUP/alias transitório. Não relaxar topic/payload/QoS/
+   UserProperties ou demais metadados. RED de ordem e multiplicidade, TCP com
+   SIGKILL após PUBREC/SP1/DUP PUBLISH modificado/PUBREL sem nova saída.
+
+Decisão explícita de compatibilidade do draft: documento inbound passa de1
+para2 somente por mudança do algoritmo de identity. Não muda versão dos
+outboxes/manifestos antigos, pacote ou protocolo. Leitura de inboundv1 exige
+checksum e identidade v1 válidos antes de normalizar identity em memória;
+wire/metadados originais e arquivo permanecem intactos nessa leitura.
+Próxima transição durável grava v2 pelo caminho atômico existente. v2 valida
+o algoritmo novo; versões desconhecidas/corrupção não são reinterpretadas.
+Testar v1 real pela serialização/algoritmo anteriores, migração sem write na
+leitura e persistência v2 após transição, além de corrupção/versão inválida.
+
+Antes do fix: preservar RED no fonte e ELF antigo, SHA/tempos/exit/report
+exclusivo. Depois revisão específica documentará RED antes de alterar runtime.
+Buildcache privado /var/tmp/xmqr-client-p92-native-e688c75 liberado pelo root,
+cargo locked/offline-j1, avisar uso/liberação. Repetir integral Rust,18+novos
+TCP, compatibilidade6, fmt/Clippy/build/inventário; novos reports não apagam
+FAILs anteriores. Sem instalação/tag/push/release; commits locais próprios
+autorizados. stdout→commit continua podendo duplicar saída, não é este bug.
