@@ -19,7 +19,7 @@ sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT = Path(os.environ.get("XMQR_CLIENT_BIN", ROOT / "target/debug/mqtt-client"))
 BRIDGE = Path(os.environ.get("XMQR_BRIDGE_BIN", ROOT / "target/debug/mqtt-bridge"))
-from verify_bridge_brokers import private, wait_markers, exchange
+from verify_bridge_brokers import command, private, wait_markers, exchange
 
 
 def docker(*args):
@@ -38,7 +38,7 @@ def wait_docker(port):
     raise AssertionError("Mosquitto TLS listener unavailable")
 
 
-def case(broker_root, direction, qos):
+def case(broker_root, direction, qos, mqtt5_retain=False):
     sys.path.insert(0, str(broker_root / "scripts"))
     from verify_multi_endpoint import free_port, hash_fixture, wait_port
     from verify_wss_mtls import certificates
@@ -101,6 +101,8 @@ def case(broker_root, direction, qos):
                     f'cert={json.dumps(str(root / "client.crt"))}\n'
                     f'key={json.dumps(str(root / "client.key"))}\n')
         header = 'version=1\nmax_retries=8\n'
+        if mqtt5_retain:
+            header += 'source_protocol="mqtt5"\n'
         if qos > 0:
             private(root / "topology.toml", 'version=1\n[[brokers]]\nid="source"\n'
                     + f'host="127.0.0.1"\nport={source_port}\n'
@@ -132,10 +134,32 @@ def case(broker_root, direction, qos):
                    "-p", f"127.0.0.1:{mosq_port}:1883", "-v", f"{root}:/fixture:ro",
                    "eclipse-mosquitto:2.0.22", "mosquitto", "-c", "/fixture/mosquitto.conf")
             wait_docker(mosq_port)
+            if mqtt5_retain:
+                retained = subprocess.run(command(root, source_port, "pub",
+                                                  "sensors/allowed", "c136-replay",
+                                                  retain=True), capture_output=True, timeout=10)
+                assert retained.returncode == 0, retained.stderr.decode(errors="replace")
             bridge = subprocess.Popen([str(BRIDGE), "--config", str(root / "bridge.toml")],
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
             wait_markers(bridge, ("destino conectado", "origem assinada"), seconds=20)
+            if mqtt5_retain:
+                def retained_value(expected):
+                    for _ in range(3):
+                        observed = subprocess.run(command(root, target_port, "sub",
+                                                          "mirror/allowed", retained_only=True),
+                                                  capture_output=True, timeout=10)
+                        if observed.returncode == 0 and expected in observed.stdout:
+                            return
+                    raise AssertionError("retained MQTT 5 publication missing at destination")
+                retained_value(b"c136-replay")
+                live = subprocess.run(command(root, source_port, "pub", "sensors/allowed",
+                                              "c136-live-retained", retain=True),
+                                      capture_output=True, timeout=10)
+                assert live.returncode == 0, live.stderr.decode(errors="replace")
+                retained_value(b"c136-live-retained")
             exchange(root, source_port, target_port, "allowed", f"c125-{direction}-first", qos=qos)
+            if mqtt5_retain:
+                retained_value(b"c136-live-retained")
             docker("stop", container)
             marker = "destino desconectado" if xmqr_is_source else "origem desconectada"
             wait_markers(bridge, (marker,), seconds=10)
@@ -172,12 +196,14 @@ def main():
     parser.add_argument("--broker-root", type=Path, required=True)
     parser.add_argument("--qos1", action="store_true")
     parser.add_argument("--qos2", action="store_true")
+    parser.add_argument("--mqtt5-retain", action="store_true")
     args = parser.parse_args()
     assert not (args.qos1 and args.qos2)
+    assert not args.mqtt5_retain or not (args.qos1 or args.qos2)
     qos = 2 if args.qos2 else 1 if args.qos1 else 0
     for direction in ("xmqr-to-mosquitto", "mosquitto-to-xmqr"):
-        case(args.broker_root.resolve(), direction, qos)
-        label = 'C134' if qos == 2 else 'C125_C126'
+        case(args.broker_root.resolve(), direction, qos, args.mqtt5_retain)
+        label = 'C136' if args.mqtt5_retain else 'C134' if qos == 2 else 'C125_C126'
         print(f"{label}_BRIDGE_{direction.upper().replace('-', '_')}_QOS{qos}_PASS")
 
 

@@ -1,4 +1,4 @@
-//! C125-C134: bounded, one-way MQTT 3.1.1 bridge sidecar (experimental).
+//! C125-C136: bounded, one-way MQTT bridge sidecar (experimental).
 #[path = "../bridge_journal.rs"]
 mod bridge_journal;
 use std::{
@@ -17,6 +17,13 @@ use std::{
 use bridge_journal::Journal;
 #[cfg(debug_assertions)]
 use rumqttc::Outgoing;
+use rumqttc::v5::{
+    self,
+    mqttbytes::{
+        QoS as QoS5,
+        v5::{ConnectReturnCode, Filter, SubscribeReasonCode},
+    },
+};
 use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, Publish, QoS, Transport};
 use rustls::{
     ClientConfig, RootCertStore,
@@ -38,6 +45,8 @@ const MAX_PAYLOAD_BYTES: usize = 64 * 1024;
 #[serde(deny_unknown_fields)]
 struct Config {
     version: u8,
+    #[serde(default)]
+    source_protocol: SourceProtocol,
     source: Endpoint,
     destination: Endpoint,
     route: Route,
@@ -46,6 +55,14 @@ struct Config {
     journal_dir: Option<PathBuf>,
     #[serde(default = "default_retries")]
     max_retries: u8,
+}
+
+#[derive(Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+enum SourceProtocol {
+    #[default]
+    Mqtt311,
+    Mqtt5,
 }
 
 #[derive(Debug, Deserialize)]
@@ -298,6 +315,9 @@ fn validate(config: &Config) -> AppResult<()> {
     if config.max_retries == 0 || config.max_retries > 20 {
         return Err(invalid("max_retries deve estar entre 1 e 20").into());
     }
+    if config.source_protocol == SourceProtocol::Mqtt5 && config.route.qos != 0 {
+        return Err(invalid("origem MQTT 5 requer route.qos=0 nesta etapa").into());
+    }
     let a = &config.source;
     let b = &config.destination;
     for endpoint in [a, b] {
@@ -419,6 +439,101 @@ fn options(
     options.set_manual_acks(manual_acks);
     options.set_max_packet_size(MAX_PAYLOAD_BYTES - 5, MAX_PAYLOAD_BYTES);
     Ok(options)
+}
+
+fn options_v5(endpoint: &Endpoint) -> AppResult<v5::MqttOptions> {
+    let mut options = v5::MqttOptions::new(&endpoint.client_id, &endpoint.host, endpoint.port);
+    options.set_transport(Transport::tls_with_config(tls(endpoint)?.into()));
+    options.set_credentials(&endpoint.username, password(&endpoint.password_file)?);
+    options.set_keep_alive(Duration::from_secs(30));
+    options.set_clean_start(true);
+    options.set_max_packet_size(Some(u32::try_from(MAX_PAYLOAD_BYTES)?));
+    Ok(options)
+}
+
+async fn run_mqtt5_qos0(config: Config) -> AppResult<()> {
+    let source = options_v5(&config.source)?;
+    let destination = options(&config.destination, false, false)?;
+    let (source_client, mut source_loop) = v5::AsyncClient::new(source, 8);
+    let (destination_client, destination_loop) = AsyncClient::new(destination, 8);
+    let destination_connected = Arc::new(AtomicBool::new(false));
+    let (ack_tx, _ack_rx) = mpsc::channel(1);
+    let mut destination_task: JoinHandle<AppResult<()>> = tokio::spawn(poll_destination(
+        destination_loop,
+        Arc::clone(&destination_connected),
+        config.max_retries,
+        0,
+        ack_tx,
+    ));
+    let filter = format!("{}#", config.route.source_prefix);
+    let mut failures = 0_u8;
+    let mut forwarded = 0_u64;
+    let mut dropped = 0_u64;
+    loop {
+        tokio::select! {
+            result = &mut destination_task => return result?,
+            _ = tokio::signal::ctrl_c() => return Ok(()),
+            event = source_loop.poll() => match event {
+                Ok(v5::Event::Incoming(v5::Incoming::ConnAck(connack))) => {
+                    if connack.code != ConnectReturnCode::Success {
+                        return Err(invalid("origem recusou CONNECT MQTT 5").into());
+                    }
+                    failures = 0;
+                    tokio::select! {
+                        result = &mut destination_task => return result?,
+                        ready = timeout(Duration::from_secs(20), async {
+                            while !destination_connected.load(Ordering::Acquire) {
+                                sleep(Duration::from_millis(50)).await;
+                            }
+                        }) => ready.map_err(|_| invalid("destino indisponivel antes da assinatura MQTT 5"))?,
+                    }
+                    let mut subscription = Filter::new(&filter, QoS5::AtMostOnce);
+                    subscription.preserve_retain = true;
+                    source_client.subscribe_many([subscription]).await?;
+                    eprintln!("Bridge: origem conectada");
+                }
+                Ok(v5::Event::Incoming(v5::Incoming::SubAck(suback))) => {
+                    if !matches!(suback.return_codes.as_slice(),
+                                 [SubscribeReasonCode::Success(QoS5::AtMostOnce)]) {
+                        return Err(invalid("origem recusou assinatura MQTT 5").into());
+                    }
+                    eprintln!("Bridge: origem assinada");
+                }
+                Ok(v5::Event::Incoming(v5::Incoming::Publish(message))) => {
+                    let previous_dropped = dropped;
+                    if !destination_connected.load(Ordering::Acquire)
+                        || message.payload.len() > MAX_PAYLOAD_BYTES {
+                        dropped += 1;
+                    } else if let Ok(topic) = std::str::from_utf8(&message.topic)
+                        && let Some(topic) = mapped_topic(&config.route, topic) {
+                        destination_client.publish(topic, QoS::AtMostOnce,
+                                                   message.retain, message.payload).await?;
+                        forwarded += 1;
+                        if forwarded.is_multiple_of(100) {
+                            eprintln!("Bridge: {forwarded} mensagens encaminhadas");
+                        }
+                    } else {
+                        dropped += 1;
+                    }
+                    if dropped != previous_dropped
+                        && (dropped == 1 || dropped.is_multiple_of(100)) {
+                        eprintln!("Bridge: {dropped} mensagens descartadas (destino indisponivel ou limite)");
+                    }
+                }
+                Ok(_) => {}
+                Err(_) => {
+                    if failures == 0 {
+                        eprintln!("Bridge: origem desconectada");
+                    }
+                    failures = failures.saturating_add(1);
+                    if failures > config.max_retries {
+                        return Err(invalid("origem indisponivel apos tentativas").into());
+                    }
+                    sleep(Duration::from_secs(u64::from(failures.min(5)))).await;
+                }
+            },
+        }
+    }
 }
 
 async fn poll_destination(
@@ -590,6 +705,9 @@ async fn pause_after_source_pubrec(pkid: u16, journal: Option<&Journal>) {
 }
 
 async fn run(config: Config) -> AppResult<()> {
+    if config.source_protocol == SourceProtocol::Mqtt5 {
+        return run_mqtt5_qos0(config).await;
+    }
     let qos = config.route.qos;
     let durable_source = qos > 0;
     let mut journal = open_journal(&config)?;
@@ -725,7 +843,17 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{Link, Route, has_cycle, mapped_topic, valid_topic};
+    use super::{Link, Route, SourceProtocol, has_cycle, mapped_topic, valid_topic};
+
+    #[test]
+    fn mqtt5_source_is_explicit_and_unknown_protocol_is_rejected() {
+        assert_eq!(SourceProtocol::default(), SourceProtocol::Mqtt311);
+        assert_eq!(
+            serde_json::from_str::<SourceProtocol>("\"mqtt5\"").unwrap(),
+            SourceProtocol::Mqtt5
+        );
+        assert!(serde_json::from_str::<SourceProtocol>("\"mqtt4\"").is_err());
+    }
 
     #[test]
     fn prefix_mapping_stays_bounded_and_does_not_match_neighbors() {

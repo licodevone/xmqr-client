@@ -76,7 +76,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: licodevone/xmqr
-          ref: v0.42.0
+          ref: v0.43.0
           path: broker
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -84,6 +84,8 @@ jobs:
       - run: cargo build --locked --bins --manifest-path broker/Cargo.toml
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker
+      - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --mqtt5-retain
+      - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --mqtt5-retain
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --qos1
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --qos1
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --qos2
@@ -110,7 +112,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: licodevone/xmqr
-          ref: v0.42.0
+          ref: v0.43.0
           path: broker
       - uses: actions/download-artifact@v4
         with:
@@ -123,3 +125,5 @@ jobs:
       - run: test "$($XMQR_CLIENT_BIN --version)" = 'mqtt-client 0.40.0' && test "$($XMQR_BRIDGE_BIN --version)" = 'mqtt-bridge 0.2.0 (xmqr-client 0.40.0)'
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --qos2 --skip-crash-checkpoint
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --qos2
+      - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --mqtt5-retain
+      - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --mqtt5-retain
