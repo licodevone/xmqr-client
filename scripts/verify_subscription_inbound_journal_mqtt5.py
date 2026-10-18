@@ -512,6 +512,8 @@ def main():
     print(json.dumps(report), flush=True)
     if report["status"] != "PASS":
         raise SystemExit(1)
+    if args.case == "all":
+        print("C129_INBOUND_JOURNAL_PASS", flush=True)
 
 
 if __name__ == "__main__":
