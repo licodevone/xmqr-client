@@ -3,8 +3,8 @@
 use std::time::Duration;
 
 use super::mqttbytes::v5::{
-    Auth, DisconnectProperties, Filter, PubAck, PubRec, PubRel, Publish, PublishProperties,
-    Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
+    Auth, DisconnectProperties, Filter, PubAck, PubComp, PubCompReason, PubRec, PubRel, Publish,
+    PublishProperties, Subscribe, SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use super::mqttbytes::QoS;
 use super::{ConnectionError, Event, EventLoop, MqttOptions, Request};
@@ -260,6 +260,19 @@ impl AsyncClient {
             return Err(ClientError::TryRequest(request));
         }
         self.request_tx.send_async(request).await?;
+        Ok(())
+    }
+
+    /// Complete incoming QoS 2 only after the caller commits its journal.
+    /// Requires `MqttState::set_manual_incoming_qos2(true)`; defaults are unchanged.
+    pub fn try_pubcomp_packet(&self, pkid: u16, reason: PubCompReason) -> Result<(), ClientError> {
+        let mut packet = PubComp::new(pkid, None);
+        packet.reason = reason;
+        let request = Request::PubComp(packet);
+        if pkid == 0 {
+            return Err(ClientError::TryRequest(request));
+        }
+        self.request_tx.try_send(request)?;
         Ok(())
     }
 

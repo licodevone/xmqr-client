@@ -7,6 +7,7 @@ use std::{
 };
 
 use fs2::FileExt;
+use rumqttc::v5::mqttbytes::v5::{Packet, Publish};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -19,6 +20,106 @@ const TEMP_QOS2: &str = "pending-qos2.tmp";
 const SUBSCRIPTION: &str = "subscription.json";
 const SUBSCRIPTION_TEMP: &str = "subscription.tmp";
 const LOCK: &str = "outbox.lock";
+const INBOUND: &str = "subscription-inbound.json";
+const INBOUND_TEMP: &str = "subscription-inbound.tmp";
+pub(crate) const MAX_INBOUND_RECORDS: usize = 32;
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) enum InboundStage {
+    Received,
+    ReadyAck,
+    AwaitPubRel,
+    PubCompPending,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct InboundPublication {
+    pub packet_id: u16,
+    pub qos: u8,
+    wire: Vec<u8>,
+    identity: [u8; 32],
+}
+
+fn invalid_inbound() -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, "journal inbound invalido")
+}
+
+impl InboundPublication {
+    pub(crate) fn from_publish(publish: &Publish, topic: &str) -> io::Result<Self> {
+        let mut canonical = publish.clone();
+        canonical.topic = topic.as_bytes().to_vec().into();
+        canonical.dup = false;
+        if let Some(properties) = &mut canonical.properties {
+            properties.topic_alias = None;
+        }
+        let mut wire = b"".as_slice().into();
+        canonical.write(&mut wire).map_err(|_| invalid_inbound())?;
+        let identity = Self::identity(&mut canonical)?;
+        let value = Self {
+            packet_id: publish.pkid,
+            qos: publish.qos as u8,
+            wire: wire.to_vec(),
+            identity,
+        };
+        value.publication()?;
+        Ok(value)
+    }
+
+    fn identity(publish: &mut Publish) -> io::Result<[u8; 32]> {
+        // Remaining expiry can decrease on retransmission. Aliases and DUP are
+        // connection-local; neither identifies the stored application message.
+        if let Some(properties) = &mut publish.properties {
+            properties.message_expiry_interval = None;
+        }
+        let mut wire = b"".as_slice().into();
+        publish.write(&mut wire).map_err(|_| invalid_inbound())?;
+        Ok(Sha256::digest(&wire).into())
+    }
+
+    pub(crate) fn publication(&self) -> io::Result<Publish> {
+        if self.wire.len() > 65536 || self.packet_id == 0 || !(1..=2).contains(&self.qos) {
+            return Err(invalid_inbound());
+        }
+        let mut wire = self.wire.as_slice().into();
+        let Packet::Publish(publish) =
+            Packet::read(&mut wire, Some(65536)).map_err(|_| invalid_inbound())?
+        else {
+            return Err(invalid_inbound());
+        };
+        let topic = std::str::from_utf8(&publish.topic).map_err(|_| invalid_inbound())?;
+        if !wire.is_empty()
+            || publish.pkid != self.packet_id
+            || publish.qos as u8 != self.qos
+            || publish.dup
+            || topic.is_empty()
+            || topic.len() > 1024
+            || topic.contains(['+', '#', '\0'])
+            || publish.payload.len() > 4096
+            || publish
+                .properties
+                .as_ref()
+                .is_some_and(|p| p.topic_alias.is_some())
+            || Self::identity(&mut publish.clone())? != self.identity
+        {
+            return Err(invalid_inbound());
+        }
+        Ok(publish)
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct PendingInbound {
+    pub publication: InboundPublication,
+    pub stage: InboundStage,
+}
+
+#[derive(Serialize, Deserialize)]
+struct InboundDocument {
+    version: u8,
+    subscription_checksum: [u8; 32],
+    entries: Vec<PendingInbound>,
+    checksum: [u8; 32],
+}
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct Operation {
@@ -165,6 +266,7 @@ impl Outbox {
         outbox.remove_stale_temp(TEMP)?;
         outbox.remove_stale_temp(TEMP_QOS2)?;
         outbox.remove_stale_temp(SUBSCRIPTION_TEMP)?;
+        outbox.remove_stale_temp(INBOUND_TEMP)?;
         Ok(outbox)
     }
 
@@ -432,6 +534,197 @@ impl Outbox {
         self.directory.sync_all()
     }
 
+    fn inbound_subscription_checksum(&self) -> io::Result<[u8; 32]> {
+        let subscription = self.load_subscription()?.ok_or_else(invalid_inbound)?;
+        if subscription.stage != SubscriptionStage::Active {
+            return Err(invalid_inbound());
+        }
+        Ok(Sha256::digest(serde_json::to_vec(&subscription.spec)?).into())
+    }
+
+    pub(crate) fn load_inbound(&self) -> io::Result<Vec<PendingInbound>> {
+        let file = match OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(self.path.join(INBOUND))
+        {
+            Ok(file) => file,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => return Err(error),
+        };
+        private(&file.metadata()?, self.uid, 0o600, false)?;
+        let mut bytes = Vec::new();
+        file.take(MAX_DOCUMENT_BYTES + 1).read_to_end(&mut bytes)?;
+        if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
+            return Err(invalid_inbound());
+        }
+        let document: InboundDocument =
+            serde_json::from_slice(&bytes).map_err(|_| invalid_inbound())?;
+        let serialized = serde_json::to_vec(&(document.subscription_checksum, &document.entries))?;
+        if document.version != DOCUMENT_VERSION
+            || document.subscription_checksum != self.inbound_subscription_checksum()?
+            || Sha256::digest(serialized).as_slice() != document.checksum
+        {
+            return Err(invalid_inbound());
+        }
+        Self::validate_inbound(&document.entries)?;
+        Ok(document.entries)
+    }
+
+    fn validate_inbound(entries: &[PendingInbound]) -> io::Result<()> {
+        let mut ids = std::collections::BTreeSet::new();
+        if entries.len() > MAX_INBOUND_RECORDS {
+            return Err(invalid_inbound());
+        }
+        for entry in entries {
+            entry.publication.publication()?;
+            if !ids.insert(entry.publication.packet_id)
+                || (entry.stage == InboundStage::ReadyAck && entry.publication.qos != 1)
+                || (matches!(
+                    entry.stage,
+                    InboundStage::AwaitPubRel | InboundStage::PubCompPending
+                ) && entry.publication.qos != 2)
+            {
+                return Err(invalid_inbound());
+            }
+        }
+        Ok(())
+    }
+
+    fn write_inbound(&self, entries: Vec<PendingInbound>) -> io::Result<()> {
+        Self::validate_inbound(&entries)?;
+        let subscription_checksum = self.inbound_subscription_checksum()?;
+        let checksum =
+            Sha256::digest(serde_json::to_vec(&(subscription_checksum, &entries))?).into();
+        let bytes = serde_json::to_vec(&InboundDocument {
+            version: DOCUMENT_VERSION,
+            subscription_checksum,
+            entries,
+            checksum,
+        })?;
+        if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "journal inbound excede limite",
+            ));
+        }
+        let mut temp = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(self.path.join(INBOUND_TEMP))?;
+        temp.write_all(&bytes)?;
+        temp.sync_all()?;
+        fs::rename(self.path.join(INBOUND_TEMP), self.path.join(INBOUND))?;
+        self.directory.sync_all()
+    }
+
+    pub(crate) fn receive_inbound(
+        &self,
+        publication: InboundPublication,
+    ) -> io::Result<PendingInbound> {
+        publication.publication()?;
+        let mut entries = self.load_inbound()?;
+        // These durable phases have already discharged application delivery.
+        // A lost terminal ACK is safely answered on replay (QoS1 may duplicate;
+        // an unknown PUBREL gets 0x92), so crash-stale completion markers must
+        // not exhaust the bounded journal forever. Never discard live phases.
+        entries.retain(|entry| {
+            !matches!(
+                entry.stage,
+                InboundStage::ReadyAck | InboundStage::PubCompPending
+            )
+        });
+        if let Some(index) = entries
+            .iter()
+            .position(|entry| entry.publication.packet_id == publication.packet_id)
+        {
+            let prior = &entries[index];
+            if prior.stage == InboundStage::Received || prior.publication.qos == 2 {
+                if prior.publication.identity != publication.identity {
+                    return Err(invalid_inbound());
+                }
+                return Ok(prior.clone());
+            }
+            // QoS1 permits duplicates; after terminal QoS2 completion a PUBLISH
+            // with a reused identifier is a new application message, even DUP.
+            entries.remove(index);
+        }
+        if entries.len() >= MAX_INBOUND_RECORDS {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "journal inbound excede limite",
+            ));
+        }
+        let pending = PendingInbound {
+            publication,
+            stage: InboundStage::Received,
+        };
+        entries.push(pending.clone());
+        self.write_inbound(entries)?;
+        Ok(pending)
+    }
+
+    pub(crate) fn inbound_output_ready(&self, packet_id: u16) -> io::Result<()> {
+        let mut entries = self.load_inbound()?;
+        let entry = entries
+            .iter_mut()
+            .find(|entry| entry.publication.packet_id == packet_id)
+            .ok_or_else(invalid_inbound)?;
+        if entry.stage != InboundStage::Received {
+            return Err(invalid_inbound());
+        }
+        entry.stage = if entry.publication.qos == 1 {
+            InboundStage::ReadyAck
+        } else {
+            InboundStage::AwaitPubRel
+        };
+        self.write_inbound(entries)
+    }
+
+    pub(crate) fn inbound_pubrel(&self, packet_id: u16) -> io::Result<bool> {
+        let mut entries = self.load_inbound()?;
+        let Some(entry) = entries
+            .iter_mut()
+            .find(|entry| entry.publication.packet_id == packet_id)
+        else {
+            return Ok(false);
+        };
+        if entry.publication.qos != 2
+            || !matches!(
+                entry.stage,
+                InboundStage::AwaitPubRel | InboundStage::PubCompPending
+            )
+        {
+            return Err(invalid_inbound());
+        }
+        entry.stage = InboundStage::PubCompPending;
+        self.write_inbound(entries)?;
+        Ok(true)
+    }
+
+    pub(crate) fn inbound_ack_written(&self, packet_id: u16, qos: u8) -> io::Result<()> {
+        let mut entries = self.load_inbound()?;
+        let Some(index) = entries
+            .iter()
+            .position(|entry| entry.publication.packet_id == packet_id)
+        else {
+            return Ok(()); // unknown PUBREL answered with 0x92
+        };
+        let entry = &entries[index];
+        let expected = if qos == 1 {
+            InboundStage::ReadyAck
+        } else {
+            InboundStage::PubCompPending
+        };
+        if entry.publication.qos != qos || entry.stage != expected {
+            return Err(invalid_inbound());
+        }
+        entries.remove(index);
+        self.write_inbound(entries)
+    }
+
     fn write_qos2(&self, pending: &PendingQos2) -> io::Result<()> {
         let serialized = serde_json::to_vec(pending)?;
         let document = Qos2Document {
@@ -504,6 +797,7 @@ impl Outbox {
 
 #[cfg(test)]
 mod tests {
+    use super::{INBOUND, INBOUND_TEMP, InboundPublication, InboundStage, MAX_DOCUMENT_BYTES};
     use super::{Operation, Outbox, Qos2Stage, Stage, SubscriptionSpec, SubscriptionStage};
     use std::{
         fs, io,
@@ -542,6 +836,246 @@ mod tests {
             identifier: None,
             user_properties: Vec::new(),
         }
+    }
+
+    fn receiver() -> (tempfile::TempDir, Outbox) {
+        let directory = tempfile::tempdir().unwrap();
+        fs::set_permissions(directory.path(), fs::Permissions::from_mode(0o700)).unwrap();
+        let outbox = Outbox::open(directory.path()).unwrap();
+        outbox.prepare_subscription(subscription()).unwrap();
+        outbox.activate_subscription().unwrap();
+        (directory, outbox)
+    }
+
+    fn incoming(id: u16, qos: u8, payload: Vec<u8>) -> InboundPublication {
+        use rumqttc::v5::mqttbytes::{QoS, v5::Publish};
+        let mut publish = Publish::new(
+            "inbound/test",
+            if qos == 1 {
+                QoS::AtLeastOnce
+            } else {
+                QoS::ExactlyOnce
+            },
+            payload,
+            None,
+        );
+        publish.pkid = id;
+        InboundPublication::from_publish(&publish, "inbound/test").unwrap()
+    }
+
+    #[test]
+    fn inbound_qos2_recovers_both_durable_ack_boundaries_and_new_id_reuse() {
+        let (directory, outbox) = receiver();
+        let first = incoming(7, 2, vec![0, 255, 10]);
+        assert!(outbox.receive_inbound(first.clone()).is_ok());
+        assert!(outbox.inbound_ack_written(7, 2).is_err());
+        assert!(matches!(
+            outbox.load_inbound().unwrap()[0].stage,
+            InboundStage::Received
+        ));
+        outbox.inbound_output_ready(7).unwrap();
+        drop(outbox);
+        let outbox = Outbox::open(directory.path()).unwrap();
+        assert!(matches!(
+            outbox.receive_inbound(first).unwrap().stage,
+            InboundStage::AwaitPubRel
+        ));
+        assert!(outbox.inbound_pubrel(7).unwrap());
+        drop(outbox);
+        let outbox = Outbox::open(directory.path()).unwrap();
+        assert!(outbox.inbound_pubrel(7).unwrap());
+        outbox.inbound_ack_written(7, 2).unwrap();
+        assert!(outbox.load_inbound().unwrap().is_empty());
+        assert!(!outbox.inbound_pubrel(7).unwrap());
+        assert!(matches!(
+            outbox
+                .receive_inbound(incoming(7, 2, vec![8]))
+                .unwrap()
+                .stage,
+            InboundStage::Received
+        ));
+    }
+
+    #[test]
+    fn inbound_qos1_requires_durable_output_transition_before_cleanup() {
+        let (_directory, outbox) = receiver();
+        outbox.receive_inbound(incoming(1, 1, vec![1])).unwrap();
+        assert!(outbox.inbound_ack_written(1, 1).is_err());
+        outbox.inbound_output_ready(1).unwrap();
+        outbox.inbound_ack_written(1, 1).unwrap();
+        assert!(outbox.load_inbound().unwrap().is_empty());
+    }
+
+    #[test]
+    fn inbound_qos1_undelivered_record_cannot_be_overwritten_by_conflicting_identifier() {
+        let (directory, outbox) = receiver();
+        outbox.receive_inbound(incoming(7, 1, vec![1])).unwrap();
+        let before = fs::read(directory.path().join(INBOUND)).unwrap();
+        assert!(outbox.receive_inbound(incoming(7, 1, vec![2])).is_err());
+        assert_eq!(fs::read(directory.path().join(INBOUND)).unwrap(), before);
+        assert!(matches!(
+            outbox
+                .receive_inbound(incoming(7, 1, vec![1]))
+                .unwrap()
+                .stage,
+            InboundStage::Received
+        ));
+    }
+
+    #[test]
+    fn inbound_terminal_crash_markers_do_not_exhaust_live_record_quota() {
+        let (_directory, outbox) = receiver();
+        outbox.receive_inbound(incoming(1, 2, vec![1])).unwrap();
+        outbox.inbound_output_ready(1).unwrap();
+        outbox.receive_inbound(incoming(2, 2, vec![2])).unwrap();
+        for id in 3..=100 {
+            outbox.receive_inbound(incoming(id, 2, vec![3])).unwrap();
+            outbox.inbound_output_ready(id).unwrap();
+            outbox.inbound_pubrel(id).unwrap();
+            // Simulate death after durable PUBREL but before cleanup. A new
+            // publication permits collection, not redelivery of old output.
+        }
+        outbox.receive_inbound(incoming(101, 1, vec![4])).unwrap();
+        outbox.inbound_output_ready(101).unwrap();
+        outbox.receive_inbound(incoming(102, 1, vec![5])).unwrap();
+        let entries = outbox.load_inbound().unwrap();
+        assert_eq!(entries.len(), 3);
+        assert!(
+            entries.iter().any(|entry| entry.publication.packet_id == 1
+                && entry.stage == InboundStage::AwaitPubRel)
+        );
+        assert!(
+            entries
+                .iter()
+                .any(|entry| entry.publication.packet_id == 2
+                    && entry.stage == InboundStage::Received)
+        );
+        assert!(!outbox.inbound_pubrel(100).unwrap());
+        assert!(outbox.receive_inbound(incoming(1, 2, vec![9])).is_err());
+    }
+
+    #[test]
+    fn inbound_canonical_wire_preserves_binary_metadata_and_expiry_replay_identity() {
+        use rumqttc::v5::mqttbytes::{
+            QoS,
+            v5::{Publish, PublishProperties},
+        };
+        let (_directory, outbox) = receiver();
+        let mut publish = Publish::new(
+            "",
+            QoS::ExactlyOnce,
+            vec![0, 255, 10],
+            Some(PublishProperties {
+                message_expiry_interval: Some(30),
+                content_type: Some("application/octet-stream".into()),
+                response_topic: Some("reply/x".into()),
+                correlation_data: Some(vec![0, 255, 0].into()),
+                user_properties: vec![
+                    ("same".into(), "first".into()),
+                    ("same".into(), "second".into()),
+                ],
+                subscription_identifiers: vec![1, 268_435_455],
+                topic_alias: Some(7),
+                ..PublishProperties::default()
+            }),
+        );
+        publish.pkid = 7;
+        publish.retain = true;
+        publish.dup = true;
+        let canonical = InboundPublication::from_publish(&publish, "inbound/test").unwrap();
+        let restored = canonical.publication().unwrap();
+        assert_eq!(restored.payload.as_ref(), &[0, 255, 10]);
+        assert_eq!(restored.topic.as_ref(), b"inbound/test");
+        assert!(!restored.dup);
+        let properties = restored.properties.unwrap();
+        assert_eq!(properties.message_expiry_interval, Some(30));
+        assert_eq!(
+            properties.correlation_data.as_deref(),
+            Some(&[0, 255, 0][..])
+        );
+        assert_eq!(properties.subscription_identifiers, [1, 268_435_455]);
+        assert_eq!(properties.user_properties[1].1, "second");
+        assert_eq!(properties.topic_alias, None);
+        outbox.receive_inbound(canonical).unwrap();
+        outbox.inbound_output_ready(7).unwrap();
+        publish.properties.as_mut().unwrap().message_expiry_interval = Some(20);
+        let replay = InboundPublication::from_publish(&publish, "inbound/test").unwrap();
+        assert!(matches!(
+            outbox.receive_inbound(replay).unwrap().stage,
+            InboundStage::AwaitPubRel
+        ));
+        publish
+            .properties
+            .as_mut()
+            .unwrap()
+            .user_properties
+            .swap(0, 1);
+        let changed = InboundPublication::from_publish(&publish, "inbound/test").unwrap();
+        assert!(outbox.receive_inbound(changed).is_err());
+    }
+
+    #[test]
+    fn inbound_record_and_byte_quotas_refuse_without_replacing_committed_data() {
+        let (directory, outbox) = receiver();
+        for id in 1..=32 {
+            outbox.receive_inbound(incoming(id, 2, vec![1])).unwrap();
+        }
+        let path = directory.path().join(INBOUND);
+        let before = fs::read(&path).unwrap();
+        assert!(outbox.receive_inbound(incoming(33, 2, vec![1])).is_err());
+        assert_eq!(fs::read(&path).unwrap(), before);
+        let (directory, outbox) = receiver();
+        let path = directory.path().join(INBOUND);
+        let mut refused = false;
+        for id in 1..=32 {
+            let before = fs::read(&path).ok();
+            if outbox
+                .receive_inbound(incoming(id, 2, vec![255; 4096]))
+                .is_err()
+            {
+                assert_eq!(fs::read(&path).ok(), before);
+                refused = true;
+                break;
+            }
+        }
+        assert!(refused);
+        assert!(fs::metadata(&path).unwrap().len() <= MAX_DOCUMENT_BYTES);
+    }
+
+    #[test]
+    fn inbound_identity_corruption_permissions_symlink_and_lock_are_rejected() {
+        let (directory, outbox) = receiver();
+        outbox.receive_inbound(incoming(7, 2, vec![1])).unwrap();
+        assert!(Outbox::open(directory.path()).is_err());
+        let path = directory.path().join(INBOUND);
+        let original = fs::read(&path).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(outbox.load_inbound().is_err());
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+        fs::write(&path, b"{}").unwrap();
+        assert!(outbox.load_inbound().is_err());
+        fs::write(&path, &original).unwrap();
+        let mut pending = outbox.load_subscription().unwrap().unwrap();
+        pending.spec.client_id.push('x');
+        outbox.write_subscription(&pending).unwrap();
+        assert!(outbox.load_inbound().is_err());
+        fs::remove_file(&path).unwrap();
+        symlink("missing-owned-fixture", &path).unwrap();
+        assert!(outbox.load_inbound().is_err());
+    }
+
+    #[test]
+    fn inbound_failed_commit_preserves_received_phase_and_old_document() {
+        let (directory, outbox) = receiver();
+        outbox.receive_inbound(incoming(7, 2, vec![1])).unwrap();
+        let before = fs::read(directory.path().join(INBOUND)).unwrap();
+        fs::create_dir(directory.path().join(INBOUND_TEMP)).unwrap();
+        assert!(outbox.inbound_output_ready(7).is_err());
+        assert_eq!(fs::read(directory.path().join(INBOUND)).unwrap(), before);
+        assert!(matches!(
+            outbox.load_inbound().unwrap()[0].stage,
+            InboundStage::Received
+        ));
     }
 
     #[test]

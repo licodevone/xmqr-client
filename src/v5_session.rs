@@ -21,8 +21,8 @@ use crate::{
 
 #[cfg(target_os = "linux")]
 use crate::outbox::{
-    Operation, Outbox, PendingQos1, PendingQos2, PendingSubscription, Qos2Stage, Stage,
-    SubscriptionSpec, SubscriptionStage,
+    InboundPublication, InboundStage, MAX_INBOUND_RECORDS, Operation, Outbox, PendingQos1,
+    PendingQos2, PendingSubscription, Qos2Stage, Stage, SubscriptionSpec, SubscriptionStage,
 };
 
 #[cfg(target_os = "linux")]
@@ -624,6 +624,21 @@ async fn send_publication(
     Ok(())
 }
 
+fn new_connection(cli: &Cli, options: MqttOptions) -> (AsyncClient, rumqttc::v5::EventLoop) {
+    let durable_incoming = cfg!(target_os = "linux") && cli.subscription_state_dir.is_some();
+    #[cfg(target_os = "linux")]
+    let request_capacity = if durable_incoming {
+        MAX_INBOUND_RECORDS
+    } else {
+        8
+    };
+    #[cfg(not(target_os = "linux"))]
+    let request_capacity = 8;
+    let (client, mut events) = AsyncClient::new(options, request_capacity);
+    events.state.set_manual_incoming_qos2(durable_incoming);
+    (client, events)
+}
+
 async fn run_inner(
     cli: &Cli,
     password: Option<String>,
@@ -650,7 +665,7 @@ async fn run_inner(
     } else {
         None
     };
-    let (client, mut events) = AsyncClient::new(options, 8);
+    let (client, mut events) = new_connection(cli, options);
     let limit = Duration::from_secs(u64::from(cli.timeout_seconds));
     let (broker_topic_alias_maximum, session_present) = loop {
         let event = timeout(limit, events.poll())
@@ -922,7 +937,10 @@ async fn prepare_subscription_state(cli: &Cli) -> io::Result<(Outbox, PendingSub
     disk_operation(move || {
         let outbox = Outbox::open(&directory)?;
         match outbox.load_subscription()? {
-            Some(pending) if pending.spec == spec => Ok((outbox, pending, true)),
+            Some(pending) if pending.spec == spec => {
+                outbox.load_inbound()?; // corruption/identity errors precede network and ACKs
+                Ok((outbox, pending, true))
+            }
             Some(_) => Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "manifesto pertence a outra assinatura; conteudo preservado",
@@ -1282,6 +1300,87 @@ fn validate_subscription_identifiers(publish: &Publish) -> AppResult<()> {
     Ok(())
 }
 
+fn display_incoming(cli: &Cli, publish: &Publish, topic: &str) -> AppResult<bool> {
+    let Mode::Sub { exclusions, .. } = &cli.mode else {
+        return Err(protocol_error("assinatura esperada").into());
+    };
+    if !cli.retained_filter.accepts(publish.retain)
+        || exclusions
+            .iter()
+            .any(|filter| crate::cli::matches_filter(filter, topic))
+    {
+        return Ok(false);
+    }
+    let qos = match publish.qos {
+        rumqttc::v5::mqttbytes::QoS::AtMostOnce => QoS::AtMostOnce,
+        rumqttc::v5::mqttbytes::QoS::AtLeastOnce => QoS::AtLeastOnce,
+        rumqttc::v5::mqttbytes::QoS::ExactlyOnce => QoS::ExactlyOnce,
+    };
+    let mut display = rumqttc::mqttbytes::v4::Publish::new(topic, qos, publish.payload.clone());
+    display.retain = publish.retain;
+    cli.output
+        .publish_mqtt5(&display, publish.properties.as_ref())?;
+    Ok(true)
+}
+
+#[cfg(target_os = "linux")]
+async fn journal_incoming(
+    cli: &Cli,
+    client: &AsyncClient,
+    outbox: Outbox,
+    publish: &Publish,
+    topic: &str,
+) -> AppResult<(Outbox, bool)> {
+    let message = InboundPublication::from_publish(publish, topic)?;
+    let (outbox, pending) = disk_operation(move || {
+        let pending = outbox.receive_inbound(message)?;
+        Ok((outbox, pending))
+    })
+    .await?;
+    let mut displayed = false;
+    let outbox = if pending.stage == InboundStage::Received {
+        // If the process dies between flush and the next durable transition,
+        // recovery can duplicate stdout. No exactly-once consumer claim is made.
+        displayed = display_incoming(cli, &pending.publication.publication()?, topic)?;
+        disk_operation(move || {
+            outbox.inbound_output_ready(pending.publication.packet_id)?;
+            Ok(outbox)
+        })
+        .await?
+    } else {
+        outbox
+    };
+    // The caller also owns EventLoop::poll: waiting on its full request channel
+    // would deadlock before the peer's ACK deadline. State remains durable.
+    client.try_ack(publish)?;
+    Ok((outbox, displayed))
+}
+
+#[cfg(target_os = "linux")]
+async fn journal_pubrel(client: &AsyncClient, outbox: Outbox, packet_id: u16) -> AppResult<Outbox> {
+    let (outbox, known) = disk_operation(move || {
+        let known = outbox.inbound_pubrel(packet_id)?;
+        Ok((outbox, known))
+    })
+    .await?;
+    let reason = if known {
+        PubCompReason::Success
+    } else {
+        PubCompReason::PacketIdentifierNotFound
+    };
+    client.try_pubcomp_packet(packet_id, reason)?;
+    Ok(outbox)
+}
+
+#[cfg(target_os = "linux")]
+async fn journal_ack_written(outbox: Outbox, packet_id: u16, qos: u8) -> io::Result<Outbox> {
+    disk_operation(move || {
+        outbox.inbound_ack_written(packet_id, qos)?;
+        Ok(outbox)
+    })
+    .await
+}
+
 #[cfg(target_os = "linux")]
 async fn start_durable_subscription(
     cli: &Cli,
@@ -1342,7 +1441,7 @@ async fn subscribe(
 ) -> AppResult<()> {
     let Mode::Sub {
         filters,
-        exclusions,
+        exclusions: _,
         count,
     } = &cli.mode
     else {
@@ -1377,6 +1476,22 @@ async fn subscribe(
     };
     let mut received = 0_u64;
     let mut aliases = HashMap::new();
+    #[cfg(target_os = "linux")]
+    let mut ack_deadlines = if let Some(outbox) = subscription_journal.take() {
+        let (outbox, pending) = disk_operation(move || {
+            let pending = outbox.load_inbound()?;
+            Ok((outbox, pending))
+        })
+        .await?;
+        subscription_journal = Some(outbox);
+        pending
+            .into_iter()
+            .filter(|entry| entry.stage == InboundStage::AwaitPubRel)
+            .map(|entry| (entry.publication.packet_id, Instant::now() + limit))
+            .collect::<HashMap<_, _>>()
+    } else {
+        HashMap::new()
+    };
     loop {
         if acknowledged && count.is_some_and(|target| received >= target) {
             finish_counted_subscription(cli, client, events, filters, limit).await?;
@@ -1387,7 +1502,18 @@ async fn subscribe(
         } else {
             limit
         };
-        let event = timeout(wait, events.poll())
+        let deadline = Instant::now() + wait;
+        #[cfg(target_os = "linux")]
+        let deadline = ack_deadlines
+            .values()
+            .min()
+            .copied()
+            .unwrap_or(deadline)
+            .min(deadline);
+        if Instant::now() >= deadline {
+            return Err(protocol_error("tempo esgotado completando ACK inbound MQTT 5").into());
+        }
+        let event = timeout_at(deadline, events.poll())
             .await
             .map_err(|_| protocol_error("tempo esgotado aguardando SUBACK/mensagem MQTT 5"))??;
         match event {
@@ -1426,30 +1552,48 @@ async fn subscribe(
                 if publish.payload.len() > 4096 {
                     return Err(protocol_error("PUBLISH MQTT 5 excede limites XMQR").into());
                 }
-                if cli.retained_filter.accepts(publish.retain)
-                    && !exclusions
-                        .iter()
-                        .any(|filter| crate::cli::matches_filter(filter, &topic))
-                    && count.is_none_or(|target| received < target)
+                #[cfg(target_os = "linux")]
+                if publish.qos != rumqttc::v5::mqttbytes::QoS::AtMostOnce
+                    && let Some(outbox) = subscription_journal.take()
                 {
-                    let qos = match publish.qos {
-                        rumqttc::v5::mqttbytes::QoS::AtMostOnce => QoS::AtMostOnce,
-                        rumqttc::v5::mqttbytes::QoS::AtLeastOnce => QoS::AtLeastOnce,
-                        rumqttc::v5::mqttbytes::QoS::ExactlyOnce => QoS::ExactlyOnce,
-                    };
-                    let mut display =
-                        rumqttc::mqttbytes::v4::Publish::new(&topic, qos, publish.payload.clone());
-                    display.retain = publish.retain;
-                    cli.output
-                        .publish_mqtt5(&display, publish.properties.as_ref())?;
+                    let (outbox, displayed) =
+                        journal_incoming(cli, client, outbox, &publish, &topic).await?;
+                    subscription_journal = Some(outbox);
+                    ack_deadlines
+                        .entry(publish.pkid)
+                        .or_insert_with(|| Instant::now() + limit);
+                    received += u64::from(displayed);
+                    continue;
+                }
+                if count.is_none_or(|target| received < target)
+                    && display_incoming(cli, &publish, &topic)?
+                {
                     received += 1;
                 }
-                #[cfg(target_os = "linux")]
-                if cli.subscription_state_dir.is_some() {
-                    client.ack(&publish).await?;
-                }
             }
-            Event::Outgoing(_) | Event::Incoming(Incoming::PingResp(_)) => {}
+            #[cfg(target_os = "linux")]
+            Event::Incoming(Incoming::PubRel(rel)) if subscription_journal.is_some() => {
+                let outbox = subscription_journal.take().expect("guard checked journal");
+                subscription_journal = Some(journal_pubrel(client, outbox, rel.pkid).await?);
+                ack_deadlines
+                    .entry(rel.pkid)
+                    .or_insert_with(|| Instant::now() + limit);
+            }
+            #[cfg(target_os = "linux")]
+            Event::Outgoing(Outgoing::PubAck(id)) if subscription_journal.is_some() => {
+                let outbox = subscription_journal.take().expect("guard checked journal");
+                subscription_journal = Some(journal_ack_written(outbox, id, 1).await?);
+                ack_deadlines.remove(&id);
+            }
+            #[cfg(target_os = "linux")]
+            Event::Outgoing(Outgoing::PubComp(id)) if subscription_journal.is_some() => {
+                let outbox = subscription_journal.take().expect("guard checked journal");
+                subscription_journal = Some(journal_ack_written(outbox, id, 2).await?);
+                ack_deadlines.remove(&id);
+            }
+            // Default mode's state machine already validates PUBREL and sends
+            // PUBCOMP. An unsolicited identifier still fails inside poll().
+            Event::Outgoing(_) | Event::Incoming(Incoming::PingResp(_) | Incoming::PubRel(_)) => {}
             Event::Incoming(_) => {
                 return Err(protocol_error("resposta MQTT 5 inesperada na assinatura").into());
             }

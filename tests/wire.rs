@@ -1931,6 +1931,73 @@ fn mqtt5_subscriber_qos2_completes_handshake_before_disconnect() {
 }
 
 #[test]
+fn mqtt5_continuous_default_subscription_survives_two_qos2_exchanges() {
+    let listener = listener();
+    let mut process = child(
+        listener.local_addr().unwrap().port(),
+        "sub",
+        &["--protocol-version", "5", "--qos", "2"],
+    );
+    let mut stream = accept(&listener);
+    assert_eq!(packet(&mut stream).0, 0x10);
+    stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+    let (header, subscription) = packet(&mut stream);
+    assert_eq!(header, 0x82);
+    stream
+        .write_all(&[0x90, 4, subscription[0], subscription[1], 0, 2])
+        .unwrap();
+    for id in [7, 8] {
+        stream
+            .write_all(&[0x34, 7, 0, 1, b't', 0, id, 0, id])
+            .unwrap();
+        assert_eq!(packet(&mut stream), (0x50, vec![0, id]));
+        stream.write_all(&[0x62, 2, 0, id]).unwrap();
+        assert_eq!(packet(&mut stream), (0x70, vec![0, id]));
+        thread::sleep(Duration::from_millis(50));
+        assert!(
+            process.try_wait().unwrap().is_none(),
+            "continuous subscription stopped"
+        );
+    }
+    // The peer still exists until the fixture terminates its own child. No
+    // count or persistent journal masked IncomingPubRel in a cancellation loop.
+    process.kill().unwrap();
+    let output = process.wait_with_output().unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(stdout.lines().count(), 2);
+    assert!(stdout.contains("[7]"));
+    assert!(stdout.contains("[8]"));
+}
+
+#[test]
+fn mqtt5_default_unknown_pubrel_remains_rejected_without_pubcomp() {
+    let listener = listener();
+    let process = child(
+        listener.local_addr().unwrap().port(),
+        "sub",
+        &["--protocol-version", "5", "--qos", "2"],
+    );
+    let mut stream = accept(&listener);
+    assert_eq!(packet(&mut stream).0, 0x10);
+    stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+    let (header, subscription) = packet(&mut stream);
+    assert_eq!(header, 0x82);
+    stream
+        .write_all(&[0x90, 4, subscription[0], subscription[1], 0, 2])
+        .unwrap();
+    stream.write_all(&[0x62, 2, 0, 9]).unwrap();
+    let output = finish(process);
+    assert!(!output.status.success());
+    assert_eq!(output.stdout, [] as [u8; 0]);
+    let mut bytes = Vec::new();
+    stream.read_to_end(&mut bytes).unwrap();
+    assert!(
+        bytes.is_empty(),
+        "unsolicited PUBREL must not be acknowledged by default"
+    );
+}
+
+#[test]
 fn reconnect_preserves_id_and_resubscribes_only_without_session() {
     for session_present in [false, true] {
         let listener = listener();

@@ -105,6 +105,8 @@ pub struct MqttState {
     pub events: VecDeque<Event>,
     /// Indicates if acknowledgements should be send immediately
     pub manual_acks: bool,
+    /// A durable caller owns incoming QoS 2 completion and its recovery state.
+    manual_incoming_qos2: bool,
     /// Map of alias_id->topic
     topic_alises: HashMap<u16, Bytes>,
     /// `topic_alias_maximum` RECEIVED via connack packet
@@ -136,6 +138,7 @@ impl MqttState {
             // TODO: Optimize these sizes later
             events: VecDeque::with_capacity(100),
             manual_acks,
+            manual_incoming_qos2: false,
             topic_alises: HashMap::new(),
             // Set via CONNACK
             broker_topic_alias_max: 0,
@@ -175,6 +178,13 @@ impl MqttState {
         self.inflight
     }
 
+    /// Delegate PUBREL completion to a caller with durable incoming state.
+    /// This does not restore packets or perform I/O; the caller must validate
+    /// its journal and Session Present before replying through `pubcomp_packet`.
+    pub fn set_manual_incoming_qos2(&mut self, enabled: bool) {
+        self.manual_incoming_qos2 = enabled;
+    }
+
     /// Consolidates handling of all outgoing mqtt packet logic. Returns a packet which should
     /// be put on to the network by the eventloop
     pub fn handle_outgoing_packet(
@@ -202,6 +212,7 @@ impl MqttState {
                 .outgoing_disconnect(DisconnectReasonCode::NormalDisconnection, Some(properties))?,
             Request::PubAck(puback) => self.outgoing_puback(puback)?,
             Request::PubRec(pubrec) => self.outgoing_pubrec(pubrec)?,
+            Request::PubComp(pubcomp) => self.outgoing_manual_pubcomp(pubcomp)?,
             _ => unimplemented!(),
         };
 
@@ -438,6 +449,14 @@ impl MqttState {
     }
 
     fn handle_incoming_pubrel(&mut self, pubrel: &PubRel) -> Result<Option<Packet>, StateError> {
+        if self.manual_incoming_qos2 {
+            // The transient bitset is not a recovery oracle. The durable caller
+            // receives this event before any PUBCOMP is put on the network.
+            if pubrel.pkid == 0 {
+                return Err(StateError::Unsolicited(0));
+            }
+            return Ok(None);
+        }
         if !self.incoming_pub.contains(pubrel.pkid as usize) {
             error!("Unsolicited pubrel packet: {:?}", pubrel.pkid);
             return Err(StateError::Unsolicited(pubrel.pkid));
@@ -456,6 +475,16 @@ impl MqttState {
         self.events.push_back(event);
 
         Ok(Some(Packet::PubComp(PubComp::new(pubrel.pkid, None))))
+    }
+
+    fn outgoing_manual_pubcomp(&mut self, pubcomp: PubComp) -> Result<Option<Packet>, StateError> {
+        if !self.manual_incoming_qos2 || pubcomp.pkid == 0 {
+            return Err(StateError::Unsolicited(pubcomp.pkid));
+        }
+        self.incoming_pub.set(pubcomp.pkid as usize, false);
+        self.events
+            .push_back(Event::Outgoing(Outgoing::PubComp(pubcomp.pkid)));
+        Ok(Some(Packet::PubComp(pubcomp)))
     }
 
     fn handle_incoming_pubcomp(&mut self, pubcomp: &PubComp) -> Result<Option<Packet>, StateError> {
