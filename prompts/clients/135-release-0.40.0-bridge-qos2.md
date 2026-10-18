@@ -1,4 +1,4 @@
-# C135 v1 — distribuir bridge QoS 2 experimental
+# C135 v1.1 — distribuir bridge QoS 2 experimental
 
 ## Entrada
 
@@ -8,6 +8,9 @@ A CI pós-integração de `main` ainda está em execução na abertura deste pro
 Última prerelease publicada: client 0.39.0/bridge 0.1.0; broker distribuído
 0.42.0. Fases 6 e 8 continuam abertas. Branch deste trabalho:
 `release/0.40.0-bridge-qos2`. Não modificar artefatos 0.39.0 já publicados.
+A [CI pós-integração 39159131168](https://github.com/licodevone/xmqr-client/actions/runs/39159131168)
+da fonte `130cfeb` terminou PASS nos quatro jobs antes do primeiro ajuste de
+versão deste prompt.
 
 ## Objetivo e escopo
 
