@@ -1,4 +1,4 @@
-# C134 v1.10 — bridge QoS 2 com journal da origem
+# C134 v1.11 — bridge QoS 2 com journal da origem
 
 ## Entrada e fonte normativa
 
@@ -125,3 +125,11 @@ o cenário sob stress local, capturar estado/logs sanitizados da bridge e dos
 brokers no ponto de falha e determinar se houve perda do PUBLISH, handshake
 incompleto ou corrida da fixture. Corrigir o mecanismo ou o oráculo conforme
 a evidência; não ampliar o timeout como substituto de entrega comprovada.
+
+Três repetições locais passaram, mas isso não elimina a falha da CI. A análise
+do fork mostra que `EventLoop::clean` preserva PUBREL de saída após a queda;
+com Clean Session=1 no destino, o broker reiniciado pode perder a fase QoS 2
+e receber PUBREL sem PUBLISH. Implementar sessão persistente **apenas no
+destino QoS 2**, mantendo ACK manual apenas na origem; validar retomada após
+restart e uma queda determinística durante a fase em voo. A tentativa anterior
+com sessão persistente foi contaminada pelo negativo de ACL, agora isolado.
