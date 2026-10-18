@@ -1,11 +1,12 @@
 # xmqr-client
 
-C114 está em validação em `main`: `--ws-url wss://127.0.0.1:PORTA/mqtt`
+C114 está aceito em `main`: `--ws-url wss://127.0.0.1:PORTA/mqtt`
 permite MQTT 3.1.1/5 via WSS com CA/SAN, certificado de cliente e credenciais
 MQTT do modo seguro. O broker P212 em `main` fornece o listener mTLS local.
 Perfis, estado durável sobre URL e acesso remoto continuam pendentes. A
 prerelease 0.32.0 abaixo ainda não contém C114.
-[Prompt C114](prompts/clients/114-mtls-websocket-client.md).
+[Prompt C114](prompts/clients/114-mtls-websocket-client.md) e
+[registro](prompts/registros/C114-mtls-websocket-client.md).
 
 A prerelease experimental 0.32.0 distribui C112: `--ws-url ws://127.0.0.1:PORTA/CAMINHO` (ou `[::1]`)
 para `pub`/`sub` MQTT 3.1.1 e 5 com `--open-lab` explícito. É um recorte
