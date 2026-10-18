@@ -1,4 +1,4 @@
-# C135 v1.2 — distribuir bridge QoS 2 experimental
+# C135 v1.4 — distribuir bridge QoS 2 experimental
 
 ## Entrada
 

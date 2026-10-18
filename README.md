@@ -1,15 +1,16 @@
 # xmqr-client
 
-A candidata 0.40.0 distribui C134: bridge MQTT 3.1.1 QoS 2 com journal
+A prerelease experimental 0.40.0 distribui C134: bridge MQTT 3.1.1 QoS 2 com journal
 privado da origem e retomada de sessão nas duas pontas. O binário da bridge
 passa a `mqtt-bridge 0.2.0`; a release 0.39.0 continua limitada a QoS 0/1.
-Veja a [nota candidata](docs/releases/0.40.0.md). Não há aceite global das
-fases 6 ou 8 com este pacote.
+Veja a [release](https://github.com/licodevone/xmqr-client/releases/tag/v0.40.0),
+[nota](docs/releases/0.40.0.md) e [registro C135](prompts/registros/C135-release-0.40.0.md).
+Não há aceite global das fases 6 ou 8 com este pacote.
 
 A fonte C134 acrescenta bridge MQTT 3.1.1 QoS 2 com journal privado da
 origem, retomada condicionada à sessão e ensaios de queda. A
 [CI da fonte exata](https://github.com/licodevone/xmqr-client/actions/runs/39158793553)
-passou; esta fatia ainda não integra a release 0.39.0. Veja o
+passou; esta fatia não integra a release 0.39.0 e foi distribuída na 0.40.0. Veja o
 [guia da bridge](docs/bridge-one-way.md) e o
 [registro C134](prompts/registros/C134-bridge-qos2-journal.md).
 

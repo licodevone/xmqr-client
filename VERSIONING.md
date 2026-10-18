@@ -1,11 +1,12 @@
 # Versionamento
 
-A candidata 0.40.0 acrescenta C134 à bridge experimental: QoS 2 nas duas
+A prerelease 0.40.0 acrescenta C134 à bridge experimental: QoS 2 nas duas
 pontas, journal da origem, retomada condicional e unit com StateDirectory
 privado. `mqtt-bridge 0.2.0` acompanha `mqtt-client 0.40.0`; 0.39.0 não
-contém QoS 2 na bridge. [Nota candidata](docs/releases/0.40.0.md) e
-[registro C134](prompts/registros/C134-bridge-qos2-journal.md). Fases 6 e 8
-permanecem abertas; tag, artefatos e digest da 0.40.0 dependem de C135.
+contém QoS 2 na bridge. [Release](https://github.com/licodevone/xmqr-client/releases/tag/v0.40.0),
+[nota](docs/releases/0.40.0.md), [C134](prompts/registros/C134-bridge-qos2-journal.md)
+e [C135](prompts/registros/C135-release-0.40.0.md). Fonte exata/CI, pacote,
+imagem por digest e seis anexos remotos verificados; fases 6 e 8 abertas.
 
 A prerelease 0.39.0 integra a bridge experimental C125–C128 ao pacote e imagem
 do client 0.38.0, preservando o journal inbound C129. O `.deb` e a imagem
