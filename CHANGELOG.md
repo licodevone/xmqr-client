@@ -1,5 +1,11 @@
 # Histórico de versões
 
+## 0.30.0 — outbox QoS 2 e declaração de assinatura persistente (experimental)
+
+- C107: `--outbox-dir` aceita uma publicação MQTT 5 QoS 2 por diretório Linux/WSL. O cliente grava a transição antes do PUBREL, retoma PUBLISH/DUP ou só PUBREL conforme o estágio e exige Session Present.
+- C108: `sub --subscription-state-dir` guarda a declaração de uma assinatura contínua e, após SUBACK positivo, retoma a sessão sem novo SUBSCRIBE quando Session Present=1. Falha preservando o manifesto se a sessão sumiu ou a declaração mudou.
+- Mensagens recebidas não são persistidas localmente; QoS 2 confirma o broker, não o processamento por assinantes ou destinos externos. Fases 6A–6D/7–9 continuam abertas.
+
 ## 0.29.0 — sessão no DISCONNECT e outbox QoS 1 (experimental)
 
 - C104: `--disconnect-session-expiry-seconds` envia Session Expiry Interval no DISCONNECT normal MQTT 5; opção omitida mantém os bytes anteriores.
