@@ -49,3 +49,15 @@ possível, repetir XMQR↔Mosquitto. Regressão C125–C135, `cargo fmt --check`
 `cargo test --locked`, `cargo clippy --all-targets -D warnings`, build e CI
 da fonte pública exata. Registrar PASS/FAIL/BLOCKED sem converter um modo
 parcial em aceite global da fase 8.
+
+## Revisão v1.1 — ordenar assinatura após destino pronto
+
+Primeiro ensaio real de dois XMQR: compilação e seis unitários PASS, mas
+subscriber retained no destino encerrou por timeout antes dos casos vivos.
+Origem assinava assim que recebia CONNACK, enquanto a conexão do destino
+era iniciada em paralelo; replay QoS 0 podia chegar no intervalo e ser
+descartado. Esta é a hipótese, não um diagnóstico confirmado por log privado.
+Antes da correção, preservar o FAIL. No modo novo, aguardar o destino ficar
+conectado com prazo finito antes de SUBSCRIBE MQTT 5; se não ficar pronto,
+falhar sem afirmar replay. Não aumentar fila nem mudar ACK dos modos QoS 1/2.
+Repetir a fixture, incluindo negativo de destino indisponível e regressões.
