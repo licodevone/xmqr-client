@@ -159,7 +159,7 @@ pub const V5_PUBLISH_USAGE: &str = "MQTT 5 PUBLISH adicional: --response-topic T
 pub const V5_SUBSCRIPTION_USAGE: &str = "MQTT 5 SUBSCRIBE: --unsubscribe-user-property exige --count N; sem --count, nao ha UNSUBSCRIBE.\n";
 pub const AUTH_USAGE: &str = "Autenticacao MQTT 5: --auth-method plain (somente TLS, com --protocol-version 5; senha por arquivo privado ou prompt). --reauth-before-io confirma AUTH PLAIN apos CONNACK e antes de pub/sub; reautenticacao periodica ainda indisponivel.\n";
 pub const V5_WILL_USAGE: &str = "MQTT 5 Will: --will-message-expiry-seconds 0..4294967295, --will-payload-format 0|1, --will-content-type TEXTO (ate 256 bytes), --will-response-topic TOPICO (sem curingas), --will-correlation-data-hex HEX (ate 256 bytes), --will-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes). Exige --will-topic, mensagem Will e --protocol-version 5.\n";
-pub const OUTBOX_USAGE: &str = "Outbox duravel experimental (Linux/WSL): --outbox-dir DIRETORIO existente e privado (0700) exige pub --protocol-version 5 --qos 1|2 --clean-start false --session-expiry-seconds N --client-id ID fixo, uma mensagem. Por --ws-url, somente WSS mTLS QoS 1 e URL exata; WS aberto e QoS 2 por URL sao recusados. Repita o mesmo comando para retomar; nao remova o journal pendente se o broker negar Session Present. O arquivo contem payload em claro sob permissao 0600.\n";
+pub const OUTBOX_USAGE: &str = "Outbox duravel experimental (Linux/WSL): --outbox-dir DIRETORIO existente e privado (0700) exige pub --protocol-version 5 --qos 1|2 --clean-start false --session-expiry-seconds N --client-id ID fixo, uma mensagem. Por --ws-url, somente WSS mTLS e URL exata; WS aberto e manifesto de assinatura por URL sao recusados. Repita o mesmo comando para retomar; nao remova o journal pendente se o broker negar Session Present. O arquivo contem payload em claro sob permissao 0600.\n";
 pub const SUBSCRIPTION_STATE_USAGE: &str = "Assinatura persistente experimental (Linux/WSL): --subscription-state-dir DIRETORIO privado (0700) exige sub --protocol-version 5 --clean-start false --session-expiry-seconds N --client-id ID fixo, sem --count. Repita a mesma assinatura para retomar quando o broker confirmar Session Present; sem sessao, o manifesto e preservado e o comando falha. QoS 1/2 recebe ACK apos escrever/flush em stdout; crash pode duplicar a saida, sem garantia de persistencia do consumidor.\n";
 pub const WS_USAGE: &str = "WebSocket experimental: --ws-url ws://127.0.0.1:PORTA/CAMINHO exige --open-lab. WSS mTLS local: --ws-url wss://127.0.0.1:PORTA/mqtt exige --ca, --cert, --key e --username, sem --open-lab. IPv6 [::1] tambem aceito. Pub/sub MQTT 3.1.1 ou 5; sem --host/--port, userinfo, perfil ou estado persistente local.\n";
 
@@ -818,10 +818,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             return Err("--ws-url nao aceita --host ou --port".into());
         }
         let url = url::Url::parse(value).map_err(|_| "--ws-url invalida")?;
-        if subscription_state_dir.is_some()
-            || (outbox_dir.is_some() && (url.scheme() != "wss" || qos != QoS::AtLeastOnce))
-        {
-            return Err("--ws-url aceita apenas outbox QoS 1 por WSS mTLS; manifesto de assinatura e WS aberto nao aceitam estado persistente".into());
+        if subscription_state_dir.is_some() || (outbox_dir.is_some() && url.scheme() != "wss") {
+            return Err("--ws-url aceita apenas outbox QoS 1/2 por WSS mTLS; manifesto de assinatura e WS aberto nao aceitam estado persistente".into());
         }
         let valid_mode = matches!(
             (url.scheme(), transport_mode),
@@ -3238,7 +3236,7 @@ mod tests {
     }
 
     #[test]
-    fn wss_qos1_outbox_requires_secure_url_and_persistent_session() {
+    fn wss_qos1_qos2_outbox_requires_secure_url_and_persistent_session() {
         let base = [
             "pub",
             "--topic",
@@ -3299,7 +3297,7 @@ mod tests {
         let mut qos2 = qos2;
         qos2[qos_index] = "2".to_owned();
         qos2.extend(["--ws-url", "wss://127.0.0.1:8084/mqtt"].map(str::to_owned));
-        assert!(parse(qos2).is_err());
+        assert!(parse(qos2).unwrap().outbox_dir.is_some());
     }
 
     #[test]

@@ -2,12 +2,16 @@
 
 A prerelease experimental 0.35.0 reúne C119 e permite outbox MQTT 5
 QoS 1 por WSS mTLS com URL canônica como identidade do destino; TCP mantém
-seus journals antigos. WS aberto, QoS 2 e manifesto de assinatura por URL
-continuam recusados. C120 validou reconexão com Session Present e DUP após
+seus journals antigos. Na 0.35.0, WS aberto, QoS 2 e manifesto de assinatura por URL
+são recusados. C120 validou reconexão com Session Present e DUP após
 PUBACK perdido em fixture WSS mTLS. [Registros C119](prompts/registros/C119-wss-qos1-outbox.md)
 e [C120](prompts/registros/C120-wss-qos1-outbox-recovery.md).
 [Release 0.35.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.35.0),
 [nota](docs/releases/0.35.0.md) e [registro C121](prompts/registros/C121-release-0.35.0.md).
+
+C122 em `main`, ainda em validação e fora da release 0.35.0, permite outbox
+MQTT 5 QoS 2 por WSS mTLS; o mesmo journal privado e a URL canônica continuam
+identificando a operação. [Prompt C122](prompts/clients/122-wss-qos2-outbox.md).
 
 A prerelease experimental 0.34.0 inclui C117 e permite
 `--allow-remote-wss --ws-url wss://broker.exemplo:8443/mqtt` em mTLS seguro.

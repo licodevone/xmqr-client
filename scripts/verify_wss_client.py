@@ -77,7 +77,8 @@ def send_frame(stream, body):
 
 def serve(root, listener, *, mqtt5, subscribe, no_protocol, wrong_san, durable,
           drop_ack, errors, session_present=False, expect_dup=False,
-          no_session=False, close_listener=True):
+          no_session=False, close_listener=True, qos2=False,
+          resume_pubrel=False, drop_comp=False, refusal=None):
     try:
         raw, _ = listener.accept()
         raw.settimeout(5)
@@ -127,16 +128,52 @@ def serve(root, listener, *, mqtt5, subscribe, no_protocol, wrong_san, durable,
                            else b"\x90\x03" + packet_id + b"\x00")
                 body = b"\x00\x0atest/value" + (b"\x00" if mqtt5 else b"") + b"hello"
                 send_frame(stream, b"\x30" + bytes([len(body)]) + body)
+            elif resume_pubrel:
+                assert request == b"\x62\x02\x00\x01", request
+                if drop_comp:
+                    return
+                send_frame(stream, b"\x70\x04\x00\x01\x92\x00" if refusal == "pubcomp"
+                           else b"\x70\x02\x00\x01")
+                if refusal:
+                    try:
+                        read_frame(stream)
+                    except (EOFError, OSError):
+                        pass
+                    return
             else:
                 assert request[0] & 0xf0 == 0x30 and request.endswith(b"ok"), request
                 if durable:
                     topic_length = int.from_bytes(request[2:4], "big")
                     packet_id = request[4 + topic_length:6 + topic_length]
-                    assert request[0] == (0x3a if expect_dup else 0x32)
+                    expected_header = (0x3c if expect_dup else 0x34) if qos2 else (
+                        0x3a if expect_dup else 0x32)
+                    assert request[0] == expected_header, request
                     assert packet_id == b"\x00\x01", request
                     if drop_ack:
                         return
-                    send_frame(stream, b"\x40\x04" + packet_id + b"\x00\x00")
+                    if qos2:
+                        send_frame(stream, b"\x50\x04" + packet_id + b"\x87\x00"
+                                   if refusal == "pubrec" else b"\x50\x02" + packet_id)
+                        if refusal == "pubrec":
+                            try:
+                                read_frame(stream)
+                            except (EOFError, OSError):
+                                pass
+                            return
+                        opcode, pubrel = read_frame(stream)
+                        assert opcode == 2 and pubrel == b"\x62\x02" + packet_id, pubrel
+                        if drop_comp:
+                            return
+                        send_frame(stream, b"\x70\x04" + packet_id + b"\x92\x00"
+                                   if refusal == "pubcomp" else b"\x70\x02" + packet_id)
+                        if refusal:
+                            try:
+                                read_frame(stream)
+                            except (EOFError, OSError):
+                                pass
+                            return
+                    else:
+                        send_frame(stream, b"\x40\x04" + packet_id + b"\x00\x00")
             for _ in range(4):
                 opcode, packet = read_frame(stream)
                 if opcode == 8 or packet[:1] == b"\xe0":
@@ -160,7 +197,7 @@ def serve(root, listener, *, mqtt5, subscribe, no_protocol, wrong_san, durable,
 
 def scenario(root, *, mqtt5=False, subscribe=False, no_protocol=False,
              wrong_san=False, wrong_ca=False, profile=False, durable=False,
-             drop_ack=False):
+             drop_ack=False, qos2=False, refusal=None):
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
     listener.listen(1)
@@ -171,7 +208,7 @@ def scenario(root, *, mqtt5=False, subscribe=False, no_protocol=False,
         args=(root, listener),
         kwargs=dict(mqtt5=mqtt5, subscribe=subscribe, no_protocol=no_protocol,
                     wrong_san=wrong_san, durable=durable, drop_ack=drop_ack,
-                    errors=errors),
+                    qos2=qos2, refusal=refusal, errors=errors),
         daemon=True)
     worker.start()
     url = f"wss://127.0.0.1:{port}/mqtt"
@@ -197,14 +234,14 @@ def scenario(root, *, mqtt5=False, subscribe=False, no_protocol=False,
         assert mqtt5 and not subscribe
         outbox = root / f"outbox-{port}"
         outbox.mkdir(mode=0o700)
-        command.extend(["--qos", "1", "--clean-start", "false",
+        command.extend(["--qos", "2" if qos2 else "1", "--clean-start", "false",
                         "--session-expiry-seconds", "60", "--outbox-dir", str(outbox)])
     result = subprocess.run(command, capture_output=True, timeout=9)
     worker.join(timeout=6)
     assert not worker.is_alive(), "WSS fixture did not finish"
+    pending = outbox / ("pending-qos2.json" if qos2 else "pending.json") if durable else None
     if drop_ack:
         assert result.returncode != 0 and not errors, (result.stderr, errors)
-        pending = outbox / "pending.json"
         before = pending.read_bytes()
         assert not profile
         wrong = [f"wss://127.0.0.1:{port + 1}/mqtt" if arg == url else arg
@@ -212,6 +249,10 @@ def scenario(root, *, mqtt5=False, subscribe=False, no_protocol=False,
         rejected = subprocess.run(wrong, capture_output=True, timeout=9)
         assert rejected.returncode != 0 and b"outbox" in rejected.stderr.lower()
         assert pending.read_bytes() == before, "URL mismatch modified journal"
+        return
+    if refusal:
+        assert result.returncode != 0 and not errors, (result.stderr, errors)
+        assert not pending.exists(), "broker refusal must complete QoS2 journal"
         return
     if no_protocol or wrong_san or wrong_ca:
         assert result.returncode != 0, result.stdout
@@ -221,10 +262,10 @@ def scenario(root, *, mqtt5=False, subscribe=False, no_protocol=False,
         if subscribe:
             assert b"hello" in result.stdout, result.stdout
         if durable:
-            assert not (outbox / "pending.json").exists(), "PUBACK must complete outbox"
+            assert not pending.exists(), "ACK must complete outbox"
 
 
-def recovery_scenario(root, *, resume_session):
+def recovery_scenario(root, *, resume_session, qos2=False, first_drop_comp=False):
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
     listener.listen(1)
@@ -238,11 +279,13 @@ def recovery_scenario(root, *, resume_session):
                "--topic", "test/value", "--message", "ok", "--username", "device",
                "--password-file", str(secret), "--ca", str(root / "ca.crt"),
                "--cert", str(root / "client.crt"), "--key", str(root / "client.key"),
-               "--protocol-version", "5", "--qos", "1", "--client-id", "c120-fixture",
+               "--protocol-version", "5", "--qos", "2" if qos2 else "1",
+               "--client-id", "c122-fixture" if qos2 else "c120-fixture",
                "--clean-start", "false", "--session-expiry-seconds", "60",
                "--outbox-dir", str(outbox), "--timeout-seconds", "3"]
     options = dict(mqtt5=True, subscribe=False, no_protocol=False, wrong_san=False,
-                   durable=True, drop_ack=True)
+                   durable=True, drop_ack=not first_drop_comp, qos2=qos2,
+                   drop_comp=first_drop_comp)
     errors = []
     first = threading.Thread(target=serve, args=(root, listener),
                              kwargs=dict(options, errors=errors, close_listener=False), daemon=True)
@@ -251,13 +294,17 @@ def recovery_scenario(root, *, resume_session):
     first.join(timeout=6)
     assert not first.is_alive() and not errors, errors
     assert interrupted.returncode != 0, interrupted.stdout
-    pending = outbox / "pending.json"
+    pending = outbox / ("pending-qos2.json" if qos2 else "pending.json")
     before = pending.read_bytes()
-    assert b'MayHaveSent' in before
+    expected_stage = b'PubRelReady' if first_drop_comp else (
+        b'PublishMayHaveSent' if qos2 else b'MayHaveSent')
+    assert expected_stage in before, before
     second = threading.Thread(target=serve, args=(root, listener),
                               kwargs=dict(options, errors=errors, drop_ack=False,
+                                          drop_comp=False,
                                           session_present=resume_session,
-                                          expect_dup=resume_session,
+                                          expect_dup=resume_session and not first_drop_comp,
+                                          resume_pubrel=resume_session and first_drop_comp,
                                           no_session=not resume_session), daemon=True)
     second.start()
     retried = subprocess.run(command, capture_output=True, timeout=9)
@@ -291,8 +338,16 @@ def main():
         scenario(root, mqtt5=True, durable=True, drop_ack=True)
         recovery_scenario(root, resume_session=True)
         recovery_scenario(root, resume_session=False)
+        recovery_scenario(root, resume_session=True, qos2=True)
+        recovery_scenario(root, resume_session=False, qos2=True)
+        recovery_scenario(root, resume_session=True, qos2=True, first_drop_comp=True)
+        recovery_scenario(root, resume_session=False, qos2=True, first_drop_comp=True)
+        scenario(root, mqtt5=True, durable=True, qos2=True)
+        scenario(root, mqtt5=True, durable=True, qos2=True, refusal="pubrec")
+        scenario(root, mqtt5=True, durable=True, qos2=True, refusal="pubcomp")
     print("C114_WSS_MTLS_FIXTURE_PASS C116_PROFILE_FIXTURE_PASS "
-          "C119_WSS_QOS1_OUTBOX_PASS C120_WSS_QOS1_RECOVERY_PASS")
+          "C119_WSS_QOS1_OUTBOX_PASS C120_WSS_QOS1_RECOVERY_PASS "
+          "C122_WSS_QOS2_OUTBOX_PASS")
 
 
 if __name__ == "__main__":

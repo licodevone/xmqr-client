@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## Não publicado — C122 em validação
+
+- Outbox MQTT 5 QoS 2 por WSS mTLS reutiliza journal privado, URL canônica e estágios de PUBLISH/PUBREL da outbox TCP. WS aberto e assinatura persistente por URL permanecem recusados.
+
 ## 0.35.0 — outbox QoS 1 por WSS mTLS (prerelease experimental)
 
 - MQTT 5 QoS 1 com outbox privado aceita WSS mTLS local/remoto; URL WSS canônica distingue o destino dos journals TCP sem alterar o formato. WS aberto, QoS 2 e manifesto de assinatura por URL continuam recusados.
