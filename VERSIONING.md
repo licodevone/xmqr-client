@@ -1,9 +1,10 @@
 # Versionamento
 
-C114 implementa WSS mTLS local em `main` sem alterar 0.32.0 ou manifestos
-duráveis. A prerelease 0.32.0 não contém C114. CI da fonte exata e
-[registro](prompts/registros/C114-mtls-websocket-client.md) passaram; fase 7
-global aberta.
+O candidato 0.33.0 distribui C114 WSS mTLS local sem alterar manifestos
+duráveis. A prerelease publicada 0.32.0 não contém C114. CI e
+[registro](prompts/registros/C114-mtls-websocket-client.md) passaram; o
+[gate C115](prompts/clients/115-release-0.33.0.md) ainda exige pacote,
+rollback, imagem, hashes, tag e prerelease. Fase 7 global aberta.
 
 O 0.32.0 publicado distribui C112: WebSocket de laboratório em loopback para
 pub/sub MQTT 3.1.1/5. Sem WSS, perfis nem estado durável sobre WS. O broker

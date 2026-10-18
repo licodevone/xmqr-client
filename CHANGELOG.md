@@ -1,6 +1,6 @@
 # Histórico de versões
 
-## Não publicado — C114 aceito em main
+## 0.33.0 — WSS mTLS local (candidato experimental)
 
 - `--ws-url wss://127.0.0.1:PORTA/mqtt` opt-in no modo mTLS seguro usa a CA/certificado/chave existentes para pub/sub MQTT 3.1.1/5. Loopback apenas, sem perfil ou estado durável sobre URL; TLS/senha e WS aberto preservados.
 
