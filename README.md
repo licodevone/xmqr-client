@@ -1,7 +1,7 @@
 # xmqr-client
 
-Em `main` após v0.36.0, a primeira fatia experimental C125 acrescenta o
-sidecar `mqtt-bridge` unidirecional TLS/mTLS QoS 0. Ele ainda não integra o
+Em `main` após v0.36.0, as fatias experimentais C125/C126 acrescentam o
+sidecar `mqtt-bridge` unidirecional TLS/mTLS QoS 0/1. Ele ainda não integra o
 pacote/imagem publicados. [Guia, configuração e limites](docs/bridge-one-way.md).
 
 A prerelease experimental 0.36.0 reúne C122/C123: outbox QoS 2 e manifesto

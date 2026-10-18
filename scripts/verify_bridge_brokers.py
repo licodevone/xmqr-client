@@ -39,28 +39,50 @@ def wait_markers(child, markers, seconds=12):
     raise AssertionError(("bridge status timeout", markers, seen))
 
 
-def command(root, port, mode, topic, payload=None):
+def ready_subscriber(root, port, topic):
+    child = subprocess.Popen(command(root, port, "sub", topic),
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
+    line = bytearray()
+    while not line.endswith(b"\n"):
+        ready, _, _ = select.select([child.stdout], [], [], 8)
+        assert ready, "subscriber SUBACK timeout"
+        byte = os.read(child.stdout.fileno(), 1)
+        assert byte, "subscriber exited before SUBACK"
+        line.extend(byte)
+    assert b"Assinatura ativa" in line, line
+    return child
+
+
+def command(root, port, mode, topic, payload=None, *, qos=0, retain=False, retained_only=False,
+            ignore_retained=False):
     common = [str(CLIENT), mode, "--port", str(port), "--topic", topic,
               "--username", "device", "--password-file", str(root / "password"),
               "--ca", str(root / "ca.crt"), "--cert", str(root / "client.crt"),
               "--key", str(root / "client.key"), "--client-id", f"c125-{mode}",
               "--timeout-seconds", "5"]
     if mode == "pub":
-        common += ["--message", payload, "--qos", "0"]
+        common += ["--message", payload, "--qos", str(qos)]
+        if retain:
+            common += ["--retain", "true"]
     else:
         common += ["--count", "1"]
+        if retained_only:
+            common += ["--retained-only"]
+        if ignore_retained:
+            common += ["--ignore-retained"]
     return common
 
 
-def exchange(root, source_port, target_port, suffix, payload, *, expected=True):
-    subscriber = subprocess.Popen(command(root, target_port, "sub", f"mirror/{suffix}"),
+def exchange(root, source_port, target_port, suffix, payload, *, expected=True, qos=0):
+    subscriber = subprocess.Popen(command(root, target_port, "sub", f"mirror/{suffix}",
+                                          qos=qos, ignore_retained=True),
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
         ready, _, _ = select.select([subscriber.stdout], [], [], 8)
         assert ready, "subscriber did not report SUBACK"
         assert "Assinatura ativa" in subscriber.stdout.readline()
         published = subprocess.run(command(root, source_port, "pub", f"sensors/{suffix}",
-                                           payload), capture_output=True, timeout=10)
+                                           payload, qos=qos), capture_output=True, timeout=10)
         assert published.returncode == 0, published.stderr.decode(errors="replace")
         if expected:
             stdout, stderr = subscriber.communicate(timeout=8)
@@ -82,7 +104,9 @@ def exchange(root, source_port, target_port, suffix, payload, *, expected=True):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--broker-root", type=Path, required=True)
+    parser.add_argument("--qos1", action="store_true")
     args = parser.parse_args()
+    qos = 1 if args.qos1 else 0
     broker_root = args.broker_root.resolve()
     sys.path.insert(0, str(broker_root / "scripts"))
     from verify_multi_endpoint import free_port, hash_fixture, wait_port
@@ -105,11 +129,11 @@ def main():
                 f'cert_sha256="sha256:{fingerprint}"\n')
         private(root / "source-acl.toml",
                 '[[rules]]\nusername="device"\n'
-                'publish=["sensors/allowed","sensors/denied"]\n'
+                'publish=["sensors/allowed","sensors/denied","sensors/crash"]\n'
                 'subscribe=["sensors/#"]\n')
         private(root / "target-acl.toml",
-                '[[rules]]\nusername="device"\npublish=["mirror/allowed"]\n'
-                'subscribe=["mirror/allowed","mirror/denied"]\n')
+                '[[rules]]\nusername="device"\npublish=["mirror/allowed","mirror/crash"]\n'
+                'subscribe=["mirror/allowed","mirror/denied","mirror/crash"]\n')
         source_port, target_port = free_port(), free_port()
         assert source_port != target_port
         base = {key: value for key, value in os.environ.items() if not key.startswith("MQTT_")}
@@ -151,7 +175,7 @@ def main():
                     + '[destination]\n'
                     + endpoint(destination_port, "c125-bridge-target", dest_ca,
                                dest_pwd, dest_host)
-                    + '[route]\nsource_prefix="sensors/"\ntarget_prefix="mirror/"\n')
+                    + f'[route]\nsource_prefix="sensors/"\ntarget_prefix="mirror/"\nqos={qos}\n')
         config = root / "bridge.toml"
         configuration(config)
         same = root / "same.toml"
@@ -177,18 +201,56 @@ def main():
                                           capture_output=True, timeout=15)
                 assert negative.returncode != 0, name
                 assert secret.encode() not in negative.stderr
+            if qos == 1:
+                retained = subprocess.run(command(root, source_port, "pub",
+                                                  "sensors/allowed", "c126-retained",
+                                                  qos=1, retain=True), capture_output=True, timeout=10)
+                assert retained.returncode == 0, retained.stderr.decode(errors="replace")
             bridge_process = subprocess.Popen([str(BRIDGE), "--config", str(config)],
                                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                               bufsize=0)
             wait_markers(bridge_process, ("destino conectado", "origem assinada"))
-            exchange(root, source_port, target_port, "allowed", "c125-first")
-            exchange(root, source_port, target_port, "denied", "c125-denied",
-                     expected=False)
+            if qos == 1:
+                retained_sub = subprocess.run(command(root, target_port, "sub", "mirror/allowed",
+                                                     retained_only=True), capture_output=True,
+                                              timeout=10)
+                assert retained_sub.returncode == 0 and b"c126-retained" in retained_sub.stdout, (retained_sub.stdout, retained_sub.stderr)
+            exchange(root, source_port, target_port, "allowed", "c125-first", qos=qos)
+            if qos == 0:
+                exchange(root, source_port, target_port, "denied", "c125-denied",
+                         expected=False, qos=qos)
             stop(target)
             wait_markers(bridge_process, ("destino desconectado",), seconds=10)
             target = start(target_env, target_port)
             wait_markers(bridge_process, ("destino conectado",), seconds=20)
-            exchange(root, source_port, target_port, "allowed", "c125-after-restart")
+            exchange(root, source_port, target_port, "allowed", "c125-after-restart", qos=qos)
+            if qos == 1:
+                bridge_process.terminate()
+                bridge_process.communicate(timeout=8)
+                bridge_process = subprocess.Popen([str(BRIDGE), "--config", str(config)],
+                                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                                  bufsize=0,
+                                                  env=dict(os.environ, XMQR_BRIDGE_TEST_PAUSE_AFTER_DEST_ACK="1"))
+                wait_markers(bridge_process, ("destino conectado", "origem assinada"))
+                subscriber = ready_subscriber(root, target_port, "mirror/crash")
+                sent = subprocess.run(command(root, source_port, "pub", "sensors/crash",
+                                              "c126-crash-redelivery", qos=1),
+                                      capture_output=True, timeout=10)
+                assert sent.returncode == 0, sent.stderr.decode(errors="replace")
+                wait_markers(bridge_process, ("checkpoint apos PUBACK do destino",))
+                first, _ = subscriber.communicate(timeout=8)
+                assert b"c126-crash-redelivery" in first, first
+                bridge_process.kill()
+                bridge_process.communicate(timeout=8)
+                subscriber = ready_subscriber(root, target_port, "mirror/crash")
+                bridge_process = subprocess.Popen([str(BRIDGE), "--config", str(config)],
+                                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                                  bufsize=0)
+                wait_markers(bridge_process, ("origem assinada",), seconds=15)
+                second, _ = subscriber.communicate(timeout=8)
+                assert b"c126-crash-redelivery" in second, second
+                exchange(root, source_port, target_port, "denied", "c126-denied",
+                         expected=False, qos=qos)
         except BaseException:
             if bridge_process is not None and bridge_process.poll() is None:
                 ready, _, _ = select.select([bridge_process.stderr], [], [], .1)
@@ -205,7 +267,7 @@ def main():
                 bridge_process.communicate(timeout=8)
             stop(source)
             stop(target)
-    print("C125_BRIDGE_XMQR_PASS mapping, ACL, CA/SAN/password, reconnect, same endpoint")
+    print(f"C125_C126_BRIDGE_XMQR_QOS{qos}_PASS mapping, ACL, CA/SAN/password, reconnect, same endpoint")
 
 
 if __name__ == "__main__":

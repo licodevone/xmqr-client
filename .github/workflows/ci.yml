@@ -58,3 +58,5 @@ jobs:
       - run: cargo build --locked --bins --manifest-path broker/Cargo.toml
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker
+      - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --qos1
+      - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --qos1

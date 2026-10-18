@@ -1,4 +1,4 @@
-//! C125: bounded, one-way MQTT 3.1.1 bridge sidecar (experimental).
+//! C125/C126: bounded, one-way MQTT 3.1.1 bridge sidecar (experimental).
 use std::{
     error::Error,
     fs,
@@ -17,7 +17,11 @@ use rustls::{
     version::{TLS12, TLS13},
 };
 use serde::Deserialize;
-use tokio::{task::JoinHandle, time::sleep};
+use tokio::{
+    sync::mpsc,
+    task::JoinHandle,
+    time::{sleep, timeout},
+};
 
 type AppResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 const MAX_CONFIG_BYTES: u64 = 16 * 1024;
@@ -53,6 +57,8 @@ struct Endpoint {
 struct Route {
     source_prefix: String,
     target_prefix: String,
+    #[serde(default)]
+    qos: u8,
 }
 
 fn default_retries() -> u8 {
@@ -148,6 +154,9 @@ fn validate(config: &Config) -> AppResult<()> {
     if config.route.source_prefix == config.route.target_prefix {
         return Err(invalid("prefixos de origem e destino devem diferir").into());
     }
+    if config.route.qos > 1 {
+        return Err(invalid("bridge aceita somente QoS 0 ou 1").into());
+    }
     Ok(())
 }
 
@@ -198,12 +207,13 @@ fn tls(endpoint: &Endpoint) -> AppResult<ClientConfig> {
         .with_client_auth_cert(certs, key)?)
 }
 
-fn options(endpoint: &Endpoint) -> AppResult<MqttOptions> {
+fn options(endpoint: &Endpoint, durable_source: bool) -> AppResult<MqttOptions> {
     let mut options = MqttOptions::new(&endpoint.client_id, &endpoint.host, endpoint.port);
     options.set_transport(Transport::tls_with_config(tls(endpoint)?.into()));
     options.set_credentials(&endpoint.username, password(&endpoint.password_file)?);
     options.set_keep_alive(Duration::from_secs(30));
-    options.set_clean_session(true);
+    options.set_clean_session(!durable_source);
+    options.set_manual_acks(durable_source);
     options.set_max_packet_size(MAX_PAYLOAD_BYTES - 5, MAX_PAYLOAD_BYTES);
     Ok(options)
 }
@@ -212,6 +222,7 @@ async fn poll_destination(
     mut loopback: rumqttc::EventLoop,
     connected: Arc<AtomicBool>,
     retries: u8,
+    ack_tx: mpsc::Sender<()>,
 ) -> AppResult<()> {
     let mut failures = 0_u8;
     loop {
@@ -220,6 +231,9 @@ async fn poll_destination(
                 connected.store(true, Ordering::Release);
                 failures = 0;
                 eprintln!("Bridge: destino conectado");
+            }
+            Ok(Event::Incoming(Incoming::PubAck(_))) => {
+                ack_tx.send(()).await?;
             }
             Ok(_) => {}
             Err(_) => {
@@ -238,15 +252,18 @@ async fn poll_destination(
 }
 
 async fn run(config: Config) -> AppResult<()> {
-    let source = options(&config.source)?;
-    let destination = options(&config.destination)?;
+    let qos1 = config.route.qos == 1;
+    let source = options(&config.source, qos1)?;
+    let destination = options(&config.destination, false)?;
     let (source_client, mut source_loop) = AsyncClient::new(source, 8);
     let (destination_client, destination_loop) = AsyncClient::new(destination, 8);
     let destination_connected = Arc::new(AtomicBool::new(false));
+    let (ack_tx, mut ack_rx) = mpsc::channel(1);
     let mut destination_task: JoinHandle<AppResult<()>> = tokio::spawn(poll_destination(
         destination_loop,
         Arc::clone(&destination_connected),
         config.max_retries,
+        ack_tx,
     ));
     let filter = format!("{}#", config.route.source_prefix);
     let mut failures = 0_u8;
@@ -259,13 +276,42 @@ async fn run(config: Config) -> AppResult<()> {
             event = source_loop.poll() => match event {
                 Ok(Event::Incoming(Incoming::ConnAck(_))) => {
                     failures = 0;
-                    source_client.subscribe(&filter, QoS::AtMostOnce).await?;
+                    source_client.subscribe(&filter, if qos1 { QoS::AtLeastOnce }
+                                                 else { QoS::AtMostOnce }).await?;
                     eprintln!("Bridge: origem conectada");
                 }
                 Ok(Event::Incoming(Incoming::SubAck(_))) => {
                     eprintln!("Bridge: origem assinada");
                 }
                 Ok(Event::Incoming(Incoming::Publish(message))) => {
+                    if qos1 {
+                        if message.qos != QoS::AtLeastOnce || message.payload.len() > MAX_PAYLOAD_BYTES {
+                            return Err(invalid("mensagem QoS 1 invalida ou acima do limite").into());
+                        }
+                        let topic = mapped_topic(&config.route, &message.topic)
+                            .ok_or_else(|| invalid("topico de origem nao mapeavel"))?;
+                        timeout(Duration::from_secs(20), async {
+                            while !destination_connected.load(Ordering::Acquire) {
+                                sleep(Duration::from_millis(50)).await;
+                            }
+                            destination_client.publish(topic, QoS::AtLeastOnce,
+                                                       message.retain, message.payload.clone()).await?;
+                            ack_rx.recv().await.ok_or_else(|| invalid("destino sem PUBACK"))?;
+                            Ok::<(), Box<dyn Error + Send + Sync>>(())
+                        }).await.map_err(|_| invalid("destino sem PUBACK no prazo"))??;
+                        #[cfg(debug_assertions)]
+                        if std::env::var_os("XMQR_BRIDGE_TEST_PAUSE_AFTER_DEST_ACK").is_some()
+                            && message.topic.ends_with("/crash") {
+                            eprintln!("Bridge: checkpoint apos PUBACK do destino");
+                            sleep(Duration::from_secs(30)).await;
+                        }
+                        source_client.ack(&message).await?;
+                        forwarded += 1;
+                        if forwarded.is_multiple_of(100) {
+                            eprintln!("Bridge: {forwarded} mensagens encaminhadas");
+                        }
+                        continue;
+                    }
                     if !destination_connected.load(Ordering::Acquire)
                         || message.payload.len() > MAX_PAYLOAD_BYTES {
                         dropped += 1;
@@ -311,7 +357,7 @@ async fn main() {
     }
     if args.len() == 1 && matches!(args[0].as_str(), "--help" | "-h") {
         println!(
-            "Uso: mqtt-bridge --config ARQUIVO_PRIVADO_TOML\nBridge experimental unidirecional TLS/mTLS QoS 0."
+            "Uso: mqtt-bridge --config ARQUIVO_PRIVADO_TOML\nBridge experimental unidirecional TLS/mTLS QoS 0 ou 1."
         );
         return;
     }
@@ -346,6 +392,7 @@ mod tests {
         let route = Route {
             source_prefix: "sensor/".into(),
             target_prefix: "mirror/".into(),
+            qos: 0,
         };
         assert_eq!(
             mapped_topic(&route, "sensor/room/temp").as_deref(),

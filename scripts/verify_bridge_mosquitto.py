@@ -38,7 +38,7 @@ def wait_docker(port):
     raise AssertionError("Mosquitto TLS listener unavailable")
 
 
-def case(broker_root, direction):
+def case(broker_root, direction, qos):
     sys.path.insert(0, str(broker_root / "scripts"))
     from verify_multi_endpoint import free_port, hash_fixture, wait_port
     from verify_wss_mtls import certificates
@@ -103,7 +103,7 @@ def case(broker_root, direction):
                 + endpoint(source_port, f"c125-{direction}-source")
                 + '[destination]\n'
                 + endpoint(target_port, f"c125-{direction}-target")
-                + '[route]\nsource_prefix="sensors/"\ntarget_prefix="mirror/"\n')
+                + f'[route]\nsource_prefix="sensors/"\ntarget_prefix="mirror/"\nqos={qos}\n')
         container = f"xmqr-c125-{secrets.token_hex(5)}"
         broker_log = root / "broker.log"
         with broker_log.open("wb") as log:
@@ -118,7 +118,7 @@ def case(broker_root, direction):
             bridge = subprocess.Popen([str(BRIDGE), "--config", str(root / "bridge.toml")],
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
             wait_markers(bridge, ("destino conectado", "origem assinada"), seconds=20)
-            exchange(root, source_port, target_port, "allowed", f"c125-{direction}-first")
+            exchange(root, source_port, target_port, "allowed", f"c125-{direction}-first", qos=qos)
             docker("stop", container)
             marker = "destino desconectado" if xmqr_is_source else "origem desconectada"
             wait_markers(bridge, (marker,), seconds=10)
@@ -126,7 +126,7 @@ def case(broker_root, direction):
             wait_docker(mosq_port)
             marker = "destino conectado" if xmqr_is_source else "origem assinada"
             wait_markers(bridge, (marker,), seconds=20)
-            exchange(root, source_port, target_port, "allowed", f"c125-{direction}-restart")
+            exchange(root, source_port, target_port, "allowed", f"c125-{direction}-restart", qos=qos)
         except BaseException:
             if bridge is not None and bridge.poll() is None:
                 ready, _, _ = select.select([bridge.stderr], [], [], .1)
@@ -153,10 +153,12 @@ def case(broker_root, direction):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--broker-root", type=Path, required=True)
+    parser.add_argument("--qos1", action="store_true")
     args = parser.parse_args()
+    qos = 1 if args.qos1 else 0
     for direction in ("xmqr-to-mosquitto", "mosquitto-to-xmqr"):
-        case(args.broker_root.resolve(), direction)
-        print(f"C125_BRIDGE_{direction.upper().replace('-', '_')}_PASS")
+        case(args.broker_root.resolve(), direction, qos)
+        print(f"C125_C126_BRIDGE_{direction.upper().replace('-', '_')}_QOS{qos}_PASS")
 
 
 if __name__ == "__main__":
