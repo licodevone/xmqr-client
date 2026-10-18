@@ -137,19 +137,20 @@ def main():
             if child.poll() is None:
                 child.send_signal(signal.SIGTERM)
                 assert child.wait(timeout=8) == 0
-        def endpoint(port, client_id, ca="ca.crt"):
-            return (f'host="127.0.0.1"\nport={port}\nclient_id="{client_id}"\n'
+        def endpoint(port, client_id, ca="ca.crt", pwd="password", host="127.0.0.1"):
+            return (f'host={json.dumps(host)}\nport={port}\nclient_id="{client_id}"\n'
                     'username="device"\n'
-                    f'password_file={json.dumps(str(root / "password"))}\n'
+                    f'password_file={json.dumps(str(root / pwd))}\n'
                     f'ca={json.dumps(str(root / ca))}\n'
                     f'cert={json.dumps(str(root / "client.crt"))}\n'
                     f'key={json.dumps(str(root / "client.key"))}\n')
         def configuration(path, *, destination_port=target_port, dest_ca="ca.crt",
-                          retries=8):
+                          dest_pwd="password", dest_host="127.0.0.1", retries=8):
             private(path, f'version=1\nmax_retries={retries}\n[source]\n'
                     + endpoint(source_port, "c125-bridge-source")
                     + '[destination]\n'
-                    + endpoint(destination_port, "c125-bridge-target", dest_ca)
+                    + endpoint(destination_port, "c125-bridge-target", dest_ca,
+                               dest_pwd, dest_host)
                     + '[route]\nsource_prefix="sensors/"\ntarget_prefix="mirror/"\n')
         config = root / "bridge.toml"
         configuration(config)
@@ -164,12 +165,18 @@ def main():
         target = start(target_env, target_port)
         bridge_process = None
         try:
-            wrong = root / "wrong-ca.toml"
-            configuration(wrong, dest_ca="other.crt", retries=1)
-            negative = subprocess.run([str(BRIDGE), "--config", str(wrong)],
-                                      capture_output=True, timeout=15)
-            assert negative.returncode != 0
-            assert secret.encode() not in negative.stderr
+            private(root / "wrong-password", "incorrect-fixture-password\n")
+            for name, changes in (
+                ("wrong-ca", {"dest_ca": "other.crt"}),
+                ("wrong-san", {"dest_host": "localhost"}),
+                ("wrong-password", {"dest_pwd": "wrong-password"}),
+            ):
+                wrong = root / f"{name}.toml"
+                configuration(wrong, retries=1, **changes)
+                negative = subprocess.run([str(BRIDGE), "--config", str(wrong)],
+                                          capture_output=True, timeout=15)
+                assert negative.returncode != 0, name
+                assert secret.encode() not in negative.stderr
             bridge_process = subprocess.Popen([str(BRIDGE), "--config", str(config)],
                                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                               bufsize=0)
@@ -198,7 +205,7 @@ def main():
                 bridge_process.communicate(timeout=8)
             stop(source)
             stop(target)
-    print("C125_BRIDGE_XMQR_PASS mapping, ACL, TLS-CA, reconnect, same-endpoint rejection")
+    print("C125_BRIDGE_XMQR_PASS mapping, ACL, CA/SAN/password, reconnect, same endpoint")
 
 
 if __name__ == "__main__":
