@@ -145,3 +145,20 @@ versão final, release ELF, broker/admin, peers externos, gates globais6B/6C,
 distribuição e publicação cabem ao coordenador. Nenhum resultado local deste
 registro substitui a matriz global de migração, relógio, crash/restart, quotas,
 Will Delay/expiração e interoperabilidade da fase6.
+
+## Integração do marker, C129 v1.11
+
+Sem novo runtime: prompt1606f7105b9f4d97a7a9547709c406054daff2c7 antes
+do patch e552b7951ca4e7d9a5d31a35dbd81ce1f4eb701f no harness. A campanha
+completa bem-sucedida agora emite C129_INBOUND_JOURNAL_PASS, além do JSON;
+--case parcial não emite esse atestado. Compat mantém C129_COMPATIBILITY_PASS.
+
+[Nova execução](../../docs/evidence/client-c129-inbound-marker.json):18/18PASS,
+5.832s, mesmo ELF109ec97326500b8edfe9c54f09318103f661866a3e16927a9b63e8d4f473d3e9.
+SHA do harness275489e3994f07cfa5b59a769c66c156ca2f3cd8aa40747148b3226683bf9213;
+SHA do relatório1076ef0c0314a8801e2bcfc133e99a49eb6a62b228c2f7ee8a64acea7cf211af.
+Marker específico observado após statusPASS. Provas negativas adicionais:
+--case continuous no ELF final PASS,0.7113s, sem marker do conjunto; --case
+recovery no ELF anterior FAIL/exit1,0.4719s, também sem marker. Relatórios
+novos dist/c129-marker-subset.json e dist/c129-marker-negative.json preservados.
+Oráculos, cenários, prazos e fontes Rust permaneceram congelados.
