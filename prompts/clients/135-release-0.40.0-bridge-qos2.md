@@ -1,4 +1,4 @@
-# C135 v1.1 — distribuir bridge QoS 2 experimental
+# C135 v1.2 — distribuir bridge QoS 2 experimental
 
 ## Entrada
 
@@ -47,3 +47,12 @@ do assinante. Retained vivo e ciclos externos continuam fora do aceite T02.
 Downgrade para 0.39 preserva arquivos privados sob controle do operador, mas
 essa versão não lê o novo journal da bridge; pare instâncias QoS 2 antes de
 voltar. Não publicar `latest` sem validação própria.
+
+## Revisão após build local
+
+O `.deb` 0.40.0 foi construído no Ubuntu 26.04, porém o build release emitiu
+avisos para `Outgoing` e `pending_topic`, usados apenas nos ganchos de crash do
+build debug. Aplicar `cfg(debug_assertions)` nesses dois pontos sem alterar o
+runtime release e repetir Clippy release/build/pacote antes do aceite. O aviso
+`dpkg-shlibdeps` sobre diversions da própria libc6 é separado e não foi
+interpretado como erro do pacote.
