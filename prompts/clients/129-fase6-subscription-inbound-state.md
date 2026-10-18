@@ -232,3 +232,73 @@ cargo locked/offline-j1, avisar uso/liberação. Repetir integral Rust,18+novos
 TCP, compatibilidade6, fmt/Clippy/build/inventário; novos reports não apagam
 FAILs anteriores. Sem instalação/tag/push/release; commits locais próprios
 autorizados. stdout→commit continua podendo duplicar saída, não é este bug.
+
+## Revisão v1.13 — diagnóstico do primeiro RED, antes de ajustar os vetores
+
+RED unitário4FAIL e TCP3FAIL preservados. Órfão reproduziu criação/CONNECT
+indevidos. Os vetores iniciais com3 SubscriptionIdentifiers expuseram antes
+outro erro do fork: PublishProperties::read conta o byte do ID duas vezes,
+para cedo e desloca propriedade para payload. Assim os dois RED de identidade
+não serão atribuídos à comparação até isolá-la. Sem alterar runtime, ajustar
+vetores para2IDs [1,2]→[2,1]/[1], que o parser anterior lê por completo, e
+repetir RED com reports novos. Bug do fork comunicado ao coordenador; eventual
+correção exige autorização/revisão própria e teste específico, não ampliar
+ownership silenciosamente. Relatórios iniciais permanecem intactos.
+
+## Revisão v1.14 — RED isolado e parser de propriedades autorizado
+
+Repetição com2IDs confirmou a comparação inválida no ponto correto:
+4unitáriosFAIL (orphanopen/orphanprepare/identity/versiontransition),6.63s
+compile/0.12s testes; TCPorder/multiplicity EOF antesPUBREC após SP1/DUP,
+1.3449s/1.3985s, ELF109ec973, reportsred2 preservados. TCPorphan confirmou
+CONNECT indevido,1.4315s. Agora os dois fixes delimitados estão liberados.
+
+Coordenador confirmou e autorizou também patch separado mínimo no fork
+`src/v5/mqttbytes/v5/publish.rs`, com XMQR-PATCHES.md: o contador da propriedade
+SubscriptionIdentifier já inclui seu ID; somar apenas os bytes do VBI, não
+outro ID. Antes desse fix, adicionar RED independente de write/read público
+com3IDs pequenos, ContentType vazio posterior (válido) e payloadbinário;
+outro com IDs de1/2/3/4bytes. Ambos devem preservar todas propriedades e bytes.
+SUBSCRIBE parser semelhante fica fora do escopo, pois cliente não o recebe.
+Preservar copyrights/licenças originais, quotas, demais propriedades e API.
+
+## Revisão v1.15 — RED do parser confirmado antes da correção
+
+Dois testes novos write/read público falharam no parser anterior:3IDs pequenos
+e mistura1/2/3/4bytes perderam ContentType vazio posterior (None em vez de
+Some(""));16.16scompile,0.00stest,2FAIL. Esta é prova distinta do conflito de
+identidade com2IDs. A leitura final do notice no mesmo comando retornou0,
+portanto esse status agregado não será usado como exitcode do cargoRED.
+Aplicar agora somente cursor+=id_len em publish.rs e atualizar notice; manter
+SUBSCRIBE parser fora do ownership e não modificar mais oráculos para passar.
+
+## Revisão v1.16 — prova de compatibilidade com draft v1 real
+
+Após6unitáriosreviewGREEN, acrescentar script dedicado
+scripts/verify_c129_v1_migration.py, com --legacy-client e --client explícitos,
+report exclusivo e hashes. Criar journalv1 pelo ELF anterior congelado109ec973,
+SIGKILL após PUBREC, ler como2 no cliente corrigido sem alterar arquivo na
+leitura/replay, completar PUBREL/PUBCOMP e observar documento2 após transição.
+MesmoClientID/destino/SP1, bytesoriginais preservados, sem nova saída. Não
+chamar documento reconstruído de migração de dado histórico real. Script
+separado não transforma ausência de legacy-client em PASS/skip no agregador.
+
+## Revisão v1.17 — Clippy e diagnóstico ambiental antes das correções
+
+Integral Rust no fix passou181testes (2+110+1+68), sem ignorados. Clippy novo
+recusou somente dois estilos dos testes: literal2097152 sem separadores e
+Vec passado por valor sem consumo. Corrigir para2_097_152 e slice, sem allow,
+sem alterar dados/oráculo. Repetir Clippy e integral após os negativos de
+compatibilidade acrescentados. Outra chamada Python AST não iniciou por
+WSL/Service/0x8007274c; não é erro de parser/fixture, não reiniciar/configurar
+WSL nem contar AST comoPASS. Repetir chamada segura separada quando responder.
+
+## Revisão v1.18 — PATH do inventário e gates finais
+
+Integral final181PASS, ClippyPASS após estilo, Windowscheck2sPASS no cache
+próprio com warning preexistente meta/mqtt-bridge.rs123, sem alterar C128.
+AST2PASS na repetição; inventário não encontrou cargo no PATH do subprocesso
+WSL direto. Repetir somente com PATH explícito ao cargo já existente e modo
+offline, sem instalar/baixar dependências ou mudar ambiente global. Código de
+saída agregado da leitura git posterior não prova inventárioPASS; registrar
+resultado isolado. Nenhum runtime novo em resposta a essa falha ambiental.
