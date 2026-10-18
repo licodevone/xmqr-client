@@ -1,8 +1,8 @@
 # Assinatura MQTT5 com journal de recepção
 
 Checkpoint C129/C130,2026-10-18: implementado e testado em Linux/WSL,
-**ainda em revisão para o aceite integrado da fase6**. Correções finais de
-SubscriptionIdentifier e journal órfão estão em validação, não publicadas.
+**ainda aguardando aceite integrado da fase6 e distribuição**. Correções de
+SubscriptionIdentifier e journal órfão foram integradas após testes próprios.
 Confira o [registro com fontes/resultados](../prompts/registros/C129-subscription-inbound-state.md).
 
 ## Para que serve
@@ -60,6 +60,16 @@ lock exclusivo, no-follow, checksum, escrita atômica e fsync. O limite é
 32registros **e**65536bytes serializados; mensagens grandes podem alcançar
 o limite de bytes antes de32. Não compartilhe o diretório entre processos.
 
+O documento inbound atual é versão2. Um draftv1 válido pode ser lido sem
+reescrita; a próxima transição durável grava2. A migração verifica checksum
+e identidade antigos antes de normalizar a comparação em memória. Os bytes
+originais e metadados guardados continuam protegidos pelo checksum completo.
+SubscriptionIdentifiers podem variar legitimamente num reenvio e, assim
+como expiração restante/alias transitório/DUP, não definem sozinhos uma
+nova obrigação. Isso não permite substituir tópico, payload ou UserProperties
+de uma obrigação ainda viva. Outboxes de publicação e manifesto mantêm seus
+formatos próprios, não foram todos promovidos a2.
+
 ## Limites importantes
 
 - Há uma janela entre stdout/flush e o próximo commit. Uma queda nessa
@@ -75,8 +85,8 @@ o limite de bytes antes de32. Não compartilhe o diretório entre processos.
 - O checkWindows aprovado verifica compilação, não suporteWindows a esse
   journal. SIGKILL de teste não equivale a perda de energia.
 
-As evidências incluem18cenáriosTCP,175testesRust e6regressões de outbox/WSS
-na fonte identificada no registro. A revisão final acrescenta casos próprios;
+As evidências finais incluem21cenáriosTCP,181testesRust e6regressões de
+outbox/WSS na fonte identificada no registro, além de migração com ELFv1 real;
 não somar essas contagens como cobertura percentual nem declarar que todo
 MQTT5 foi certificado. A [matriz de paridade](mosquitto-parity.md) continua
 separando entregas parciais e aceite global.
