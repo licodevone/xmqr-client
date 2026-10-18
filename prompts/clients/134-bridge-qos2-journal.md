@@ -1,4 +1,4 @@
-# C134 v1.9 — bridge QoS 2 com journal da origem
+# C134 v1.10 — bridge QoS 2 com journal da origem
 
 ## Entrada e fonte normativa
 
@@ -117,3 +117,11 @@ atual falhou em `too_many_lines` (função `run`: 105/100). Extrair o gancho
 determinístico de depuração pós-PUBREC para uma função curta, preservando o
 mesmo checkpoint e ordem de ACK. Repetir gates e integrações, sem suprimir o
 lint.
+
+A CI exata de `cb98852` falhou no job `bridge-integration`, caso QoS 2 após
+reinício do broker de destino: o subscriber de `mirror/allowed` não recebeu
+`c125-after-restart` em 8 s. Rust e pacote passaram; não aceitar C134. Repetir
+o cenário sob stress local, capturar estado/logs sanitizados da bridge e dos
+brokers no ponto de falha e determinar se houve perda do PUBLISH, handshake
+incompleto ou corrida da fixture. Corrigir o mecanismo ou o oráculo conforme
+a evidência; não ampliar o timeout como substituto de entrega comprovada.
