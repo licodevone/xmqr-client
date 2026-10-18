@@ -1,4 +1,4 @@
-# C129 v1.0 — journal inbound da assinatura persistente MQTT 5
+# C129 v1.1 — journal inbound da assinatura persistente MQTT 5
 
 18/10/2026, preparado antes do código. Pedido: fechar M03/6B do plano de
 paridade e a pendência explícita do prompt C110, coordenado pelo broker P227.
@@ -69,3 +69,14 @@ decide integração e release após aceite e regressões finais.
 
 Norma primária consultada: OASIS MQTT5 §§3.2.2,4.1,4.3.2/4.3.3,4.4,4.9:
 https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html
+
+## Revisão v1.1 — RED real antes do fix
+
+Fixture TCP sintética executada no ELF debug existente, copiado isoladamente:
+SHA415222bdc6855eaeba6130829225c82df0d740f7015159f4c22e82e93c3d1a8e.
+CONNECT/SUBACK, saída e PUBREC ocorreram; SIGKILL após PUBREC, nova conexão
+com SessionPresent1 e PUBREL resultou em EOF em vez de PUBCOMP. Exit1,
+0.5474s; relatório dist/c129-inbound-baseline.json preservado. HarnessSHA
+5d024da41b152fd22399b116c37f35de59b223c2cfdbdeaa6a808078153a1896.
+Essa falha esperada reproduz a ausência do journal/bitset durável, não uma
+falha de fixture. Iniciar agora a correção delimitada descrita acima.
