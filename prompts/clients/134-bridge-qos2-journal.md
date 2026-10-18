@@ -1,4 +1,4 @@
-# C134 v1.5 — bridge QoS 2 com journal da origem
+# C134 v1.6 — bridge QoS 2 com journal da origem
 
 ## Entrada e fonte normativa
 
@@ -87,3 +87,11 @@ negativo. Reservar um tópico distinto `/session-loss` na fixture e fazer o
 gancho de teste aceitar explicitamente esse sufixo quando solicitado; o caso
 de crash original continua restrito a `/crash`. Repetir a fixture integral e
 confirmar que Session Present=0 conserva a pendência sem encaminhar de novo.
+
+Mesmo com o tópico distinto, a instância reiniciada saiu após `origem
+conectada` e reconexão do destino, antes do SUBACK. O timeout ampliado revelou
+falha real, não lentidão. Instrumentar **somente a fixture descartável e o
+build de depuração** para identificar a classe de erro sem registrar payload,
+senha ou chaves. Se a causa for uma obrigação antiga da sessão, preservar um
+ensaio de reinício repetido que a detecte e corrigir a bridge; não mascarar a
+falha com uma nova identidade de client ID antes de entender a causa.
