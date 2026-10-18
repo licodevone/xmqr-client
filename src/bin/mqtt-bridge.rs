@@ -1,4 +1,6 @@
-//! C125/C126: bounded, one-way MQTT 3.1.1 bridge sidecar (experimental).
+//! C125-C134: bounded, one-way MQTT 3.1.1 bridge sidecar (experimental).
+#[path = "../bridge_journal.rs"]
+mod bridge_journal;
 use std::{
     error::Error,
     fs,
@@ -12,7 +14,8 @@ use std::{
     time::Duration,
 };
 
-use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, QoS, Transport};
+use bridge_journal::Journal;
+use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, Outgoing, Publish, QoS, Transport};
 use rustls::{
     ClientConfig, RootCertStore,
     version::{TLS12, TLS13},
@@ -38,6 +41,7 @@ struct Config {
     route: Route,
     topology_file: Option<PathBuf>,
     link_id: Option<String>,
+    journal_dir: Option<PathBuf>,
     #[serde(default = "default_retries")]
     max_retries: u8,
 }
@@ -121,6 +125,8 @@ fn regular(path: &Path) -> AppResult<fs::Metadata> {
 
 fn private(path: &Path) -> AppResult<()> {
     let meta = regular(path)?;
+    #[cfg(not(unix))]
+    let _ = &meta;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -199,7 +205,7 @@ fn check_topology(config: &Config) -> AppResult<()> {
     let path = config
         .topology_file
         .as_ref()
-        .ok_or_else(|| invalid("QoS 1 exige topology_file"))?;
+        .ok_or_else(|| invalid("QoS 1/2 exige topology_file"))?;
     if !path.is_absolute() {
         return Err(invalid("topology_file deve ser absoluto").into());
     }
@@ -246,7 +252,7 @@ fn check_topology(config: &Config) -> AppResult<()> {
         if !valid_id(&link.id)
             || !valid_prefix(&link.source_prefix)
             || !valid_prefix(&link.target_prefix)
-            || link.qos > 1
+            || link.qos > 2
             || link.source_broker == link.destination_broker
             || !topology
                 .brokers
@@ -331,10 +337,21 @@ fn validate(config: &Config) -> AppResult<()> {
     if config.route.source_prefix == config.route.target_prefix {
         return Err(invalid("prefixos de origem e destino devem diferir").into());
     }
-    if config.route.qos > 1 {
-        return Err(invalid("bridge aceita somente QoS 0 ou 1").into());
+    if config.route.qos > 2 {
+        return Err(invalid("bridge aceita somente QoS 0, 1 ou 2").into());
     }
-    if config.route.qos == 1 || config.topology_file.is_some() || config.link_id.is_some() {
+    if config.route.qos == 2 {
+        let directory = config
+            .journal_dir
+            .as_ref()
+            .ok_or_else(|| invalid("QoS 2 exige journal_dir privado"))?;
+        if !directory.is_absolute() {
+            return Err(invalid("journal_dir deve ser absoluto").into());
+        }
+    } else if config.journal_dir.is_some() {
+        return Err(invalid("journal_dir so se aplica a QoS 2").into());
+    }
+    if config.route.qos > 0 || config.topology_file.is_some() || config.link_id.is_some() {
         check_topology(config)?;
     }
     Ok(())
@@ -402,6 +419,7 @@ async fn poll_destination(
     mut loopback: rumqttc::EventLoop,
     connected: Arc<AtomicBool>,
     retries: u8,
+    qos: u8,
     ack_tx: mpsc::Sender<()>,
 ) -> AppResult<()> {
     let mut failures = 0_u8;
@@ -412,7 +430,10 @@ async fn poll_destination(
                 failures = 0;
                 eprintln!("Bridge: destino conectado");
             }
-            Ok(Event::Incoming(Incoming::PubAck(_))) => {
+            Ok(Event::Incoming(Incoming::PubAck(_))) if qos == 1 => {
+                ack_tx.send(()).await?;
+            }
+            Ok(Event::Incoming(Incoming::PubComp(_))) if qos == 2 => {
                 ack_tx.send(()).await?;
             }
             Ok(_) => {}
@@ -431,9 +452,134 @@ async fn poll_destination(
     }
 }
 
+fn open_journal(config: &Config) -> AppResult<Option<Journal>> {
+    if config.route.qos != 2 {
+        return Ok(None);
+    }
+    let identity = serde_json::to_vec(&(
+        &config.source.broker_id,
+        &config.source.host,
+        config.source.port,
+        &config.source.client_id,
+        &config.source.username,
+        &config.destination.broker_id,
+        &config.destination.host,
+        config.destination.port,
+        &config.destination.client_id,
+        &config.destination.username,
+        &config.route.source_prefix,
+        &config.route.target_prefix,
+        config.route.qos,
+        &config.link_id,
+    ))?;
+    Ok(Some(Journal::open(
+        config
+            .journal_dir
+            .as_deref()
+            .ok_or_else(|| invalid("journal_dir ausente"))?,
+        &identity,
+    )?))
+}
+
+async fn forward_durable(
+    config: &Config,
+    message: &Publish,
+    source_client: &AsyncClient,
+    destination_client: &AsyncClient,
+    destination_connected: &AtomicBool,
+    ack_rx: &mut mpsc::Receiver<()>,
+    journal: &mut Option<Journal>,
+) -> AppResult<bool> {
+    let expected_qos = if config.route.qos == 2 {
+        QoS::ExactlyOnce
+    } else {
+        QoS::AtLeastOnce
+    };
+    if message.qos != expected_qos || message.payload.len() > MAX_PAYLOAD_BYTES {
+        return Err(invalid("mensagem QoS invalida ou acima do limite").into());
+    }
+    let topic = mapped_topic(&config.route, &message.topic)
+        .ok_or_else(|| invalid("topico de origem nao mapeavel"))?;
+    if let Some(journal) = journal.as_ref()
+        && journal.already_forwarded(
+            message.pkid,
+            &message.topic,
+            &message.payload,
+            message.retain,
+        )?
+    {
+        source_client.ack(message).await?;
+        return Ok(false);
+    }
+    timeout(Duration::from_secs(20), async {
+        while !destination_connected.load(Ordering::Acquire) {
+            sleep(Duration::from_millis(50)).await;
+        }
+        destination_client
+            .publish(topic, expected_qos, message.retain, message.payload.clone())
+            .await?;
+        ack_rx
+            .recv()
+            .await
+            .ok_or_else(|| invalid("destino sem ACK terminal"))?;
+        Ok::<(), Box<dyn Error + Send + Sync>>(())
+    })
+    .await
+    .map_err(|_| invalid("destino sem ACK terminal no prazo"))??;
+    if let Some(journal) = journal.as_mut() {
+        journal.record(
+            message.pkid,
+            &message.topic,
+            &message.payload,
+            message.retain,
+        )?;
+    }
+    #[cfg(debug_assertions)]
+    if std::env::var_os("XMQR_BRIDGE_TEST_PAUSE_AFTER_DEST_ACK").is_some()
+        && message.topic.ends_with("/crash")
+    {
+        if config.route.qos == 2 {
+            eprintln!("Bridge: checkpoint apos PUBCOMP do destino");
+        } else {
+            eprintln!("Bridge: checkpoint apos PUBACK do destino");
+        }
+        sleep(Duration::from_secs(30)).await;
+    }
+    source_client.ack(message).await?;
+    Ok(true)
+}
+
+fn qos_level(qos: u8) -> QoS {
+    match qos {
+        0 => QoS::AtMostOnce,
+        1 => QoS::AtLeastOnce,
+        2 => QoS::ExactlyOnce,
+        _ => unreachable!(),
+    }
+}
+
+#[cfg(debug_assertions)]
+async fn pause_after_source_pubrec(pkid: u16, journal: Option<&Journal>) {
+    let test_suffix = match std::env::var("XMQR_BRIDGE_TEST_PAUSE_AFTER_SOURCE_PUBREC").as_deref() {
+        Ok("1") => Some("/crash"),
+        Ok("session-loss") => Some("/session-loss"),
+        _ => None,
+    };
+    if test_suffix.is_some_and(|suffix| {
+        journal
+            .and_then(|journal| journal.pending_topic(pkid))
+            .is_some_and(|topic| topic.ends_with(suffix))
+    }) {
+        eprintln!("Bridge: checkpoint apos PUBREC da origem");
+        sleep(Duration::from_secs(30)).await;
+    }
+}
+
 async fn run(config: Config) -> AppResult<()> {
-    let qos1 = config.route.qos == 1;
-    let source = options(&config.source, qos1)?;
+    let qos = config.route.qos;
+    let durable_source = qos > 0;
+    let mut journal = open_journal(&config)?;
+    let source = options(&config.source, durable_source)?;
     let destination = options(&config.destination, false)?;
     let (source_client, mut source_loop) = AsyncClient::new(source, 8);
     let (destination_client, destination_loop) = AsyncClient::new(destination, 8);
@@ -443,6 +589,7 @@ async fn run(config: Config) -> AppResult<()> {
         destination_loop,
         Arc::clone(&destination_connected),
         config.max_retries,
+        qos,
         ack_tx,
     ));
     let filter = format!("{}#", config.route.source_prefix);
@@ -454,41 +601,32 @@ async fn run(config: Config) -> AppResult<()> {
             result = &mut destination_task => return result?,
             _ = tokio::signal::ctrl_c() => return Ok(()),
             event = source_loop.poll() => match event {
-                Ok(Event::Incoming(Incoming::ConnAck(_))) => {
+                Ok(Event::Incoming(Incoming::ConnAck(connack))) => {
                     failures = 0;
-                    source_client.subscribe(&filter, if qos1 { QoS::AtLeastOnce }
-                                                 else { QoS::AtMostOnce }).await?;
+                    if let Some(journal) = &journal {
+                        if journal.has_pending() && !connack.session_present {
+                            eprintln!("Bridge: sessao de origem ausente; journal QoS 2 preservado. Recupere a sessao original antes de reiniciar");
+                            return Err(invalid("journal QoS 2 pendente sem sessao de origem").into());
+                        }
+                        for pkid in journal.pending_ids() {
+                            source_loop.state.restore_incoming_qos2(pkid)?;
+                        }
+                    }
+                    source_client.subscribe(&filter, qos_level(qos)).await?;
                     eprintln!("Bridge: origem conectada");
                 }
                 Ok(Event::Incoming(Incoming::SubAck(_))) => {
                     eprintln!("Bridge: origem assinada");
                 }
                 Ok(Event::Incoming(Incoming::Publish(message))) => {
-                    if qos1 {
-                        if message.qos != QoS::AtLeastOnce || message.payload.len() > MAX_PAYLOAD_BYTES {
-                            return Err(invalid("mensagem QoS 1 invalida ou acima do limite").into());
-                        }
-                        let topic = mapped_topic(&config.route, &message.topic)
-                            .ok_or_else(|| invalid("topico de origem nao mapeavel"))?;
-                        timeout(Duration::from_secs(20), async {
-                            while !destination_connected.load(Ordering::Acquire) {
-                                sleep(Duration::from_millis(50)).await;
+                    if durable_source {
+                        if forward_durable(&config, &message, &source_client,
+                                           &destination_client, &destination_connected,
+                                           &mut ack_rx, &mut journal).await? {
+                            forwarded += 1;
+                            if forwarded.is_multiple_of(100) {
+                                eprintln!("Bridge: {forwarded} mensagens encaminhadas");
                             }
-                            destination_client.publish(topic, QoS::AtLeastOnce,
-                                                       message.retain, message.payload.clone()).await?;
-                            ack_rx.recv().await.ok_or_else(|| invalid("destino sem PUBACK"))?;
-                            Ok::<(), Box<dyn Error + Send + Sync>>(())
-                        }).await.map_err(|_| invalid("destino sem PUBACK no prazo"))??;
-                        #[cfg(debug_assertions)]
-                        if std::env::var_os("XMQR_BRIDGE_TEST_PAUSE_AFTER_DEST_ACK").is_some()
-                            && message.topic.ends_with("/crash") {
-                            eprintln!("Bridge: checkpoint apos PUBACK do destino");
-                            sleep(Duration::from_secs(30)).await;
-                        }
-                        source_client.ack(&message).await?;
-                        forwarded += 1;
-                        if forwarded.is_multiple_of(100) {
-                            eprintln!("Bridge: {forwarded} mensagens encaminhadas");
                         }
                         continue;
                     }
@@ -508,6 +646,14 @@ async fn run(config: Config) -> AppResult<()> {
                             eprintln!("Bridge: {forwarded} mensagens encaminhadas");
                         }
                     }
+                }
+                Ok(Event::Incoming(Incoming::PubRel(pubrel))) if qos == 2 => {
+                    journal.as_mut().ok_or_else(|| invalid("journal ausente"))?
+                        .finish(pubrel.pkid)?;
+                }
+                #[cfg(debug_assertions)]
+                Ok(Event::Outgoing(Outgoing::PubRec(pkid))) if qos == 2 => {
+                    pause_after_source_pubrec(pkid, journal.as_ref()).await;
                 }
                 Ok(_) => {}
                 Err(_) => {
@@ -537,7 +683,7 @@ async fn main() {
     }
     if args.len() == 1 && matches!(args[0].as_str(), "--help" | "-h") {
         println!(
-            "Uso: mqtt-bridge --config ARQUIVO_PRIVADO_TOML\nBridge experimental unidirecional TLS/mTLS QoS 0 ou 1."
+            "Uso: mqtt-bridge --config ARQUIVO_PRIVADO_TOML\nBridge experimental unidirecional TLS/mTLS QoS 0, 1 ou 2."
         );
         return;
     }

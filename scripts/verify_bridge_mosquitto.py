@@ -101,21 +101,25 @@ def case(broker_root, direction, qos):
                     f'cert={json.dumps(str(root / "client.crt"))}\n'
                     f'key={json.dumps(str(root / "client.key"))}\n')
         header = 'version=1\nmax_retries=8\n'
-        if qos == 1:
+        if qos > 0:
             private(root / "topology.toml", 'version=1\n[[brokers]]\nid="source"\n'
                     + f'host="127.0.0.1"\nport={source_port}\n'
                     + '[[brokers]]\nid="target"\n'
                     + f'host="127.0.0.1"\nport={target_port}\n'
                     + '[[links]]\nid="primary"\nsource_broker="source"\n'
                     + 'destination_broker="target"\nsource_prefix="sensors/"\n'
-                    + 'target_prefix="mirror/"\nqos=1\n')
+                    + f'target_prefix="mirror/"\nqos={qos}\n')
             header += f'topology_file={json.dumps(str(root / "topology.toml"))}\nlink_id="primary"\n'
+        if qos == 2:
+            journal_dir = root / 'bridge-journal'
+            journal_dir.mkdir(mode=0o700)
+            header += f'journal_dir={json.dumps(str(journal_dir))}\n'
         private(root / "bridge.toml", header + '[source]\n'
                 + endpoint(source_port, f"c125-{direction}-source",
-                           broker_id="source" if qos == 1 else None)
+                           broker_id="source" if qos > 0 else None)
                 + '[destination]\n'
                 + endpoint(target_port, f"c125-{direction}-target",
-                           broker_id="target" if qos == 1 else None)
+                           broker_id="target" if qos > 0 else None)
                 + f'[route]\nsource_prefix="sensors/"\ntarget_prefix="mirror/"\nqos={qos}\n')
         container = f"xmqr-c125-{secrets.token_hex(5)}"
         broker_log = root / "broker.log"
@@ -167,8 +171,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--broker-root", type=Path, required=True)
     parser.add_argument("--qos1", action="store_true")
+    parser.add_argument("--qos2", action="store_true")
     args = parser.parse_args()
-    qos = 1 if args.qos1 else 0
+    assert not (args.qos1 and args.qos2)
+    qos = 2 if args.qos2 else 1 if args.qos1 else 0
     for direction in ("xmqr-to-mosquitto", "mosquitto-to-xmqr"):
         case(args.broker_root.resolve(), direction, qos)
         print(f"C125_C126_BRIDGE_{direction.upper().replace('-', '_')}_QOS{qos}_PASS")

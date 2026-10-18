@@ -133,6 +133,17 @@ impl MqttState {
         self.inflight
     }
 
+    /// Restore a QoS 2 PUBLISH that was durably accepted by the application.
+    /// The caller must first verify CONNACK Session Present for the same client ID.
+    /// This lets a resumed PUBREL complete without re-delivering the PUBLISH.
+    pub fn restore_incoming_qos2(&mut self, pkid: u16) -> Result<(), StateError> {
+        if !self.manual_acks || pkid == 0 {
+            return Err(StateError::InvalidState);
+        }
+        self.incoming_pub.insert(pkid as usize);
+        Ok(())
+    }
+
     /// Consolidates handling of all outgoing mqtt packet logic. Returns a packet which should
     /// be put on to the network by the eventloop
     pub fn handle_outgoing_packet(
@@ -658,6 +669,20 @@ mod test {
             Packet::PubRec(pubrec) => assert_eq!(pubrec.pkid, 1),
             _ => panic!("Invalid network request: {:?}", packet),
         }
+    }
+
+    #[test]
+    fn restored_manual_qos2_publish_completes_pubrel_without_redelivery() {
+        let mut mqtt = build_mqttstate();
+        assert!(mqtt.restore_incoming_qos2(7).is_err());
+        mqtt.manual_acks = true;
+        assert!(mqtt.restore_incoming_qos2(0).is_err());
+        mqtt.restore_incoming_qos2(7).unwrap();
+        assert!(mqtt.incoming_pub.contains(7));
+        let packet = mqtt.handle_incoming_pubrel(&PubRel::new(7)).unwrap();
+        assert!(matches!(packet, Some(Packet::PubComp(PubComp { pkid: 7 }))));
+        assert!(!mqtt.incoming_pub.contains(7));
+        assert!(mqtt.handle_incoming_pubrel(&PubRel::new(7)).is_err());
     }
 
     #[test]

@@ -53,6 +53,32 @@ def ready_subscriber(root, port, topic):
     return child
 
 
+def wait_journal_empty(path, seconds=8):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        document = json.loads(path.read_text())
+        if document["pending"] == []:
+            return
+        time.sleep(.1)
+    raise AssertionError("source QoS2 journal did not finish")
+
+
+def assert_no_new_delivery(root, target_port, topic, seconds=4):
+    subscriber = ready_subscriber(root, target_port, topic)
+    try:
+        try:
+            output, _ = subscriber.communicate(timeout=seconds)
+            assert not output, output
+        except subprocess.TimeoutExpired:
+            subscriber.kill()
+            output, _ = subscriber.communicate(timeout=5)
+            assert not output, output
+    finally:
+        if subscriber.poll() is None:
+            subscriber.kill()
+            subscriber.communicate(timeout=5)
+
+
 def command(root, port, mode, topic, payload=None, *, qos=0, retain=False, retained_only=False,
             ignore_retained=False):
     common = [str(CLIENT), mode, "--port", str(port), "--topic", topic,
@@ -66,6 +92,8 @@ def command(root, port, mode, topic, payload=None, *, qos=0, retain=False, retai
             common += ["--retain", "true"]
     else:
         common += ["--count", "1"]
+        if qos == 2:
+            common += ["--qos", "2"]
         if retained_only:
             common += ["--retained-only"]
         if ignore_retained:
@@ -105,11 +133,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--broker-root", type=Path, required=True)
     parser.add_argument("--qos1", action="store_true")
+    parser.add_argument("--qos2", action="store_true")
     parser.add_argument("--skip-crash-checkpoint", action="store_true",
                         help="release binary lacks the debug-only crash checkpoint")
     args = parser.parse_args()
-    assert not args.skip_crash_checkpoint or args.qos1
-    qos = 1 if args.qos1 else 0
+    assert not (args.qos1 and args.qos2)
+    assert not args.skip_crash_checkpoint or args.qos1 or args.qos2
+    qos = 2 if args.qos2 else 1 if args.qos1 else 0
     broker_root = args.broker_root.resolve()
     sys.path.insert(0, str(broker_root / "scripts"))
     from verify_multi_endpoint import free_port, hash_fixture, wait_port
@@ -132,11 +162,11 @@ def main():
                 f'cert_sha256="sha256:{fingerprint}"\n')
         private(root / "source-acl.toml",
                 '[[rules]]\nusername="device"\n'
-                'publish=["sensors/allowed","sensors/denied","sensors/crash"]\n'
+                'publish=["sensors/allowed","sensors/denied","sensors/crash","sensors/session-loss"]\n'
                 'subscribe=["sensors/#"]\n')
         private(root / "target-acl.toml",
-                '[[rules]]\nusername="device"\npublish=["mirror/allowed","mirror/crash"]\n'
-                'subscribe=["mirror/allowed","mirror/denied","mirror/crash"]\n')
+                '[[rules]]\nusername="device"\npublish=["mirror/allowed","mirror/crash","mirror/session-loss"]\n'
+                'subscribe=["mirror/allowed","mirror/denied","mirror/crash","mirror/session-loss"]\n')
         source_port, target_port = free_port(), free_port()
         assert source_port != target_port
         base = {key: value for key, value in os.environ.items() if not key.startswith("MQTT_")}
@@ -176,7 +206,7 @@ def main():
         def configuration(path, *, destination_port=target_port, dest_ca="ca.crt",
                           dest_pwd="password", dest_host="127.0.0.1", retries=8):
             header = f'version=1\nmax_retries={retries}\n'
-            if qos == 1:
+            if qos > 0:
                 topology = path.with_suffix('.topology.toml')
                 private(topology, 'version=1\n[[brokers]]\nid="source"\n'
                         + f'host="127.0.0.1"\nport={source_port}\n'
@@ -184,15 +214,19 @@ def main():
                         + f'host={json.dumps(dest_host)}\nport={destination_port}\n'
                         + '[[links]]\nid="primary"\nsource_broker="source"\n'
                         + 'destination_broker="target"\nsource_prefix="sensors/"\n'
-                        + 'target_prefix="mirror/"\nqos=1\n')
+                        + f'target_prefix="mirror/"\nqos={qos}\n')
                 header += f'topology_file={json.dumps(str(topology))}\nlink_id="primary"\n'
+            if qos == 2:
+                journal_dir = path.with_suffix('.journal')
+                journal_dir.mkdir(mode=0o700, exist_ok=True)
+                header += f'journal_dir={json.dumps(str(journal_dir))}\n'
             private(path, header + '[source]\n'
                     + endpoint(source_port, "c125-bridge-source",
-                               broker_id="source" if qos == 1 else None)
+                               broker_id="source" if qos > 0 else None)
                     + '[destination]\n'
                     + endpoint(destination_port, "c125-bridge-target", dest_ca,
                                dest_pwd, dest_host,
-                               broker_id="target" if qos == 1 else None)
+                               broker_id="target" if qos > 0 else None)
                     + f'[route]\nsource_prefix="sensors/"\ntarget_prefix="mirror/"\nqos={qos}\n')
         config = root / "bridge.toml"
         configuration(config)
@@ -201,7 +235,7 @@ def main():
         rejected = subprocess.run([str(BRIDGE), "--config", str(same)],
                                   capture_output=True, timeout=5)
         assert rejected.returncode == 2 and b"invalida" in rejected.stderr.lower()
-        if qos == 1:
+        if qos > 0:
             alias = root / "alias.toml"
             configuration(alias, destination_port=source_port, dest_host="localhost")
             rejected = subprocess.run([str(BRIDGE), "--config", str(alias)],
@@ -213,7 +247,7 @@ def main():
             private(topology, topology.read_text() +
                     '[[links]]\nid="reverse"\nsource_broker="target"\n'
                     'destination_broker="source"\nsource_prefix="mirror/"\n'
-                    'target_prefix="sensors/"\nqos=1\n')
+                    f'target_prefix="sensors/"\nqos={qos}\n')
             rejected = subprocess.run([str(BRIDGE), "--config", str(cycle)],
                                       capture_output=True, timeout=5)
             assert rejected.returncode == 2, "topology cycle accepted"
@@ -264,24 +298,24 @@ def main():
                                           capture_output=True, timeout=15)
                 assert negative.returncode != 0, name
                 assert secret.encode() not in negative.stderr
-            if qos == 1:
+            if qos > 0:
                 retained = subprocess.run(command(root, source_port, "pub",
                                                   "sensors/allowed", "c126-retained",
-                                                  qos=1, retain=True), capture_output=True, timeout=10)
+                                                  qos=qos, retain=True), capture_output=True, timeout=10)
                 assert retained.returncode == 0, retained.stderr.decode(errors="replace")
             bridge_process = subprocess.Popen([str(BRIDGE), "--config", str(config)],
                                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                               bufsize=0)
             wait_markers(bridge_process, ("destino conectado", "origem assinada"))
-            if qos == 1:
+            if qos > 0:
                 retained_sub = subprocess.run(command(root, target_port, "sub", "mirror/allowed",
                                                      retained_only=True), capture_output=True,
                                               timeout=10)
                 assert retained_sub.returncode == 0 and b"c126-retained" in retained_sub.stdout, (retained_sub.stdout, retained_sub.stderr)
             exchange(root, source_port, target_port, "allowed", "c125-first", qos=qos)
-            if qos == 1:
+            if qos > 0:
                 updated = subprocess.run(command(root, source_port, "pub", "sensors/allowed",
-                                                 "c126-retained-updated", qos=1, retain=True),
+                                                 "c126-retained-updated", qos=qos, retain=True),
                                          capture_output=True, timeout=10)
                 assert updated.returncode == 0, updated.stderr.decode(errors="replace")
             if qos == 0:
@@ -331,6 +365,81 @@ def main():
                     assert b"c126-crash-redelivery" in second, second
                 exchange(root, source_port, target_port, "denied", "c126-denied",
                          expected=False, qos=qos)
+            if qos == 2:
+                bridge_process.terminate()
+                bridge_process.communicate(timeout=8)
+                journal_path = config.with_suffix('.journal') / 'bridge-qos2.json'
+                for checkpoint, marker, payload in (
+                    ('XMQR_BRIDGE_TEST_PAUSE_AFTER_DEST_ACK',
+                     'checkpoint apos PUBCOMP do destino', 'c134-before-pubrec'),
+                    ('XMQR_BRIDGE_TEST_PAUSE_AFTER_SOURCE_PUBREC',
+                     'checkpoint apos PUBREC da origem', 'c134-after-pubrec'),
+                ):
+                    print(f'C134 checkpoint {checkpoint}', flush=True)
+                    process_env = dict(os.environ, **{checkpoint: '1'})
+                    bridge_process = subprocess.Popen([str(BRIDGE), '--config', str(config)],
+                                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                                      bufsize=0, env=process_env)
+                    wait_markers(bridge_process, ('destino conectado', 'origem assinada'))
+                    subscriber = ready_subscriber(root, target_port, 'mirror/crash')
+                    sent = subprocess.run(command(root, source_port, 'pub', 'sensors/crash',
+                                                  payload, qos=2), capture_output=True, timeout=10)
+                    assert sent.returncode == 0, sent.stderr.decode(errors='replace')
+                    wait_markers(bridge_process, (marker,))
+                    try:
+                        delivered, _ = subscriber.communicate(timeout=8)
+                    except subprocess.TimeoutExpired as error:
+                        raise AssertionError((checkpoint, 'subscriber timeout',
+                                              json.loads(journal_path.read_text())['pending'],
+                                              bridge_process.poll())) from error
+                    assert payload.encode() in delivered, delivered
+                    assert len(json.loads(journal_path.read_text())['pending']) == 1
+                    bridge_process.kill()
+                    bridge_process.communicate(timeout=8)
+                    bridge_process = subprocess.Popen([str(BRIDGE), '--config', str(config)],
+                                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                                      bufsize=0)
+                    wait_markers(bridge_process, ('origem assinada',), seconds=15)
+                    wait_journal_empty(journal_path)
+                    assert_no_new_delivery(root, target_port, 'mirror/crash')
+                    bridge_process.terminate()
+                    bridge_process.communicate(timeout=8)
+                bridge_process = subprocess.Popen([str(BRIDGE), '--config', str(config)],
+                                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                                  bufsize=0)
+                wait_markers(bridge_process, ('origem assinada',), seconds=15)
+                exchange(root, source_port, target_port, 'denied', 'c134-denied',
+                         expected=False, qos=qos)
+                bridge_process.terminate()
+                bridge_process.communicate(timeout=8)
+                loss_config = root / 'loss.toml'
+                configuration(loss_config)
+                private(loss_config, loss_config.read_text()
+                        .replace('c125-bridge-source', 'c134-loss-source')
+                        .replace('c125-bridge-target', 'c134-loss-target'))
+                loss_journal_path = loss_config.with_suffix('.journal') / 'bridge-qos2.json'
+                bridge_process = subprocess.Popen(
+                    [str(BRIDGE), '--config', str(loss_config)],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0,
+                    env=dict(os.environ, XMQR_BRIDGE_TEST_PAUSE_AFTER_SOURCE_PUBREC='session-loss'))
+                wait_markers(bridge_process, ('destino conectado', 'origem assinada'))
+                sent = subprocess.run(command(root, source_port, 'pub', 'sensors/session-loss',
+                                              'c134-session-lost', qos=2),
+                                      capture_output=True, timeout=10)
+                assert sent.returncode == 0, sent.stderr.decode(errors='replace')
+                wait_markers(bridge_process, ('checkpoint apos PUBREC da origem',))
+                pending_before = json.loads(loss_journal_path.read_text())['pending']
+                assert len(pending_before) == 1
+                bridge_process.kill()
+                bridge_process.communicate(timeout=8)
+                stop(source)
+                source = start(dict(source_env, MQTT_STATE_DIR=str(root / 'source-empty-state')),
+                               source_port)
+                refused = subprocess.run([str(BRIDGE), '--config', str(loss_config)],
+                                         capture_output=True, timeout=12)
+                assert refused.returncode == 1, ('lost source session accepted', refused.stderr)
+                assert b'sessao de origem ausente; journal QoS 2 preservado' in refused.stderr
+                assert json.loads(loss_journal_path.read_text())['pending'] == pending_before
         except BaseException:
             if bridge_process is not None and bridge_process.poll() is None:
                 ready, _, _ = select.select([bridge_process.stderr], [], [], .1)
@@ -348,7 +457,8 @@ def main():
             stop(source)
             stop(target)
     scope = " (release binary, no debug crash checkpoint)" if args.skip_crash_checkpoint else ""
-    print(f"C125_C126_BRIDGE_XMQR_QOS{qos}_PASS mapping, ACL, CA/SAN/password, reconnect, same endpoint{scope}")
+    label = 'C134' if qos == 2 else 'C125_C126'
+    print(f"{label}_BRIDGE_XMQR_QOS{qos}_PASS mapping, ACL, CA/SAN/password, reconnect, same endpoint{scope}")
 
 
 if __name__ == "__main__":

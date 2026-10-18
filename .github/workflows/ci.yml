@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main, 'release/**']
+    branches: [main, 'release/**', 'feature/c134-bridge-qos2']
   pull_request:
 permissions:
   contents: read
@@ -86,6 +86,8 @@ jobs:
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --qos1
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --qos1
+      - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --qos2
+      - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --qos2
       - run: python3 scripts/verify_bridge_topology.py --broker-root broker
 
   bridge-image:

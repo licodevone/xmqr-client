@@ -1,5 +1,10 @@
 # xmqr-client
 
+Em desenvolvimento na branch C134: bridge MQTT 3.1.1 QoS 2 com journal
+privado da origem, retomada condicionada à sessão e ensaios de queda. Esta
+fatia ainda não integra a release 0.39.0; veja o [guia da bridge](docs/bridge-one-way.md)
+e o [prompt C134](prompts/clients/134-bridge-qos2-journal.md).
+
 ## Prerelease experimental 0.39.0 — C133
 
 Esta versão reúne o [journal inbound MQTT 5](docs/mqtt5-inbound-journal.md)
