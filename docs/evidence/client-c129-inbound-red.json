@@ -1,0 +1,9 @@
+{
+  "client_sha256": "415222bdc6855eaeba6130829225c82df0d740f7015159f4c22e82e93c3d1a8e",
+  "harness_sha256": "5d024da41b152fd22399b116c37f35de59b223c2cfdbdeaa6a808078153a1896",
+  "scope": "owned synthetic loopback fixture; SIGKILL is not power loss",
+  "status": "FAIL",
+  "error_type": "AssertionError",
+  "reason": "unexpected EOF before protocol completion",
+  "elapsed_seconds": 0.5474
+}

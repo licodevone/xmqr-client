@@ -1,0 +1,15 @@
+{
+  "client_sha256": "415222bdc6855eaeba6130829225c82df0d740f7015159f4c22e82e93c3d1a8e",
+  "harness_sha256": "73902cf7ae0d5eb770c7211793ebcdb56f36e7a15f60e45ca026eeb55a49b230",
+  "scope": "owned synthetic loopback fixture; SIGKILL is not power loss",
+  "scenarios": [
+    {
+      "status": "FAIL",
+      "scenario": "continuous",
+      "error_type": "AssertionError",
+      "reason": "continuous default stopped after QoS2 completion"
+    }
+  ],
+  "status": "FAIL",
+  "elapsed_seconds": 0.3489
+}
