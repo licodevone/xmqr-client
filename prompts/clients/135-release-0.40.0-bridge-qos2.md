@@ -66,3 +66,17 @@ de apenas 2 s mesmo para 32 gravações duráveis. Preservar o FAIL da CI.
 Ampliar somente o prazo desse cenário para 8 s, sem reduzir o volume nem
 afrouxar os ACKs, a ordem, as provas de saída ou os demais cenários.
 Executar o caso dirigido e a CI integral na nova revisão antes de tag/release.
+
+## Revisão após CI da candidata 10514e4
+
+O job Rust passou; a integração QoS 2 falhou uma vez aguardando o journal
+**inteiro** ficar vazio após o primeiro checkpoint de crash. O fixture já
+publica e atualiza `sensors/allowed` com retained antes desse checkpoint;
+outras obrigações podem coexistir no journal. A mesma integração passou na
+CI anterior e no WSL local na fonte atual. Preservar o FAIL. Ajustar o
+oráculo do checkpoint para aguardar o término da entrada `sensors/crash`
+específica, mantendo prazo limitado, confirmação da entrega antes da queda,
+verificação de ausência de nova entrega e todos os negativos. Em caso de
+falha, registrar apenas os tópicos pendentes, sem payload/credenciais.
+Manter a exigência de journal inteiramente vazio no ensaio separado que o
+prepara sem retained. Repetir integração local e CI da revisão exata.
