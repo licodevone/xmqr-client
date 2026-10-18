@@ -1,9 +1,10 @@
 # xmqr-client
 
-C123 aceito parcialmente em `main` estende o manifesto de assinatura MQTT 5
-para WSS mTLS com URL canônica e retomada condicionada a Session Present.
-[Registro C123](prompts/registros/C123-wss-durable-subscription.md). A release 0.35.0
-não inclui C122/C123.
+O candidato experimental 0.36.0 reúne C122/C123: outbox QoS 2 e manifesto
+de assinatura MQTT 5 por WSS mTLS, com URL canônica como identidade e retomada
+condicionada a Session Present. [Registros C122](prompts/registros/C122-wss-qos2-outbox.md)
+e [C123](prompts/registros/C123-wss-durable-subscription.md). A release 0.35.0
+não inclui essas entregas.
 
 A prerelease experimental 0.35.0 reúne C119 e permite outbox MQTT 5
 QoS 1 por WSS mTLS com URL canônica como identidade do destino; TCP mantém
@@ -13,10 +14,6 @@ PUBACK perdido em fixture WSS mTLS. [Registros C119](prompts/registros/C119-wss-
 e [C120](prompts/registros/C120-wss-qos1-outbox-recovery.md).
 [Release 0.35.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.35.0),
 [nota](docs/releases/0.35.0.md) e [registro C121](prompts/registros/C121-release-0.35.0.md).
-
-C122 aceito parcialmente em `main`, fora da release 0.35.0, permite outbox
-MQTT 5 QoS 2 por WSS mTLS; o mesmo journal privado e a URL canônica continuam
-identificando a operação. [Registro C122](prompts/registros/C122-wss-qos2-outbox.md).
 
 A prerelease experimental 0.34.0 inclui C117 e permite
 `--allow-remote-wss --ws-url wss://broker.exemplo:8443/mqtt` em mTLS seguro.

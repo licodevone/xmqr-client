@@ -1,5 +1,12 @@
 # Versionamento
 
+O candidato 0.36.0 distribui C122/C123: outbox QoS 2 e manifesto de assinatura
+MQTT 5 por WSS mTLS, com identidade de URL canônica. Sem migração dos journals
+TCP; 0.35.0 lê os arquivos existentes, mas recusa essas opções por URL. Broker
+0.42.0/P216 permanece o par distribuído. Publicação depende dos gates do
+[prompt C124](prompts/clients/124-release-0.36.0.md).
+[Nota candidata](docs/releases/0.36.0.md). Fase 7 global aberta.
+
 A prerelease 0.35.0 distribui C119/C120: outbox QoS 1 MQTT 5 por WSS mTLS
 com URL canônica como identidade e ensaio controlado de retomada. Sem migração
 do journal TCP; o 0.34.0 preserva dados, mas recusa a opção por URL. Broker
