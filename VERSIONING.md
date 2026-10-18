@@ -1,9 +1,13 @@
 # Versionamento
 
-O candidato 0.39.0 integra a bridge experimental C125–C128 ao pacote e imagem
+A prerelease 0.39.0 integra a bridge experimental C125–C128 ao pacote e imagem
 do client 0.38.0, preservando o journal inbound C129. O `.deb` e a imagem
 passam a conter `mqtt-client` e `mqtt-bridge 0.1.0`; o serviço é opt-in.
-[Contrato e limites](docs/bridge-one-way.md). Fases 6 e 8 globais abertas.
+[Contrato e limites](docs/bridge-one-way.md),
+[nota](docs/releases/0.39.0.md) e
+[registro C133](prompts/registros/C133-bridge-package-039.md).
+Tag da fonte exata, CI, pacote, imagem por digest e seis anexos remotos
+verificados. Fases 6 e 8 globais abertas.
 
 A prerelease 0.38.0 distribui somente `mqtt-client`/C129. Documento inbound
 v2 aceita draft v1 válido sem escrita na leitura; os demais journals e
