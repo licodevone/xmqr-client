@@ -41,3 +41,41 @@ validação. Não anunciar produção, brokerMQTT5integral ou suporteWindows aos
 journals. Se qualquer gate falhar, revisar este prompt antes de corrigir.
 Agente pode executar esta distribuição explicitamente autorizada, mas
 nenhuma mutação em serviços/firewall/firmware/segredos ou estado do operador.
+
+## v1.1 — execução isolada e migração verificável
+
+Entrada confirmada f3c71620d5a3d715fbfb58b3e8f09d69a026f854; clone novo
+`.artifacts/p227-client-release038`, branch `release/0.38.0`, origin local
+somente leitura. Push explícito para GitHub, sem mudar origin ou C128.
+Consultas remotas não encontraram v0.38.0 nem imagem/tag0.38.0 em2026-10-18.
+
+CI preserva jobs existentes e acrescenta release/** e C129:181Rust atuais,
+21TCP,6compat, contratos classificadores e migração. Para migração real no
+CI, checkout histórico fixo5ba9cf67a36b3c196bd1b60b35b74819d4768c47
+(ancestral commitado do draftv1), build somente mqtt-client em target próprio;
+não inventar documento antigo editando o campo version. Local usa ELF109ec973
+congelado, com SHA no relatório. Nenhuma dependência nova.
+
+Versionar somente pacote/client038, Docker default038 e docs de distribuição;
+bridge fonte permanece no repo e nos gates herdados, mas sem binário/unit
+bridge no pacote/imagem. Coletar notices pela fonte/lock exatos. Compilar
+release com um job no cache privado; Debian nativoUbuntu26 existente e
+container Ubuntu26 descartável para instalação/upgrade036→038/rollback/purge.
+
+Rollback do pacote NÃO é compatibilidade do journal inbound:036 publicado
+não conhece C129 e NÃO deve abrir diretório com mensagens pendentes novas.
+Seed real de journalv2 com o038 instalado, guardar hashes privados, voltar036
+sem iniciar assinatura sobre esse diretório; provar bytes/permissões preservados
+e restaurar038 antes de retomar. Não apagar journal para tornar downgrade verde.
+Configuração/credencial sintética preservadas em todo ciclo. Sem systemd host.
+
+Fixtures Docker usarão imagem por ID/digest imutável, volumes/rede privados
+sem portas host e usuário10001:10001. TCP/mTLS e WSS dos testes existentes;
+C129 TCP por wrapper Docker em rede host do Linux VM somente loopback privado
+ou runner descartável compartilhando namespace, com paths privados/mode0700.
+Registros devem distinguir pub/sub por digest de fixtures sintéticas do journal,
+sem inferir brokerE/v16/admin final ou processamento de negócio.
+
+Antes de correção após qualquer FAIL de gate, acrescentar revisão e preservar
+relatório/estágio/exitcode. CI/pacote/imagem/local PASS antes de tag/prerelease;
+assets remotos baixados para pasta nova e comparados por tamanho/SHA256.
