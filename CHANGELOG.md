@@ -1,6 +1,6 @@
 # Histórico de versões
 
-## Não publicado — C119 em validação
+## Não publicado — C119 aceito parcialmente
 
 - MQTT 5 QoS 1 com outbox privado aceita WSS mTLS local/remoto; URL WSS canônica distingue o destino dos journals TCP sem alterar o formato. WS aberto, QoS 2 e manifesto de assinatura por URL continuam recusados. Recuperação após PUBACK perdido por WSS ainda precisa de ensaio próprio.
 
