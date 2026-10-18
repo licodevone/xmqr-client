@@ -281,7 +281,7 @@ def main():
                                       capture_output=True, timeout=5)
             assert rejected.returncode == 2, "unsafe topology accepted"
         assert subprocess.run([str(BRIDGE), "--version"], capture_output=True,
-                              timeout=5).stdout.startswith(b"mqtt-bridge 0.1.0")
+                              timeout=5).stdout.startswith(b"mqtt-bridge 0.2.0")
         source = start(source_env, source_port)
         target = start(target_env, target_port)
         bridge_process = None
@@ -365,7 +365,7 @@ def main():
                     assert b"c126-crash-redelivery" in second, second
                 exchange(root, source_port, target_port, "denied", "c126-denied",
                          expected=False, qos=qos)
-            if qos == 2:
+            if qos == 2 and not args.skip_crash_checkpoint:
                 bridge_process.terminate()
                 bridge_process.communicate(timeout=8)
                 journal_path = config.with_suffix('.journal') / 'bridge-qos2.json'
@@ -475,6 +475,9 @@ def main():
                 assert refused.returncode == 1, ('lost source session accepted', refused.stderr)
                 assert b'sessao de origem ausente; journal QoS 2 preservado' in refused.stderr
                 assert json.loads(loss_journal_path.read_text())['pending'] == pending_before
+            if qos == 2 and args.skip_crash_checkpoint:
+                exchange(root, source_port, target_port, 'denied', 'c135-release-denied',
+                         expected=False, qos=qos)
         except BaseException:
             if bridge_process is not None and bridge_process.poll() is None:
                 ready, _, _ = select.select([bridge_process.stderr], [], [], .1)

@@ -1,6 +1,6 @@
 # Bridge XMQR experimental — C125/C126/C134
 
-O binário `mqtt-bridge 0.1.0` é um **sidecar experimental** incluído no `.deb`/imagem do client 0.39.0; a release 0.38.0 anterior não o contém. A release 0.39.0 oferece QoS 0/1; o QoS 2 descrito abaixo é uma alteração da fonte C134 e **ainda não está nessa release**. Ele usa MQTT 3.1.1 sobre TLS/mTLS nas duas pontas. Uma instância só encaminha da origem para o destino. `route.qos=0` (padrão) mantém o modo melhor esforço C125. `route.qos=1` usa sessão persistente na origem, assinatura QoS 1, um encaminhamento em voo por vez e ACK manual da origem somente após o PUBACK do destino. O broker XMQR continua independente do processo da bridge.
+O binário `mqtt-bridge` é um **sidecar experimental** do pacote do client. A release 0.39.0 contém bridge 0.1.0 com QoS 0/1; a candidata client 0.40.0 contém bridge 0.2.0 com QoS 2 C134. Ele usa MQTT 3.1.1 sobre TLS/mTLS nas duas pontas. Uma instância só encaminha da origem para o destino. `route.qos=0` (padrão) mantém o modo melhor esforço C125. `route.qos=1` usa sessão persistente na origem, assinatura QoS 1, um encaminhamento em voo por vez e ACK manual da origem somente após o PUBACK do destino. O broker XMQR continua independente do processo da bridge.
 
 Exemplo de configuração privada (`/etc/xmqr/bridge.toml`); substitua os caminhos, portas e identidades pelos seus. Use usuários e certificados próprios para a bridge em cada broker e conceda somente os filtros/tópicos necessários na ACL.
 

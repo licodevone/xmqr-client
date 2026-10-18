@@ -177,7 +177,8 @@ def main():
     qos = 2 if args.qos2 else 1 if args.qos1 else 0
     for direction in ("xmqr-to-mosquitto", "mosquitto-to-xmqr"):
         case(args.broker_root.resolve(), direction, qos)
-        print(f"C125_C126_BRIDGE_{direction.upper().replace('-', '_')}_QOS{qos}_PASS")
+        label = 'C134' if qos == 2 else 'C125_C126'
+        print(f"{label}_BRIDGE_{direction.upper().replace('-', '_')}_QOS{qos}_PASS")
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ ENV CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0 RUSTFLAGS=-Cdebuginfo=0
 RUN cargo build --locked --release --bin mqtt-client --bin mqtt-bridge
 
 FROM debian:bookworm-slim AS runtime
-ARG VERSION=0.39.0
+ARG VERSION=0.40.0
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="XMQR Client" \
       org.opencontainers.image.version="${VERSION}" \
@@ -39,5 +39,5 @@ COPY --from=build --chown=10001:10001 /third-party-notices /usr/share/licenses/x
 USER 10001:10001
 STOPSIGNAL SIGTERM
 RUN test "$(/usr/local/bin/mqtt-client --version)" = "mqtt-client ${VERSION}"
-RUN test "$(/usr/local/bin/mqtt-bridge --version)" = "mqtt-bridge 0.1.0 (xmqr-client ${VERSION})"
+RUN test "$(/usr/local/bin/mqtt-bridge --version)" = "mqtt-bridge 0.2.0 (xmqr-client ${VERSION})"
 ENTRYPOINT ["/usr/local/bin/mqtt-client"]

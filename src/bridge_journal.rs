@@ -116,6 +116,7 @@ impl Journal {
         self.document.pending.iter().map(|entry| entry.pkid)
     }
 
+    #[cfg(debug_assertions)]
     pub fn pending_topic(&self, pkid: u16) -> Option<&str> {
         self.document
             .pending

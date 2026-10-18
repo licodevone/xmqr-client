@@ -4,10 +4,13 @@ Alvo: Ubuntu26.04 amd64. Construção requer Rust, Python3 e dpkg-dev:
 
 ```sh
 python3 scripts/build_deb.py
-sudo apt install ./dist/xmqr-client_0.39.0-1_amd64.deb
+sudo apt install ./dist/xmqr-client_0.40.0-1_amd64.deb
 mqtt-client --version
 mqtt-bridge --version
 ```
+
+O exemplo usa a candidata 0.40.0 construída desta fonte. Use um pacote
+publicado e confira seu SHA256 antes de instalar em ambiente persistente.
 
 O pacote instala `mqtt-client` e `mqtt-bridge` em `/usr/bin`, licenças e três units template
 opcionais. Não ativa nem inicia clientes. Cria usuário sem login `xmqr-client`.

@@ -1,5 +1,11 @@
 # xmqr-client
 
+A candidata 0.40.0 distribui C134: bridge MQTT 3.1.1 QoS 2 com journal
+privado da origem e retomada de sessão nas duas pontas. O binário da bridge
+passa a `mqtt-bridge 0.2.0`; a release 0.39.0 continua limitada a QoS 0/1.
+Veja a [nota candidata](docs/releases/0.40.0.md). Não há aceite global das
+fases 6 ou 8 com este pacote.
+
 A fonte C134 acrescenta bridge MQTT 3.1.1 QoS 2 com journal privado da
 origem, retomada condicionada à sessão e ensaios de queda. A
 [CI da fonte exata](https://github.com/licodevone/xmqr-client/actions/runs/39158793553)
