@@ -1,10 +1,11 @@
 # Versionamento
 
-O candidato 0.33.0 distribui C114 WSS mTLS local sem alterar manifestos
-duráveis. A prerelease publicada 0.32.0 não contém C114. CI e
-[registro](prompts/registros/C114-mtls-websocket-client.md) passaram; o
-[gate C115](prompts/clients/115-release-0.33.0.md) ainda exige pacote,
-rollback, imagem, hashes, tag e prerelease. Fase 7 global aberta.
+A prerelease 0.33.0 distribui C114 WSS mTLS local sem alterar manifestos
+duráveis. A versão anterior 0.32.0 não contém C114. CI, pacote Ubuntu 26.04,
+upgrade/rollback descartável, imagem numerada por digest, tag e prerelease
+com seis hashes remotos passaram. [Release](https://github.com/licodevone/xmqr-client/releases/tag/v0.33.0),
+[nota](docs/releases/0.33.0.md) e [registro C115](prompts/registros/C115-release-0.33.0.md).
+Fase 7 global aberta.
 
 O 0.32.0 publicado distribui C112: WebSocket de laboratório em loopback para
 pub/sub MQTT 3.1.1/5. Sem WSS, perfis nem estado durável sobre WS. O broker
