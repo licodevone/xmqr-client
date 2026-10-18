@@ -28,7 +28,7 @@ jobs:
       - name: C129 actual draft-v1 to v2 migration
         run: |
           mkdir -p "$RUNNER_TEMP/c129-legacy"
-          git archive 5ba9cf67a36b3c196bd1b60b35b74819d4768c47 | tar -x -C "$RUNNER_TEMP/c129-legacy"
+          git archive 235f20d097b674fadcbdf85d8c8f1c581ff1eba9 | tar -x -C "$RUNNER_TEMP/c129-legacy"
           cargo build --locked --bin mqtt-client --manifest-path "$RUNNER_TEMP/c129-legacy/Cargo.toml" --target-dir "$RUNNER_TEMP/c129-legacy-target"
           python3 -B scripts/verify_c129_v1_migration.py --legacy-client "$RUNNER_TEMP/c129-legacy-target/debug/mqtt-client" --client target/debug/mqtt-client --report dist/c129-ci-v1-migration.json
       - run: python3 -B scripts/verify_wss_client.py

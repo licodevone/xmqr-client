@@ -15,7 +15,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 \
     && rm -rf /var/lib/apt/lists/* \
     && python3 scripts/collect_notices.py --output /third-party-notices
-RUN cargo build --locked --release --bin mqtt-client
+RUN cargo build --locked --release -j1 --bin mqtt-client
 
 FROM debian:bookworm-slim AS runtime
 ARG VERSION=0.38.0
