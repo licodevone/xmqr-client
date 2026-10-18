@@ -75,7 +75,8 @@ def send_frame(stream, body):
     stream.sendall(bytes([0x82, length]) + body)
 
 
-def serve(root, listener, *, mqtt5, subscribe, no_protocol, wrong_san, errors):
+def serve(root, listener, *, mqtt5, subscribe, no_protocol, wrong_san, durable,
+          drop_ack, errors):
     try:
         raw, _ = listener.accept()
         raw.settimeout(5)
@@ -119,6 +120,13 @@ def serve(root, listener, *, mqtt5, subscribe, no_protocol, wrong_san, errors):
                 send_frame(stream, b"\x30" + bytes([len(body)]) + body)
             else:
                 assert request[0] & 0xf0 == 0x30 and request.endswith(b"ok"), request
+                if durable:
+                    topic_length = int.from_bytes(request[2:4], "big")
+                    packet_id = request[4 + topic_length:6 + topic_length]
+                    assert request[0] == 0x32 and packet_id == b"\x00\x01", request
+                    if drop_ack:
+                        return
+                    send_frame(stream, b"\x40\x04" + packet_id + b"\x00\x00")
             for _ in range(4):
                 opcode, packet = read_frame(stream)
                 if opcode == 8 or packet[:1] == b"\xe0":
@@ -140,7 +148,8 @@ def serve(root, listener, *, mqtt5, subscribe, no_protocol, wrong_san, errors):
 
 
 def scenario(root, *, mqtt5=False, subscribe=False, no_protocol=False,
-             wrong_san=False, wrong_ca=False, profile=False):
+             wrong_san=False, wrong_ca=False, profile=False, durable=False,
+             drop_ack=False):
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
     listener.listen(1)
@@ -150,7 +159,8 @@ def scenario(root, *, mqtt5=False, subscribe=False, no_protocol=False,
         target=serve,
         args=(root, listener),
         kwargs=dict(mqtt5=mqtt5, subscribe=subscribe, no_protocol=no_protocol,
-                    wrong_san=wrong_san, errors=errors),
+                    wrong_san=wrong_san, durable=durable, drop_ack=drop_ack,
+                    errors=errors),
         daemon=True)
     worker.start()
     url = f"wss://127.0.0.1:{port}/mqtt"
@@ -172,9 +182,26 @@ def scenario(root, *, mqtt5=False, subscribe=False, no_protocol=False,
                "5" if mqtt5 else "3.1.1", "--client-id", "c116-fixture",
                "--timeout-seconds", "3"]
     command += ["--count", "1"] if subscribe else ["--message", "ok"]
+    if durable:
+        assert mqtt5 and not subscribe
+        outbox = root / f"outbox-{port}"
+        outbox.mkdir(mode=0o700)
+        command.extend(["--qos", "1", "--clean-start", "false",
+                        "--session-expiry-seconds", "60", "--outbox-dir", str(outbox)])
     result = subprocess.run(command, capture_output=True, timeout=9)
     worker.join(timeout=6)
     assert not worker.is_alive(), "WSS fixture did not finish"
+    if drop_ack:
+        assert result.returncode != 0 and not errors, (result.stderr, errors)
+        pending = outbox / "pending.json"
+        before = pending.read_bytes()
+        assert not profile
+        wrong = [f"wss://127.0.0.1:{port + 1}/mqtt" if arg == url else arg
+                 for arg in command]
+        rejected = subprocess.run(wrong, capture_output=True, timeout=9)
+        assert rejected.returncode != 0 and b"outbox" in rejected.stderr.lower()
+        assert pending.read_bytes() == before, "URL mismatch modified journal"
+        return
     if no_protocol or wrong_san or wrong_ca:
         assert result.returncode != 0, result.stdout
     else:
@@ -182,6 +209,8 @@ def scenario(root, *, mqtt5=False, subscribe=False, no_protocol=False,
         assert not errors, errors
         if subscribe:
             assert b"hello" in result.stdout, result.stdout
+        if durable:
+            assert not (outbox / "pending.json").exists(), "PUBACK must complete outbox"
 
 
 def main():
@@ -199,7 +228,10 @@ def main():
             scenario(root, mqtt5=mqtt5, no_protocol=True)
         scenario(root, wrong_san=True)
         scenario(root, wrong_ca=True)
-    print("C114_WSS_MTLS_FIXTURE_PASS C116_PROFILE_FIXTURE_PASS")
+        scenario(root, mqtt5=True, durable=True)
+        scenario(root, mqtt5=True, durable=True, profile=True)
+        scenario(root, mqtt5=True, durable=True, drop_ack=True)
+    print("C114_WSS_MTLS_FIXTURE_PASS C116_PROFILE_FIXTURE_PASS C119_WSS_QOS1_OUTBOX_PASS")
 
 
 if __name__ == "__main__":

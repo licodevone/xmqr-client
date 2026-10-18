@@ -820,9 +820,10 @@ async fn prepare_outbox(cli: &Cli, publication: &Publication) -> io::Result<Dura
             "outbox exige pub",
         ));
     };
+    let (host, port) = durable_endpoint(cli);
     let operation = Operation {
-        host: cli.host.clone(),
-        port: cli.port,
+        host,
+        port,
         client_id: cli.client_id.clone(),
         topic: topic.clone(),
         payload: publication.first.clone(),
@@ -873,6 +874,21 @@ async fn prepare_outbox(cli: &Cli, publication: &Publication) -> io::Result<Dura
         }
     })
     .await
+}
+
+#[cfg(target_os = "linux")]
+fn durable_endpoint(cli: &Cli) -> (String, u16) {
+    cli.ws_url.as_deref().map_or_else(
+        || (cli.host.clone(), cli.port),
+        |url| {
+            (
+                url::Url::parse(url)
+                    .expect("CLI validated WSS URL")
+                    .to_string(),
+                0,
+            )
+        },
+    )
 }
 
 #[cfg(target_os = "linux")]
@@ -1581,7 +1597,58 @@ mod plain_auth_tests {
 
 #[cfg(all(test, target_os = "linux"))]
 mod subscription_ack_tests {
-    use super::configure_options;
+    use super::{configure_options, durable_endpoint};
+
+    #[test]
+    fn durable_wss_endpoint_identity_is_distinct_from_tcp_and_other_urls() {
+        let base = [
+            "pub",
+            "--topic",
+            "sensor/value",
+            "--message",
+            "ok",
+            "--username",
+            "device",
+            "--ca",
+            "ca.crt",
+            "--cert",
+            "client.crt",
+            "--key",
+            "client.key",
+            "--password-file",
+            "/tmp/password",
+            "--protocol-version",
+            "5",
+            "--qos",
+            "1",
+            "--client-id",
+            "fixed",
+            "--clean-start",
+            "false",
+            "--session-expiry-seconds",
+            "60",
+            "--outbox-dir",
+            "/tmp/private",
+        ];
+        let parse = |extra: &[&str]| {
+            crate::cli::parse(
+                base.into_iter()
+                    .chain(extra.iter().copied())
+                    .map(str::to_owned),
+            )
+            .unwrap()
+        };
+        let tcp = parse(&["--host", "127.0.0.1", "--port", "8883"]);
+        let local = parse(&["--ws-url", "wss://127.0.0.1:8443/mqtt"]);
+        let other = parse(&["--ws-url", "wss://127.0.0.1:8444/mqtt"]);
+        assert_eq!(durable_endpoint(&tcp), ("127.0.0.1".to_owned(), 8883));
+        assert_eq!(
+            durable_endpoint(&local),
+            ("wss://127.0.0.1:8443/mqtt".to_owned(), 0)
+        );
+        assert_ne!(durable_endpoint(&tcp), durable_endpoint(&local));
+        assert_ne!(durable_endpoint(&local), durable_endpoint(&other));
+    }
 
     #[test]
     fn manual_acks_are_opt_in_for_persistent_subscription_only() {

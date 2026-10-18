@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## Não publicado — C119 em validação
+
+- MQTT 5 QoS 1 com outbox privado aceita WSS mTLS local/remoto; URL WSS canônica distingue o destino dos journals TCP sem alterar o formato. WS aberto, QoS 2 e manifesto de assinatura por URL continuam recusados. Recuperação após PUBACK perdido por WSS ainda precisa de ensaio próprio.
+
 ## 0.34.0 — perfil WSS e acesso remoto explícito (experimental)
 
 - C117 exige `--allow-remote-wss` para URL WSS não loopback e mantém CA/SAN, certificado cliente, credenciais e subprotocolo seguros; sem fallback WS.
