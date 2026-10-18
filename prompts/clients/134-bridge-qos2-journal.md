@@ -1,4 +1,4 @@
-# C134 v1.4 — bridge QoS 2 com journal da origem
+# C134 v1.5 — bridge QoS 2 com journal da origem
 
 ## Entrada e fonte normativa
 
@@ -79,3 +79,11 @@ essa entrada pendente e o assinante de `mirror/crash` ficou sem entrega.
 Restringir **somente o gancho de teste** ao Packet Identifier cujo tópico
 registrado termina em `/crash`, preservando o processamento normal e a
 reprodução retained. Repetir ambos os checkpoints e regressão QoS 1.
+
+O teste novo de perda de sessão falhou na espera por SUBACK: a bridge conectou,
+mas o gancho `/crash` foi acionado por uma obrigação anterior antes do marcador
+`origem assinada`. Não tratar o timeout como falha do protocolo nem remover o
+negativo. Reservar um tópico distinto `/session-loss` na fixture e fazer o
+gancho de teste aceitar explicitamente esse sufixo quando solicitado; o caso
+de crash original continua restrito a `/crash`. Repetir a fixture integral e
+confirmar que Session Present=0 conserva a pendência sem encaminhar de novo.
