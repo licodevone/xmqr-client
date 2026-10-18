@@ -1,4 +1,4 @@
-# C129 v1.10 — journal inbound da assinatura persistente MQTT 5
+# C129 v1.11 — journal inbound da assinatura persistente MQTT 5
 
 18/10/2026, preparado antes do código. Pedido: fechar M03/6B do plano de
 paridade e a pendência explícita do prompt C110, coordenado pelo broker P227.
@@ -183,3 +183,14 @@ retornou1: receive_inbound aceitou outro conteúdo para QoS1 Received com ID7,
 Received de qualquer QoS e preservar duplicatas idênticas/ID após conclusão.
 Acrescentar prova TCP a partir de saída falha sem ACK, SP1 e PUBLISH conflitante:
 recusar sem saída/ACK e sem substituir o arquivo durável. Repetir gates.
+
+## Revisão v1.11 — marker inequívoco da campanha integrada
+
+Pedido do coordenador após integrar o runtime: emitir
+C129_INBOUND_JOURNAL_PASS somente depois do guard final statusPASS e da
+campanha completa (--case all,18 cenários). Casos individuais continuam
+gerando JSON próprio, sem esse atestado do conjunto. Não alterar oráculo,
+casos, prazos ou runtime congelado. Commitar esta revisão antes da alteração,
+repetir os18 no mesmo ELF109ec973... com relatório novo, registrar SHA do
+harness/relatório e resultado verdadeiro. Compatibilidade já possui marker
+específico C129_COMPATIBILITY_PASS e usa --client explícito.
