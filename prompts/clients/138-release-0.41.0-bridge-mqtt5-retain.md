@@ -42,3 +42,14 @@ transação entre brokers e perda de energia permanecem fora desta release.
 No rollback 0.40, a configuração `source_protocol="mqtt5"` deve ser parada
 e removida antes de iniciar a bridge antiga; arquivos privados do operador
 devem ser preservados.
+
+## Revisão v1.1 — falha de contêiner no ensaio do pacote
+
+O build release, pacote local e ciclo 0.40→0.41→0.40→0.41 passaram. Nos
+binários extraídos do `.deb` local, XMQR↔XMQR MQTT 5/QoS 0 e 1, além do
+primeiro sentido XMQR→Mosquitto, passaram; `docker run` do segundo sentido
+Mosquitto→XMQR encerrou com código 125 duas vezes antes de testar a bridge.
+Preservar esses FAILs. Antes de alterar comportamento MQTT, capturar apenas
+`stderr` do comando de inicialização do contêiner (sem imprimir senha do
+passo `mosquitto_passwd`), distinguir porta ocupada de falha real do broker
+e repetir o cenário. Não promover a release até o teste de pacote passar.
