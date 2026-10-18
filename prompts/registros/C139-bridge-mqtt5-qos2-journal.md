@@ -14,7 +14,7 @@ O journal conserva tombstones de conclusão até reutilização do Packet Identi
 - `verify_bridge_brokers.py --broker-root ../xmqr --mqtt5-retain --qos2`: PASS, com retained, ACL/TLS, dois checkpoints de queda, destino reiniciado e sessão da origem perdida.
 - `verify_bridge_mosquitto.py --broker-root ../xmqr --mqtt5-retain --qos2`: PASS nas direções XMQR→Mosquitto e Mosquitto→XMQR. A primeira tentativa na direção Mosquitto→XMQR demonstrou ausência de persistência no container da fixture; após correção da fixture, ambas passaram. Uma tentativa anterior teve falha de publicação de porta do Docker, superada na repetição.
 
-CI da fonte exata: pendente até publicação e conclusão. O binário client/bridge 0.41.0 já publicado **não** inclui C139. Sem tag/release nesta fatia.
+[CI da fonte exata `9b9bc8b`](https://github.com/licodevone/xmqr-client/actions/runs/39172109294): cinco jobs PASS, incluindo pacote extraído, imagem e as novas fixtures MQTT 5/QoS 2 em XMQR↔XMQR e XMQR↔Mosquitto. O binário client/bridge 0.41.0 já publicado **não** inclui C139. Sem tag/release nesta fatia.
 
 ## Limites
 
