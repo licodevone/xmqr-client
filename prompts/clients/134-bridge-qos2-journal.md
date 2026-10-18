@@ -1,4 +1,4 @@
-# C134 v1.1 — bridge QoS 2 com journal da origem
+# C134 v1.2 — bridge QoS 2 com journal da origem
 
 ## Entrada e fonte normativa
 
@@ -55,3 +55,11 @@ exata e registro em `prompts/registros/C134-bridge-qos2-journal.md` com
 PASS/FAIL/BLOCKED separados. Só riscar a fatia C134 após prova; T02 e fase 8
 globais continuam abertos enquanto retained vivo, loops externos e demais
 critérios não forem aceitos.
+
+## Revisão após gate local
+
+O primeiro `cargo test --bin mqtt-bridge` passou 3/3, mas Clippy falhou por
+`doc_markdown`, `too_many_lines` na função `run` e `collapsible_if`. Corrigir
+essas três ocorrências sem mudar o contrato QoS 2; dividir a função em
+subrotinas somente se mantiver ordem journal→PUBREC e a serialização de um
+encaminhamento por vez. Repetir Clippy e testes antes da fixture de fio.
