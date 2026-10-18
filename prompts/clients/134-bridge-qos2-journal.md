@@ -1,4 +1,4 @@
-# C134 v1.12 — bridge QoS 2 com journal da origem
+# C134 v1.13 — bridge QoS 2 com journal da origem
 
 ## Entrada e fonte normativa
 
@@ -143,3 +143,10 @@ a bridge a receba como replay retained (`retain=true`); então interromper o
 destino no checkpoint pós-PUBLISH, reiniciar e conferir PUBCOMP/journal e
 replay retained no destino. Não alterar a política retained do produto com
 base nesse oráculo incorreto.
+
+A CI de `ed9b4d5` falhou no primeiro checkpoint de crash: `len(pending)==1`
+não é invariantemente verdadeiro quando um replay retained anterior também
+aguarda PUBREL sob carga. No checkpoint, exigir exatamente uma entrada para
+o tópico `/crash` (ou `/session-loss` no ensaio isolado), sem proibir outras
+obrigações válidas; após restart, continuar exigindo journal inteiramente
+vazio e ausência de nova entrega `/crash`. Repetir a CI da fonte exata.
