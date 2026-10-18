@@ -109,3 +109,18 @@ depois remover temporários; manter cleanup externo defensivo e sem substituir
 erro do teste. Nenhum byte/ACK/tempo/oráculo funcional muda. CI executará a
 regressão com binários reais antes da migração normal. Repetir local/CI e
 registrar novo SHA do harness; preservar relatório antigo e versão do helper.
+
+## v1.4 — privilégios somente no instalador descartável e label exato
+
+Primeiro ciclo de pacoteFAIL/apt100 antes de instalar: --cap-drop ALL impede
+setgroups/seteuid doAPT e chown do `_apt`. Reprodução direta confirmou EPERM,
+não falta de dependência/pacote. Repetir apenas o container de instalação com
+capacidades padrão doDocker, ainda sem rede/serviços/hoststate e com mountsRO;
+runtime MQTT permanece UID10001/capsnone/read-only. Não usar --privileged.
+
+O primeiro comando de build local recebeu um VCS_REF digitado incorretamente
+apesar do prefixo2153ba9. Não aceitar nem publicar essa imagem. Após fontes
+commitadas, calcular o SHA por git rev-parse HEAD na própria invocação e
+repetir build/inspeção/metadados com esse valor, sem tag antiga/latest.
+Build de dependências pode ser reutilizado como cache; label nunca é evidência
+substituta de fonte. Imagem e assets só aceitos com SHA completo correspondente.
