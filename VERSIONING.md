@@ -1,13 +1,13 @@
 # Versionamento
 
-O candidato 0.29.0 reúne C104/C105: Session Expiry explícita no DISCONNECT
+O 0.29.0 publicado reúne C104/C105: Session Expiry explícita no DISCONNECT
 MQTT 5 e outbox opt-in para uma publicação QoS 1 de saída no Linux/WSL.
 O journal contém payload em claro sob permissões privadas; retomada exige
 Session Present=1 e admite duplicata QoS 1. QoS 2, assinaturas e demais fluxos
-locais não são restaurados. A tag e a prerelease dependem de CI, pacote,
+locais não são restaurados. Tag anotada e prerelease publicadas após CI, pacote,
 upgrade/rollback descartável, imagem por digest e hashes remotos conferidos.
 MQTT 3.1.1 permanece padrão; fases 6A–6D e 7–9 seguem abertas.
-[Nota candidata](docs/releases/0.29.0.md).
+[Nota](docs/releases/0.29.0.md).
 
 A versão 0.28.0 publicada reúne C101/C102: diagnóstico seguro de DISCONNECT MQTT 5 e
 User Property contextual de SUBSCRIBE/UNSUBSCRIBE. O broker parceiro 0.33.0

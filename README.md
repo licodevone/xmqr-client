@@ -1,6 +1,6 @@
 # xmqr-client
 
-O candidato 0.29.0 reúne C104/C105. C105 acrescenta uma outbox
+A release experimental 0.29.0 reúne C104/C105. C105 acrescenta uma outbox
 experimental para uma publicação MQTT 5 QoS 1 por processo em Linux/WSL.
 Crie um diretório privado com `mkdir -m 700 ~/xmqr-outbox` e use, por exemplo,
 `mqtt-client pub --open-lab --protocol-version 5 --host 127.0.0.1 --port 1883
@@ -22,6 +22,8 @@ DISCONNECT normal; sem ela, o pacote e o prazo do CONNECT permanecem como antes.
 Se o CONNECT anuncia zero, somente zero pode ser enviado no DISCONNECT.
 Fora da outbox C105, o client não persiste estado QoS local; a fase 6B continua aberta.
 [Prompt C104](prompts/clients/104-disconnect-session-expiry-mqtt5.md).
+[Release 0.29.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.29.0),
+[nota](docs/releases/0.29.0.md) e [aceite C106](prompts/registros/C106-release-0.29.0.md).
 
 A release experimental 0.28.0 reúne C101/C102: diagnóstico de DISCONNECT
 MQTT 5 e propriedades contextuais de assinatura. C102 permite `sub --protocol-version 5
