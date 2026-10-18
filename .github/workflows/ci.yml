@@ -37,7 +37,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.99.0
       - run: python3 scripts/build_deb.py
       - run: apt-get install -y ./dist/*.deb
-      - run: systemd-analyze verify /usr/lib/systemd/system/xmqr-client-sub@.service /usr/lib/systemd/system/xmqr-client-pub@.service
+      - run: test "$(mqtt-client --version)" = 'mqtt-client 0.37.0' && test "$(mqtt-bridge --version)" = 'mqtt-bridge 0.1.0 (xmqr-client 0.37.0)'
+      - run: systemd-analyze verify /usr/lib/systemd/system/xmqr-client-sub@.service /usr/lib/systemd/system/xmqr-client-pub@.service /usr/lib/systemd/system/xmqr-client-bridge@.service
       - uses: actions/upload-artifact@v4
         with:
           name: xmqr-client-ubuntu26-amd64
@@ -61,3 +62,12 @@ jobs:
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --qos1
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --qos1
       - run: python3 scripts/verify_bridge_topology.py --broker-root broker
+
+  bridge-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --build-arg VERSION=0.37.0 --build-arg VCS_REF=${{ github.sha }} -t xmqr-client:ci .
+      - run: test "$(docker run --rm --entrypoint /usr/local/bin/mqtt-client xmqr-client:ci --version)" = 'mqtt-client 0.37.0'
+      - run: test "$(docker run --rm --entrypoint /usr/local/bin/mqtt-bridge xmqr-client:ci --version)" = 'mqtt-bridge 0.1.0 (xmqr-client 0.37.0)'
+      - run: test "$(docker image inspect xmqr-client:ci --format '{{.Config.User}}')" = '10001:10001'

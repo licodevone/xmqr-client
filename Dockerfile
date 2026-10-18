@@ -15,10 +15,11 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 \
     && rm -rf /var/lib/apt/lists/* \
     && python3 scripts/collect_notices.py --output /third-party-notices
-RUN cargo build --locked --release --bin mqtt-client
+ENV CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0 RUSTFLAGS=-Cdebuginfo=0
+RUN cargo build --locked --release --bin mqtt-client --bin mqtt-bridge
 
 FROM debian:bookworm-slim AS runtime
-ARG VERSION=0.36.0
+ARG VERSION=0.37.0
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="XMQR Client" \
       org.opencontainers.image.version="${VERSION}" \
@@ -31,10 +32,12 @@ RUN apt-get update \
     && groupadd --gid 10001 mqtt \
     && useradd --uid 10001 --gid 10001 --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin mqtt
 COPY --from=build --chown=10001:10001 /src/target/release/mqtt-client /usr/local/bin/mqtt-client
+COPY --from=build --chown=10001:10001 /src/target/release/mqtt-bridge /usr/local/bin/mqtt-bridge
 COPY --chown=10001:10001 LICENSE /usr/share/licenses/xmqr-client/LICENSE
 COPY --chown=10001:10001 docs/third-party-licenses.md /usr/share/licenses/xmqr-client/third-party-licenses.md
 COPY --from=build --chown=10001:10001 /third-party-notices /usr/share/licenses/xmqr-client/third-party
 USER 10001:10001
 STOPSIGNAL SIGTERM
 RUN test "$(/usr/local/bin/mqtt-client --version)" = "mqtt-client ${VERSION}"
+RUN test "$(/usr/local/bin/mqtt-bridge --version)" = "mqtt-bridge 0.1.0 (xmqr-client ${VERSION})"
 ENTRYPOINT ["/usr/local/bin/mqtt-client"]

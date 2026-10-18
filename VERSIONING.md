@@ -1,8 +1,8 @@
 # Versionamento
 
-`main` depois da tag 0.36.0 contém as fatias experimentais C125–C127 da
-bridge em binário separado `mqtt-bridge 0.1.0-dev`; não integra o `.deb` nem a
-imagem 0.36.0. A fase 8 permanece aberta. [Contrato e limites](docs/bridge-one-way.md).
+`main` depois da tag 0.36.0 contém C125–C128, com a bridge experimental
+`mqtt-bridge 0.1.0` no candidato `.deb` e imagem client 0.37.0. A fase 8
+permanece aberta. [Contrato e limites](docs/bridge-one-way.md).
 
 A prerelease 0.36.0 distribui C122/C123: outbox QoS 2 e manifesto de assinatura
 MQTT 5 por WSS mTLS, com identidade de URL canônica. Sem migração dos journals
