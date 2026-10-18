@@ -1,4 +1,4 @@
-# C134 v1 — bridge QoS 2 com journal da origem
+# C134 v1.1 — bridge QoS 2 com journal da origem
 
 ## Entrada e fonte normativa
 
@@ -18,8 +18,10 @@ rota, Packet Identifier, tópico, payload digest e fase antes de PUBREC.
 Após restart, restaurar a fase de recebimento somente com Session Present=1
 e identidade/rota idênticas; recusar estado órfão/corrompido/divergente sem
 conectar nem descartá-lo. Concluir journal somente após PUBREL/PUBCOMP da
-origem. Um único encaminhamento em voo por instância, limite de bytes e
-arquivo, lock exclusivo e gravação atômica com fsync.
+origem. Um único encaminhamento em voo por instância, no máximo 32 IDs
+aguardando PUBREL, limite de bytes e arquivo, lock exclusivo e gravação
+atômica com fsync. A origem pode emitir mais de um PUBLISH antes dos
+respectivos PUBREL; o journal não pode sobrescrever obrigação anterior.
 
 Arquivos previstos: `src/bin/mqtt-bridge.rs`, API mínima do fork vendorizado
 `vendor/rumqttc-0.25.1/src/{eventloop,state}.rs`, fixture de dois brokers e
