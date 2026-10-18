@@ -162,11 +162,11 @@ def main():
                 f'cert_sha256="sha256:{fingerprint}"\n')
         private(root / "source-acl.toml",
                 '[[rules]]\nusername="device"\n'
-                'publish=["sensors/allowed","sensors/denied","sensors/crash","sensors/session-loss"]\n'
-                'subscribe=["sensors/#"]\n')
+                'publish=["sensors/allowed","sensors/denied","sensors/crash","sensors/session-loss","fault/inflight"]\n'
+                'subscribe=["sensors/#","fault/#"]\n')
         private(root / "target-acl.toml",
-                '[[rules]]\nusername="device"\npublish=["mirror/allowed","mirror/crash","mirror/session-loss"]\n'
-                'subscribe=["mirror/allowed","mirror/denied","mirror/crash","mirror/session-loss"]\n')
+                '[[rules]]\nusername="device"\npublish=["mirror/allowed","mirror/crash","mirror/session-loss","fault-mirror/inflight"]\n'
+                'subscribe=["mirror/allowed","mirror/denied","mirror/crash","mirror/session-loss","fault-mirror/inflight"]\n')
         source_port, target_port = free_port(), free_port()
         assert source_port != target_port
         base = {key: value for key, value in os.environ.items() if not key.startswith("MQTT_")}
@@ -410,6 +410,39 @@ def main():
                 wait_markers(bridge_process, ('origem assinada',), seconds=15)
                 exchange(root, source_port, target_port, 'denied', 'c134-denied',
                          expected=False, qos=qos)
+                bridge_process.terminate()
+                bridge_process.communicate(timeout=8)
+                fault_config = root / 'fault.toml'
+                configuration(fault_config)
+                private(fault_config, fault_config.read_text()
+                        .replace('c125-bridge-source', 'c134-fault-source')
+                        .replace('c125-bridge-target', 'c134-fault-target')
+                        .replace('sensors/', 'fault/')
+                        .replace('mirror/', 'fault-mirror/'))
+                fault_topology = fault_config.with_suffix('.topology.toml')
+                private(fault_topology, fault_topology.read_text()
+                        .replace('sensors/', 'fault/')
+                        .replace('mirror/', 'fault-mirror/'))
+                sent = subprocess.run(command(root, source_port, 'pub', 'fault/inflight',
+                                              'c134-destination-restart', qos=2, retain=True),
+                                      capture_output=True, timeout=10)
+                assert sent.returncode == 0, sent.stderr.decode(errors='replace')
+                bridge_process = subprocess.Popen(
+                    [str(BRIDGE), '--config', str(fault_config)],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0,
+                    env=dict(os.environ, XMQR_BRIDGE_TEST_PAUSE_AFTER_DEST_PUBLISH='1'))
+                wait_markers(bridge_process, ('destino conectado', 'origem assinada',
+                                              'checkpoint apos PUBLISH do destino'))
+                stop(target)
+                target = start(target_env, target_port)
+                wait_markers(bridge_process, ('destino conectado',), seconds=15)
+                fault_journal = fault_config.with_suffix('.journal') / 'bridge-qos2.json'
+                wait_journal_empty(fault_journal, seconds=15)
+                retained_sub = subprocess.run(command(root, target_port, 'sub',
+                                                     'fault-mirror/inflight', retained_only=True),
+                                              capture_output=True, timeout=10)
+                assert retained_sub.returncode == 0
+                assert b'c134-destination-restart' in retained_sub.stdout
                 bridge_process.terminate()
                 bridge_process.communicate(timeout=8)
                 loss_config = root / 'loss.toml'

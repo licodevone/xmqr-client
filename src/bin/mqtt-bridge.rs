@@ -404,13 +404,17 @@ fn tls(endpoint: &Endpoint) -> AppResult<ClientConfig> {
         .with_client_auth_cert(certs, key)?)
 }
 
-fn options(endpoint: &Endpoint, durable_source: bool) -> AppResult<MqttOptions> {
+fn options(
+    endpoint: &Endpoint,
+    persistent_session: bool,
+    manual_acks: bool,
+) -> AppResult<MqttOptions> {
     let mut options = MqttOptions::new(&endpoint.client_id, &endpoint.host, endpoint.port);
     options.set_transport(Transport::tls_with_config(tls(endpoint)?.into()));
     options.set_credentials(&endpoint.username, password(&endpoint.password_file)?);
     options.set_keep_alive(Duration::from_secs(30));
-    options.set_clean_session(!durable_source);
-    options.set_manual_acks(durable_source);
+    options.set_clean_session(!persistent_session);
+    options.set_manual_acks(manual_acks);
     options.set_max_packet_size(MAX_PAYLOAD_BYTES - 5, MAX_PAYLOAD_BYTES);
     Ok(options)
 }
@@ -435,6 +439,14 @@ async fn poll_destination(
             }
             Ok(Event::Incoming(Incoming::PubComp(_))) if qos == 2 => {
                 ack_tx.send(()).await?;
+            }
+            #[cfg(debug_assertions)]
+            Ok(Event::Outgoing(Outgoing::Publish(_)))
+                if qos == 2
+                    && std::env::var_os("XMQR_BRIDGE_TEST_PAUSE_AFTER_DEST_PUBLISH").is_some() =>
+            {
+                eprintln!("Bridge: checkpoint apos PUBLISH do destino");
+                sleep(Duration::from_secs(3)).await;
             }
             Ok(_) => {}
             Err(_) => {
@@ -579,8 +591,8 @@ async fn run(config: Config) -> AppResult<()> {
     let qos = config.route.qos;
     let durable_source = qos > 0;
     let mut journal = open_journal(&config)?;
-    let source = options(&config.source, durable_source)?;
-    let destination = options(&config.destination, false)?;
+    let source = options(&config.source, durable_source, durable_source)?;
+    let destination = options(&config.destination, qos == 2, false)?;
     let (source_client, mut source_loop) = AsyncClient::new(source, 8);
     let (destination_client, destination_loop) = AsyncClient::new(destination, 8);
     let destination_connected = Arc::new(AtomicBool::new(false));
