@@ -39,7 +39,10 @@ destino; configuração inválida ou SUBACK negado falham fechados.
 - Regressões reais antigas XMQR↔XMQR e XMQR↔Mosquitto em QoS 0, 1 e 2,
   incluindo checkpoints de crash QoS 2: PASS nas seis combinações.
 
-CI exata ainda pendente. A opção C136 não integra a release0.40.0;
+CI da fonte exata [`4e3acb4`](https://github.com/licodevone/xmqr-client/actions/runs/39168330647):
+PASS nos cinco jobs (`rust`, imagem, integração da bridge, pacote Ubuntu e
+integração do pacote), incluindo os dois fixtures MQTT 5 com pacote e fonte.
+A opção C136 não integra a release0.40.0;
 T02/fase8 segue aberta para QoS1/2 MQTT5,
 propriedades, ciclos externos e semântica entre brokers. Testes finitos não
 comprovam transação distribuída, perda de energia ou produção.
