@@ -1,11 +1,12 @@
 # Versionamento
 
-O 0.31.0 candidato distribui C110: ACK QoS 1/2 da assinatura persistente
+O 0.31.0 publicado distribui C110: ACK QoS 1/2 da assinatura persistente
 após escrita/flush; falha de stdout não confirma. Sem journal inbound ou
 garantia de processamento do consumidor. Client 0.30.0 lê o mesmo manifesto;
-broker 0.37.0 e admin independente 0.10.0 permanecem. Tag e prerelease
-aguardam CI, pacote Ubuntu 26.04, upgrade/rollback, imagem por digest e hashes
-remotos. [Nota candidata](docs/releases/0.31.0.md). M03/6B continuam abertos.
+broker 0.37.0 e admin independente 0.10.0 permanecem. CI, pacote Ubuntu
+26.04, upgrade/rollback, imagem por digest, tag, prerelease e seis hashes
+remotos passaram. [Nota](docs/releases/0.31.0.md) e
+[registro](prompts/registros/C111-release-0.31.0.md). M03/6B continuam abertos.
 
 O 0.30.0 publicado reúne C107/C108: outbox QoS 2 de uma publicação de saída
 por diretório e manifesto de uma assinatura MQTT 5 contínua no Linux/WSL.
