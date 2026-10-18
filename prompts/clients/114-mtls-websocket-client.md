@@ -9,3 +9,5 @@ Escopo: `src/cli.rs`, `src/session.rs`, `src/v5_session.rs`, testes de parser e 
 Aceite: pub/sub WSS 3.1.1/5 e cruzamento com TCP no broker P212 com mTLS/ACL; recusa de CA/SAN/certificado/senha/ACL inválidos, URL/mode/destino conflitantes e resposta sem subprotocolo; regressão WS local e TCP/TLS. Fmt, suíte, Clippy, build, inventário/distribuição e CI da fonte exata. Sem estado durável novo ou migração. Marcar entrega parcial no plano após evidência, mantendo fase 7 global aberta. Sem mudar versão, tag ou release nesta fatia.
 
 Revisão de escopo antes do código: `profile::expand` precisa rejeitar `--ws-url` junto de `--profile`; C112 obtinha essa recusa indiretamente por exigir `--open-lab`, mas WSS seguro poderia aceitar a combinação acidentalmente. Incluir `src/profile.rs` e teste negativo, preservando a decisão de não associar URL a perfil durável nesta fatia.
+
+Revisão 2 após Clippy: o novo braço independente de `profile::expand_with` ultrapassou o limite local de 100 linhas. Incorporar `--ws-url` à recusa existente dos modos incompatíveis com perfil, sem relaxar lint, e repetir o gate. O resultado anterior é FAIL.
