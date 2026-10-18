@@ -68,10 +68,15 @@ def case(broker_root, direction, qos, mqtt5_retain=False):
                     if xmqr_is_source else
                     'user device\ntopic read sensors/#\ntopic write sensors/allowed\n')
         private(root / "mosquitto.acl", mosq_acl)
+        mosquitto_state = root / "mosquitto-state"
+        if qos == 2:
+            mosquitto_state.mkdir(mode=0o700)
         private(root / "mosquitto.conf",
                 'listener 1883 0.0.0.0\nallow_anonymous false\n'
                 'log_dest stderr\nlog_type all\nuser root\n'
-                'cafile /fixture/ca.crt\ncertfile /fixture/server.crt\n'
+                + ('persistence true\npersistence_location /fixture/mosquitto-state/\n'
+                   if qos == 2 else '')
+                + 'cafile /fixture/ca.crt\ncertfile /fixture/server.crt\n'
                 'keyfile /fixture/server.key\nrequire_certificate true\n'
                 'use_identity_as_username false\n'
                 'password_file /fixture/mosquitto.password\n'
@@ -131,8 +136,9 @@ def case(broker_root, direction, qos, mqtt5_retain=False):
         try:
             wait_port(xmqr, xmqr_port)
             try:
+                mount = f"{root}:/fixture" + ("" if qos == 2 else ":ro")
                 docker("run", "-d", "--name", container, "--user", "0:0",
-                       "-p", f"127.0.0.1:{mosq_port}:1883", "-v", f"{root}:/fixture:ro",
+                       "-p", f"127.0.0.1:{mosq_port}:1883", "-v", mount,
                        "eclipse-mosquitto:2.0.22", "mosquitto", "-c", "/fixture/mosquitto.conf")
             except subprocess.CalledProcessError as error:
                 raise AssertionError(f"Docker listener startup: {error.stderr[-500:]}") from error
@@ -202,11 +208,10 @@ def main():
     parser.add_argument("--mqtt5-retain", action="store_true")
     args = parser.parse_args()
     assert not (args.qos1 and args.qos2)
-    assert not args.mqtt5_retain or not args.qos2
     qos = 2 if args.qos2 else 1 if args.qos1 else 0
     for direction in ("xmqr-to-mosquitto", "mosquitto-to-xmqr"):
         case(args.broker_root.resolve(), direction, qos, args.mqtt5_retain)
-        label = ('C137' if qos == 1 else 'C136') if args.mqtt5_retain else 'C134' if qos == 2 else 'C125_C126'
+        label = ('C139' if qos == 2 else 'C137' if qos == 1 else 'C136') if args.mqtt5_retain else 'C134' if qos == 2 else 'C125_C126'
         print(f"{label}_BRIDGE_{direction.upper().replace('-', '_')}_QOS{qos}_PASS")
 
 

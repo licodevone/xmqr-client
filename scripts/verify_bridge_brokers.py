@@ -53,11 +53,12 @@ def ready_subscriber(root, port, topic):
     return child
 
 
-def wait_journal_empty(path, seconds=8, topic=None):
+def wait_journal_empty(path, seconds=8, topic=None, allow_pubcomp_pending=False):
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         document = json.loads(path.read_text())
-        pending = document["pending"]
+        pending = [entry for entry in document["pending"]
+                   if not allow_pubcomp_pending or entry.get("phase") != "pubcomp_pending"]
         if not pending or (topic is not None and all(entry["topic"] != topic for entry in pending)):
             return
         time.sleep(.1)
@@ -142,7 +143,6 @@ def main():
                         help="release binary lacks the debug-only crash checkpoint")
     args = parser.parse_args()
     assert not (args.qos1 and args.qos2)
-    assert not args.mqtt5_retain or not args.qos2
     assert not args.skip_crash_checkpoint or args.qos1 or args.qos2
     qos = 2 if args.qos2 else 1 if args.qos1 else 0
     broker_root = args.broker_root.resolve()
@@ -237,13 +237,13 @@ def main():
                     + f'[route]\nsource_prefix="sensors/"\ntarget_prefix="mirror/"\nqos={qos}\n')
         config = root / "bridge.toml"
         configuration(config)
-        if args.mqtt5_retain:
+        if args.mqtt5_retain and qos < 2:
             incompatible = root / "mqtt5-qos2.toml"
             configuration(incompatible)
-            private(incompatible, incompatible.read_text().replace(f'qos={qos}', 'qos=2'))
+            private(incompatible, incompatible.read_text().replace(f'qos={qos}', 'qos=3'))
             rejected = subprocess.run([str(BRIDGE), "--config", str(incompatible)],
                                       capture_output=True, timeout=5)
-            assert rejected.returncode == 2, "MQTT 5 source accepted unsupported QoS 2"
+            assert rejected.returncode == 2, "MQTT 5 source accepted invalid QoS 3"
         same = root / "same.toml"
         configuration(same, destination_port=source_port)
         rejected = subprocess.run([str(BRIDGE), "--config", str(same)],
@@ -428,14 +428,17 @@ def main():
                                               bridge_process.poll())) from error
                     assert payload.encode() in delivered, delivered
                     pending = json.loads(journal_path.read_text())['pending']
-                    assert sum(entry['topic'] == 'sensors/crash' for entry in pending) == 1
+                    active = [entry for entry in pending if entry['topic'] == 'sensors/crash'
+                              and entry.get('phase') != 'pubcomp_pending']
+                    assert len(active) == 1, (checkpoint, pending)
                     bridge_process.kill()
                     bridge_process.communicate(timeout=8)
                     bridge_process = subprocess.Popen([str(BRIDGE), '--config', str(config)],
                                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                                       bufsize=0)
                     wait_markers(bridge_process, ('origem assinada',), seconds=15)
-                    wait_journal_empty(journal_path, topic='sensors/crash')
+                    wait_journal_empty(journal_path, topic='sensors/crash',
+                                       allow_pubcomp_pending=args.mqtt5_retain)
                     assert_no_new_delivery(root, target_port, 'mirror/crash')
                     bridge_process.terminate()
                     bridge_process.communicate(timeout=8)
@@ -472,7 +475,8 @@ def main():
                 target = start(target_env, target_port)
                 wait_markers(bridge_process, ('destino conectado',), seconds=15)
                 fault_journal = fault_config.with_suffix('.journal') / 'bridge-qos2.json'
-                wait_journal_empty(fault_journal, seconds=15)
+                wait_journal_empty(fault_journal, seconds=15,
+                                   allow_pubcomp_pending=args.mqtt5_retain)
                 retained_sub = subprocess.run(command(root, target_port, 'sub',
                                                      'fault-mirror/inflight', retained_only=True),
                                               capture_output=True, timeout=10)
@@ -507,7 +511,10 @@ def main():
                 refused = subprocess.run([str(BRIDGE), '--config', str(loss_config)],
                                          capture_output=True, timeout=12)
                 assert refused.returncode == 1, ('lost source session accepted', refused.stderr)
-                assert b'sessao de origem ausente; journal QoS 2 preservado' in refused.stderr
+                expected = (b'sessao MQTT 5 de origem ausente; journal QoS 2 preservado'
+                            if args.mqtt5_retain else
+                            b'sessao de origem ausente; journal QoS 2 preservado')
+                assert expected in refused.stderr
                 assert json.loads(loss_journal_path.read_text())['pending'] == pending_before
             if qos == 2 and args.skip_crash_checkpoint:
                 exchange(root, source_port, target_port, 'denied', 'c135-release-denied',
@@ -529,7 +536,7 @@ def main():
             stop(source)
             stop(target)
     scope = " (release binary, no debug crash checkpoint)" if args.skip_crash_checkpoint else ""
-    label = ('C137' if qos == 1 else 'C136') if args.mqtt5_retain else 'C134' if qos == 2 else 'C125_C126'
+    label = ('C139' if qos == 2 else 'C137' if qos == 1 else 'C136') if args.mqtt5_retain else 'C134' if qos == 2 else 'C125_C126'
     print(f"{label}_BRIDGE_XMQR_QOS{qos}_PASS mapping, ACL, CA/SAN/password, reconnect, same endpoint{scope}")
 
 

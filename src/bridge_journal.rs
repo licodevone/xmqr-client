@@ -30,6 +30,26 @@ struct Pending {
     topic: String,
     payload_sha256: String,
     retain: bool,
+    #[serde(default, skip_serializing_if = "Phase::is_await_pubrel")]
+    phase: Phase,
+}
+
+#[derive(Clone, Copy, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum Phase {
+    #[default]
+    AwaitPubRel,
+    PubcompPending,
+}
+
+impl Phase {
+    #[expect(
+        clippy::trivially_copy_pass_by_ref,
+        reason = "serde skip_serializing_if requires a reference"
+    )]
+    fn is_await_pubrel(&self) -> bool {
+        *self == Self::AwaitPubRel
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -174,7 +194,47 @@ impl Journal {
             topic: topic.to_owned(),
             payload_sha256: digest(payload),
             retain,
+            phase: Phase::AwaitPubRel,
         });
+        self.persist()
+    }
+
+    pub fn clear_completed_for_new_publish(&mut self, pkid: u16) -> AppResult<()> {
+        let before = self.document.pending.len();
+        self.document
+            .pending
+            .retain(|entry| entry.pkid != pkid || entry.phase != Phase::PubcompPending);
+        if self.document.pending.len() != before {
+            self.persist()?;
+        }
+        Ok(())
+    }
+
+    pub fn make_v5_room(&mut self) -> AppResult<()> {
+        if self.document.pending.len() < MAX_ENTRIES {
+            return Ok(());
+        }
+        let position = self
+            .document
+            .pending
+            .iter()
+            .position(|entry| entry.phase == Phase::PubcompPending)
+            .ok_or_else(|| invalid("journal de QoS 2 cheio"))?;
+        self.document.pending.remove(position);
+        self.persist()
+    }
+
+    pub fn mark_pubcomp_pending(&mut self, pkid: u16) -> AppResult<()> {
+        let entry = self
+            .document
+            .pending
+            .iter_mut()
+            .find(|entry| entry.pkid == pkid)
+            .ok_or_else(|| invalid("PUBREL sem obrigacao no journal"))?;
+        if entry.phase == Phase::PubcompPending {
+            return Ok(());
+        }
+        entry.phase = Phase::PubcompPending;
         self.persist()
     }
 
@@ -349,5 +409,37 @@ mod tests {
                 .unwrap()
         );
         assert!(recovered.finish(1).is_err());
+    }
+
+    #[test]
+    fn mqtt5_pubcomp_intent_survives_restart_and_id_reuse() {
+        let directory = tempfile::tempdir().unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(directory.path(), std::fs::Permissions::from_mode(0o700))
+                .unwrap();
+        }
+        let mut journal = Journal::open(directory.path(), b"mqtt5-route").unwrap();
+        journal.record(7, "sensors/ok", b"first", true).unwrap();
+        let path = directory.path().join("bridge-qos2.json");
+        assert!(!std::fs::read_to_string(&path).unwrap().contains("phase"));
+        journal.mark_pubcomp_pending(7).unwrap();
+        drop(journal);
+
+        let mut recovered = Journal::open(directory.path(), b"mqtt5-route").unwrap();
+        recovered.mark_pubcomp_pending(7).unwrap();
+        assert!(recovered.has_pending());
+        recovered.clear_completed_for_new_publish(7).unwrap();
+        assert!(!recovered.has_pending());
+        recovered.record(7, "sensors/ok", b"second", false).unwrap();
+        assert!(
+            recovered
+                .already_forwarded(7, "sensors/ok", b"second", false)
+                .unwrap()
+        );
+        assert!(recovered.mark_pubcomp_pending(8).is_err());
+        drop(recovered);
+        assert!(Journal::open(directory.path(), b"mqtt311-route").is_err());
     }
 }

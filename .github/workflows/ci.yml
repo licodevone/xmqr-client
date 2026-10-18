@@ -88,6 +88,8 @@ jobs:
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --mqtt5-retain
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --mqtt5-retain --qos1
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --mqtt5-retain --qos1
+      - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --mqtt5-retain --qos2
+      - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --mqtt5-retain --qos2
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --qos1
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --qos1
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --qos2
@@ -131,3 +133,5 @@ jobs:
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --mqtt5-retain
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --mqtt5-retain --qos1 --skip-crash-checkpoint
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --mqtt5-retain --qos1
+      - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --mqtt5-retain --qos2 --skip-crash-checkpoint
+      - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --mqtt5-retain --qos2

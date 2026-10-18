@@ -1,4 +1,4 @@
-//! C125-C137: bounded, one-way MQTT bridge sidecar (experimental).
+//! C125-C139: bounded, one-way MQTT bridge sidecar (experimental).
 #[path = "../bridge_journal.rs"]
 mod bridge_journal;
 use std::{
@@ -21,7 +21,7 @@ use rumqttc::v5::{
     self,
     mqttbytes::{
         QoS as QoS5,
-        v5::{ConnectReturnCode, Filter, Publish as Publish5, SubscribeReasonCode},
+        v5::{ConnectReturnCode, Filter, PubCompReason, Publish as Publish5, SubscribeReasonCode},
     },
 };
 use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, Publish, QoS, Transport};
@@ -315,9 +315,6 @@ fn validate(config: &Config) -> AppResult<()> {
     if config.max_retries == 0 || config.max_retries > 20 {
         return Err(invalid("max_retries deve estar entre 1 e 20").into());
     }
-    if config.source_protocol == SourceProtocol::Mqtt5 && config.route.qos == 2 {
-        return Err(invalid("origem MQTT 5 nao suporta route.qos=2 nesta etapa").into());
-    }
     let a = &config.source;
     let b = &config.destination;
     for endpoint in [a, b] {
@@ -447,7 +444,7 @@ fn options_v5(endpoint: &Endpoint, qos: u8) -> AppResult<v5::MqttOptions> {
     options.set_credentials(&endpoint.username, password(&endpoint.password_file)?);
     options.set_keep_alive(Duration::from_secs(30));
     options.set_clean_start(qos == 0);
-    if qos == 1 {
+    if qos > 0 {
         options.set_session_expiry_interval(Some(86_400));
         options.set_manual_acks(true);
     }
@@ -501,11 +498,76 @@ async fn forward_mqtt5_qos1(
     Ok(())
 }
 
+async fn forward_mqtt5_qos2(
+    config: &Config,
+    message: &Publish5,
+    source_client: &v5::AsyncClient,
+    destination_client: &AsyncClient,
+    destination_connected: &AtomicBool,
+    ack_rx: &mut mpsc::Receiver<()>,
+    journal: &mut Journal,
+) -> AppResult<bool> {
+    if message.qos != QoS5::ExactlyOnce
+        || message.pkid == 0
+        || message.payload.len() > MAX_PAYLOAD_BYTES
+    {
+        return Err(invalid("mensagem MQTT 5 QoS 2 invalida ou acima do limite").into());
+    }
+    let source_topic =
+        std::str::from_utf8(&message.topic).map_err(|_| invalid("topico MQTT 5 invalido"))?;
+    let target_topic = mapped_topic(&config.route, source_topic)
+        .ok_or_else(|| invalid("topico MQTT 5 de origem nao mapeavel"))?;
+    journal.clear_completed_for_new_publish(message.pkid)?;
+    if journal.already_forwarded(message.pkid, source_topic, &message.payload, message.retain)? {
+        source_client.ack(message).await?;
+        return Ok(false);
+    }
+    journal.make_v5_room()?;
+    timeout(Duration::from_secs(20), async {
+        while !destination_connected.load(Ordering::Acquire) {
+            sleep(Duration::from_millis(50)).await;
+        }
+        destination_client
+            .publish(
+                target_topic,
+                QoS::ExactlyOnce,
+                message.retain,
+                message.payload.clone(),
+            )
+            .await?;
+        ack_rx
+            .recv()
+            .await
+            .ok_or_else(|| invalid("destino sem PUBCOMP"))?;
+        Ok::<(), Box<dyn Error + Send + Sync>>(())
+    })
+    .await
+    .map_err(|_| invalid("destino sem PUBCOMP no prazo"))??;
+    journal.record(message.pkid, source_topic, &message.payload, message.retain)?;
+    #[cfg(debug_assertions)]
+    if std::env::var_os("XMQR_BRIDGE_TEST_PAUSE_AFTER_DEST_ACK").is_some()
+        && message.topic.ends_with(b"/crash")
+    {
+        eprintln!("Bridge: checkpoint apos PUBCOMP do destino");
+        sleep(Duration::from_secs(30)).await;
+    }
+    source_client.ack(message).await?;
+    Ok(true)
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "MQTT 5 event loop keeps QoS handshake ordering visible"
+)]
 async fn run_mqtt5(config: Config) -> AppResult<()> {
     let qos = config.route.qos;
+    let mut journal = open_journal(&config)?;
     let source = options_v5(&config.source, qos)?;
-    let destination = options(&config.destination, false, false)?;
+    let destination = options(&config.destination, qos == 2, false)?;
     let (source_client, mut source_loop) = v5::AsyncClient::new(source, 8);
+    if qos == 2 {
+        source_loop.state.set_manual_incoming_qos2(true);
+    }
     let (destination_client, destination_loop) = AsyncClient::new(destination, 8);
     let destination_connected = Arc::new(AtomicBool::new(false));
     let (ack_tx, mut ack_rx) = mpsc::channel(1);
@@ -529,6 +591,11 @@ async fn run_mqtt5(config: Config) -> AppResult<()> {
                     if connack.code != ConnectReturnCode::Success {
                         return Err(invalid("origem recusou CONNECT MQTT 5").into());
                     }
+                    if let Some(journal) = &journal
+                        && journal.has_pending() && !connack.session_present {
+                        eprintln!("Bridge: sessao MQTT 5 de origem ausente; journal QoS 2 preservado");
+                        return Err(invalid("journal MQTT 5 pendente sem sessao de origem").into());
+                    }
                     failures = 0;
                     tokio::select! {
                         result = &mut destination_task => return result?,
@@ -538,14 +605,22 @@ async fn run_mqtt5(config: Config) -> AppResult<()> {
                             }
                         }) => ready.map_err(|_| invalid("destino indisponivel antes da assinatura MQTT 5"))?,
                     }
-                    let subscription_qos = if qos == 1 { QoS5::AtLeastOnce } else { QoS5::AtMostOnce };
+                    let subscription_qos = match qos {
+                        0 => QoS5::AtMostOnce,
+                        1 => QoS5::AtLeastOnce,
+                        _ => QoS5::ExactlyOnce,
+                    };
                     let mut subscription = Filter::new(&filter, subscription_qos);
                     subscription.preserve_retain = true;
                     source_client.subscribe_many([subscription]).await?;
                     eprintln!("Bridge: origem conectada");
                 }
                 Ok(v5::Event::Incoming(v5::Incoming::SubAck(suback))) => {
-                    let expected = if qos == 1 { QoS5::AtLeastOnce } else { QoS5::AtMostOnce };
+                    let expected = match qos {
+                        0 => QoS5::AtMostOnce,
+                        1 => QoS5::AtLeastOnce,
+                        _ => QoS5::ExactlyOnce,
+                    };
                     if !matches!(suback.return_codes.as_slice(),
                                  [SubscribeReasonCode::Success(actual)] if *actual == expected) {
                         return Err(invalid("origem recusou assinatura MQTT 5").into());
@@ -553,6 +628,17 @@ async fn run_mqtt5(config: Config) -> AppResult<()> {
                     eprintln!("Bridge: origem assinada");
                 }
                 Ok(v5::Event::Incoming(v5::Incoming::Publish(message))) => {
+                    if qos == 2 {
+                        if forward_mqtt5_qos2(&config, &message, &source_client,
+                            &destination_client, &destination_connected, &mut ack_rx,
+                            journal.as_mut().ok_or_else(|| invalid("journal MQTT 5 ausente"))?).await? {
+                            forwarded += 1;
+                            if forwarded.is_multiple_of(100) {
+                                eprintln!("Bridge: {forwarded} mensagens encaminhadas");
+                            }
+                        }
+                        continue;
+                    }
                     if qos == 1 {
                         forward_mqtt5_qos1(&config, &message, &source_client,
                             &destination_client, &destination_connected, &mut ack_rx).await?;
@@ -581,6 +667,15 @@ async fn run_mqtt5(config: Config) -> AppResult<()> {
                         && (dropped == 1 || dropped.is_multiple_of(100)) {
                         eprintln!("Bridge: {dropped} mensagens descartadas (destino indisponivel ou limite)");
                     }
+                }
+                Ok(v5::Event::Incoming(v5::Incoming::PubRel(pubrel))) if qos == 2 => {
+                    journal.as_mut().ok_or_else(|| invalid("journal MQTT 5 ausente"))?
+                        .mark_pubcomp_pending(pubrel.pkid)?;
+                    source_client.try_pubcomp_packet(pubrel.pkid, PubCompReason::Success)?;
+                }
+                #[cfg(debug_assertions)]
+                Ok(v5::Event::Outgoing(Outgoing::PubRec(pkid))) if qos == 2 => {
+                    pause_after_source_pubrec(pkid, journal.as_ref()).await;
                 }
                 Ok(_) => {}
                 Err(_) => {
@@ -647,7 +742,7 @@ fn open_journal(config: &Config) -> AppResult<Option<Journal>> {
     if config.route.qos != 2 {
         return Ok(None);
     }
-    let identity = serde_json::to_vec(&(
+    let mut identity = serde_json::to_vec(&(
         &config.source.broker_id,
         &config.source.host,
         config.source.port,
@@ -663,6 +758,9 @@ fn open_journal(config: &Config) -> AppResult<Option<Journal>> {
         config.route.qos,
         &config.link_id,
     ))?;
+    if config.source_protocol == SourceProtocol::Mqtt5 {
+        identity.extend_from_slice(b":mqtt5");
+    }
     Ok(Some(Journal::open(
         config
             .journal_dir
