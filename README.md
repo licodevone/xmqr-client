@@ -1,6 +1,6 @@
 # xmqr-client
 
-O candidato experimental 0.30.0 reúne C107/C108 sobre a release 0.29.0.
+A release experimental 0.30.0 reúne C107/C108 sobre a release 0.29.0.
 C107 retoma uma publicação QoS 2 por estágio durável; C108 retoma a declaração
 de uma assinatura MQTT 5 sem reenviar SUBSCRIBE quando o broker confirma a
 sessão. A versão 0.29.0 publicada reúne C104/C105. C105 acrescenta uma outbox
@@ -49,7 +49,8 @@ Se o CONNECT anuncia zero, somente zero pode ser enviado no DISCONNECT.
 Fora da outbox C105/C107, o client não persiste estado QoS de mensagens;
 a fase 6B continua aberta.
 [Prompt C104](prompts/clients/104-disconnect-session-expiry-mqtt5.md).
-[Nota do candidato 0.30.0](docs/releases/0.30.0.md).
+[Release 0.30.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.30.0),
+[nota](docs/releases/0.30.0.md) e [aceite C109](prompts/registros/C109-release-0.30.0.md).
 [Release 0.29.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.29.0),
 [nota](docs/releases/0.29.0.md) e [aceite C106](prompts/registros/C106-release-0.29.0.md).
 

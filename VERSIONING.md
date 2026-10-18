@@ -1,13 +1,13 @@
 # Versionamento
 
-O 0.30.0 candidato reúne C107/C108: outbox QoS 2 de uma publicação de saída
+O 0.30.0 publicado reúne C107/C108: outbox QoS 2 de uma publicação de saída
 por diretório e manifesto de uma assinatura MQTT 5 contínua no Linux/WSL.
 Ambos exigem Client Identifier fixo e Session Present para retomada de estado
 ativo. PUBLISH/PUBREL e SUBACK têm transições gravadas antes de anunciar
 sucesso; mensagens recebidas não são persistidas pela CLI. Diretórios 0700
-e arquivos 0600 contêm payload ou declaração em claro, sem senhas. A tag e a
-prerelease dependem do CI da fonte exata, pacote, upgrade/rollback descartável,
-imagem por digest e hashes remotos. MQTT 3.1.1 permanece padrão; fases
+e arquivos 0600 contêm payload ou declaração em claro, sem senhas. Tag anotada
+e prerelease publicadas após CI da fonte exata, pacote, upgrade/rollback
+descartável, imagem por digest e hashes remotos. MQTT 3.1.1 permanece padrão; fases
 6A–6D e 7–9 seguem abertas. [Nota](docs/releases/0.30.0.md).
 
 O 0.29.0 publicado reúne C104/C105: Session Expiry explícita no DISCONNECT
