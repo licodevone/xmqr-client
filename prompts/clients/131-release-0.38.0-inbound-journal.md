@@ -79,3 +79,16 @@ sem inferir brokerE/v16/admin final ou processamento de negócio.
 Antes de correção após qualquer FAIL de gate, acrescentar revisão e preservar
 relatório/estágio/exitcode. CI/pacote/imagem/local PASS antes de tag/prerelease;
 assets remotos baixados para pasta nova e comparados por tamanho/SHA256.
+
+## v1.2 — revisão de proveniência antes da migração no CI
+
+O coordenador detectou que5ba9cf6 existe apenas na história do clone de
+aceite: os commits chegaram ao GitHub por cherry-pick. A consulta local
+cat-file não prova alcance pelo GitHub; a alegação de ancestral emv1.1 estava
+incorreta. A primeira fonte512f85e foi enviada para CI antes dessa revisão;
+preservar o resultado se falhar nesse estágio, sem atribuir a runtime.
+
+Usar o equivalente público235f20d097b674fadcbdf85d8c8f1c581ff1eba9,
+cujo diff src/vendor/tests com5ba9cf6 é vazio. CI checkout full history contém
+esse ancestral de mainf3c7162. Nenhum oráculo de migração muda; somente a
+referência histórica. Acrescentar -j1 ao build Docker para honrar orçamento.
