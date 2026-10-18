@@ -1,4 +1,4 @@
-# C134 v1.8 — bridge QoS 2 com journal da origem
+# C134 v1.9 — bridge QoS 2 com journal da origem
 
 ## Entrada e fonte normativa
 
@@ -111,3 +111,9 @@ A inferência anterior sobre Clean Session do destino não foi provada: reverter
 essa alteração. Isolar o negativo de perda de sessão com client IDs e journal
 novos, sem apagar a pendência nem ocultar o negativo ACL; então reexecutar as
 duas sequências. Remover o trace temporário após o diagnóstico.
+
+Após o negativo isolado PASS, a suíte Rust inteira passou, mas Clippy da fonte
+atual falhou em `too_many_lines` (função `run`: 105/100). Extrair o gancho
+determinístico de depuração pós-PUBREC para uma função curta, preservando o
+mesmo checkpoint e ordem de ACK. Repetir gates e integrações, sem suprimir o
+lint.
