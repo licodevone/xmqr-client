@@ -137,12 +137,12 @@ def main():
     parser.add_argument("--qos1", action="store_true")
     parser.add_argument("--qos2", action="store_true")
     parser.add_argument("--mqtt5-retain", action="store_true",
-                        help="QoS 0 source subscription with MQTT 5 Retain As Published")
+                        help="QoS 0/1 source subscription with MQTT 5 Retain As Published")
     parser.add_argument("--skip-crash-checkpoint", action="store_true",
                         help="release binary lacks the debug-only crash checkpoint")
     args = parser.parse_args()
     assert not (args.qos1 and args.qos2)
-    assert not args.mqtt5_retain or not (args.qos1 or args.qos2)
+    assert not args.mqtt5_retain or not args.qos2
     assert not args.skip_crash_checkpoint or args.qos1 or args.qos2
     qos = 2 if args.qos2 else 1 if args.qos1 else 0
     broker_root = args.broker_root.resolve()
@@ -238,12 +238,12 @@ def main():
         config = root / "bridge.toml"
         configuration(config)
         if args.mqtt5_retain:
-            incompatible = root / "mqtt5-qos1.toml"
+            incompatible = root / "mqtt5-qos2.toml"
             configuration(incompatible)
-            private(incompatible, incompatible.read_text().replace('qos=0', 'qos=1'))
+            private(incompatible, incompatible.read_text().replace(f'qos={qos}', 'qos=2'))
             rejected = subprocess.run([str(BRIDGE), "--config", str(incompatible)],
                                       capture_output=True, timeout=5)
-            assert rejected.returncode == 2, "MQTT 5 source accepted unsupported QoS 1"
+            assert rejected.returncode == 2, "MQTT 5 source accepted unsupported QoS 2"
         same = root / "same.toml"
         configuration(same, destination_port=source_port)
         rejected = subprocess.run([str(BRIDGE), "--config", str(same)],
@@ -330,7 +330,7 @@ def main():
             exchange(root, source_port, target_port, "allowed", "c125-first", qos=qos)
             if args.mqtt5_retain:
                 live = subprocess.run(command(root, source_port, "pub", "sensors/allowed",
-                                              "c136-live-retained", retain=True),
+                                              "c136-live-retained", qos=qos, retain=True),
                                       capture_output=True, timeout=10)
                 assert live.returncode == 0, live.stderr.decode(errors="replace")
                 for attempt in range(10):
@@ -342,7 +342,7 @@ def main():
                     time.sleep(.2)
                 else:
                     raise AssertionError("live retained MQTT 5 publication not stored on destination")
-                exchange(root, source_port, target_port, "allowed", "c136-ordinary", qos=0)
+                exchange(root, source_port, target_port, "allowed", "c136-ordinary", qos=qos)
                 retained_sub = subprocess.run(command(root, target_port, "sub",
                                                       "mirror/allowed", retained_only=True),
                                               capture_output=True, timeout=10)
@@ -529,7 +529,7 @@ def main():
             stop(source)
             stop(target)
     scope = " (release binary, no debug crash checkpoint)" if args.skip_crash_checkpoint else ""
-    label = 'C136' if args.mqtt5_retain else 'C134' if qos == 2 else 'C125_C126'
+    label = ('C137' if qos == 1 else 'C136') if args.mqtt5_retain else 'C134' if qos == 2 else 'C125_C126'
     print(f"{label}_BRIDGE_XMQR_QOS{qos}_PASS mapping, ACL, CA/SAN/password, reconnect, same endpoint{scope}")
 
 

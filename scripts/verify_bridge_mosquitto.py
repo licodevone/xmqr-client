@@ -137,7 +137,7 @@ def case(broker_root, direction, qos, mqtt5_retain=False):
             if mqtt5_retain:
                 retained = subprocess.run(command(root, source_port, "pub",
                                                   "sensors/allowed", "c136-replay",
-                                                  retain=True), capture_output=True, timeout=10)
+                                                  qos=qos, retain=True), capture_output=True, timeout=10)
                 assert retained.returncode == 0, retained.stderr.decode(errors="replace")
             bridge = subprocess.Popen([str(BRIDGE), "--config", str(root / "bridge.toml")],
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
@@ -153,7 +153,7 @@ def case(broker_root, direction, qos, mqtt5_retain=False):
                     raise AssertionError("retained MQTT 5 publication missing at destination")
                 retained_value(b"c136-replay")
                 live = subprocess.run(command(root, source_port, "pub", "sensors/allowed",
-                                              "c136-live-retained", retain=True),
+                                              "c136-live-retained", qos=qos, retain=True),
                                       capture_output=True, timeout=10)
                 assert live.returncode == 0, live.stderr.decode(errors="replace")
                 retained_value(b"c136-live-retained")
@@ -199,11 +199,11 @@ def main():
     parser.add_argument("--mqtt5-retain", action="store_true")
     args = parser.parse_args()
     assert not (args.qos1 and args.qos2)
-    assert not args.mqtt5_retain or not (args.qos1 or args.qos2)
+    assert not args.mqtt5_retain or not args.qos2
     qos = 2 if args.qos2 else 1 if args.qos1 else 0
     for direction in ("xmqr-to-mosquitto", "mosquitto-to-xmqr"):
         case(args.broker_root.resolve(), direction, qos, args.mqtt5_retain)
-        label = 'C136' if args.mqtt5_retain else 'C134' if qos == 2 else 'C125_C126'
+        label = ('C137' if qos == 1 else 'C136') if args.mqtt5_retain else 'C134' if qos == 2 else 'C125_C126'
         print(f"{label}_BRIDGE_{direction.upper().replace('-', '_')}_QOS{qos}_PASS")
 
 
