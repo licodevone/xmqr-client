@@ -3,8 +3,8 @@
 use std::time::Duration;
 
 use super::mqttbytes::v5::{
-    Auth, Filter, PubAck, PubRec, Publish, PublishProperties, Subscribe, SubscribeProperties,
-    Unsubscribe, UnsubscribeProperties,
+    Auth, DisconnectProperties, Filter, PubAck, PubRec, Publish, PublishProperties, Subscribe,
+    SubscribeProperties, Unsubscribe, UnsubscribeProperties,
 };
 use super::mqttbytes::QoS;
 use super::{ConnectionError, Event, EventLoop, MqttOptions, Request};
@@ -446,6 +446,16 @@ impl AsyncClient {
     pub fn try_disconnect(&self) -> Result<(), ClientError> {
         let request = Request::Disconnect;
         self.request_tx.try_send(request)?;
+        Ok(())
+    }
+
+    /// Attempts to send MQTT 5 DISCONNECT with explicit properties.
+    pub fn try_disconnect_with_properties(
+        &self,
+        properties: DisconnectProperties,
+    ) -> Result<(), ClientError> {
+        self.request_tx
+            .try_send(Request::DisconnectWithProperties(properties))?;
         Ok(())
     }
 }

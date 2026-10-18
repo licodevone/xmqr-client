@@ -2,9 +2,9 @@
 use std::{collections::HashMap, error::Error, io, time::Duration};
 
 use rumqttc::v5::mqttbytes::v5::{
-    Auth, AuthProperties, AuthReasonCode, ConnAck, ConnectReturnCode, Filter, LastWill,
-    LastWillProperties, PubAckReason, PubCompReason, PubRecReason, Publish, PublishProperties,
-    RetainForwardRule, SubscribeProperties, SubscribeReasonCode, UnsubAckReason,
+    Auth, AuthProperties, AuthReasonCode, ConnAck, ConnectReturnCode, DisconnectProperties, Filter,
+    LastWill, LastWillProperties, PubAckReason, PubCompReason, PubRecReason, Publish,
+    PublishProperties, RetainForwardRule, SubscribeProperties, SubscribeReasonCode, UnsubAckReason,
     UnsubscribeProperties,
 };
 use rumqttc::{
@@ -674,7 +674,7 @@ async fn run_inner(
         await_publish_complete(&mut events, cli.qos, limit).await?;
         cli.output.complete(cli.qos);
     }
-    client.try_disconnect()?;
+    request_disconnect(cli, &client)?;
     loop {
         let event = timeout(limit, events.poll())
             .await
@@ -950,7 +950,7 @@ async fn finish_counted_subscription(
         limit,
     )
     .await?;
-    client.try_disconnect()?;
+    request_disconnect(cli, client)?;
     loop {
         let event = timeout(limit, events.poll())
             .await
@@ -959,6 +959,20 @@ async fn finish_counted_subscription(
             return Ok(());
         }
     }
+}
+
+fn request_disconnect(cli: &Cli, client: &AsyncClient) -> AppResult<()> {
+    if let Some(seconds) = cli.disconnect_session_expiry {
+        client.try_disconnect_with_properties(DisconnectProperties {
+            session_expiry_interval: Some(seconds),
+            reason_string: None,
+            user_properties: Vec::new(),
+            server_reference: None,
+        })?;
+    } else {
+        client.try_disconnect()?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

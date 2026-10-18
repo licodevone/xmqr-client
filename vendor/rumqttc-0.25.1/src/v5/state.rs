@@ -1,7 +1,8 @@
 use super::mqttbytes::v5::{
-    ConnAck, ConnectReturnCode, Disconnect, DisconnectReasonCode, Packet, PingReq, PubAck,
-    PubAckReason, PubComp, PubCompReason, PubRec, PubRecReason, PubRel, PubRelReason, Publish,
-    SubAck, Subscribe, SubscribeReasonCode, UnsubAck, UnsubAckReason, Unsubscribe,
+    ConnAck, ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, Packet,
+    PingReq, PubAck, PubAckReason, PubComp, PubCompReason, PubRec, PubRecReason, PubRel,
+    PubRelReason, Publish, SubAck, Subscribe, SubscribeReasonCode, UnsubAck, UnsubAckReason,
+    Unsubscribe,
 };
 use super::mqttbytes::{self, Error as MqttError, QoS};
 
@@ -188,8 +189,10 @@ impl MqttState {
             Request::Unsubscribe(unsubscribe) => self.outgoing_unsubscribe(unsubscribe)?,
             Request::PingReq => self.outgoing_ping()?,
             Request::Disconnect => {
-                self.outgoing_disconnect(DisconnectReasonCode::NormalDisconnection)?
+                self.outgoing_disconnect(DisconnectReasonCode::NormalDisconnection, None)?
             }
+            Request::DisconnectWithProperties(properties) => self
+                .outgoing_disconnect(DisconnectReasonCode::NormalDisconnection, Some(properties))?,
             Request::PubAck(puback) => self.outgoing_puback(puback)?,
             Request::PubRec(pubrec) => self.outgoing_pubrec(pubrec)?,
             _ => unimplemented!(),
@@ -233,7 +236,7 @@ impl MqttState {
 
     pub fn handle_protocol_error(&mut self) -> Result<Option<Packet>, StateError> {
         // send DISCONNECT packet with REASON_CODE 0x82
-        self.outgoing_disconnect(DisconnectReasonCode::ProtocolError)
+        self.outgoing_disconnect(DisconnectReasonCode::ProtocolError, None)
     }
 
     fn handle_incoming_suback(
@@ -634,12 +637,16 @@ impl MqttState {
     fn outgoing_disconnect(
         &mut self,
         reason: DisconnectReasonCode,
+        properties: Option<DisconnectProperties>,
     ) -> Result<Option<Packet>, StateError> {
         debug!("Disconnect with {:?}", reason);
         let event = Event::Outgoing(Outgoing::Disconnect);
         self.events.push_back(event);
 
-        Ok(Some(Packet::Disconnect(Disconnect::new(reason))))
+        Ok(Some(Packet::Disconnect(Disconnect {
+            reason_code: reason,
+            properties,
+        })))
     }
 
     fn check_collision(&mut self, pkid: u16) -> Option<Publish> {

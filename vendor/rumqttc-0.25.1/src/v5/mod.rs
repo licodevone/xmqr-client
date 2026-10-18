@@ -50,6 +50,7 @@ pub enum Request {
     Unsubscribe(Unsubscribe),
     UnsubAck(UnsubAck),
     Disconnect,
+    DisconnectWithProperties(DisconnectProperties),
 }
 
 impl From<Subscribe> for Request {

@@ -1,5 +1,13 @@
 # xmqr-client
 
+Na árvore de desenvolvimento após 0.28.0, C104 acrescenta
+`--disconnect-session-expiry-seconds 0..4294967294|never` a `pub --protocol-version 5`
+e `sub --protocol-version 5 --count N`. A opção envia Session Expiry Interval no
+DISCONNECT normal; sem ela, o pacote e o prazo do CONNECT permanecem como antes.
+Se o CONNECT anuncia zero, somente zero pode ser enviado no DISCONNECT.
+O client não persiste estado QoS local; a fase 6B continua aberta.
+[Prompt C104](prompts/clients/104-disconnect-session-expiry-mqtt5.md).
+
 A release experimental 0.28.0 reúne C101/C102: diagnóstico de DISCONNECT
 MQTT 5 e propriedades contextuais de assinatura. C102 permite `sub --protocol-version 5
 --subscribe-user-property CHAVE=VALOR` e
