@@ -53,3 +53,13 @@ Preservar esses FAILs. Antes de alterar comportamento MQTT, capturar apenas
 `stderr` do comando de inicialização do contêiner (sem imprimir senha do
 passo `mosquitto_passwd`), distinguir porta ocupada de falha real do broker
 e repetir o cenário. Não promover a release até o teste de pacote passar.
+
+## Revisão v1.2 — contexto Docker local
+
+O build Docker local da candidata `eb017e3` falhou duas vezes com
+`error from sender: context canceled` enquanto enviava 134 MB do contexto.
+O diretório local não rastreado `vendor/rumqttc-0.25.1/target/` ocupa 639 MB;
+as regras atuais permitem atravessar a pasta vendorizada e não a excluem
+explicitamente. Preservar os dois FAILs e o conteúdo local. Acrescentar
+exclusão explícita desse `target/` no `.dockerignore`, validar o tamanho
+do contexto e reconstruir a imagem da nova fonte exata antes de publicar.
