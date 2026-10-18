@@ -19,6 +19,9 @@ use crate::{
     tls,
 };
 
+#[cfg(target_os = "linux")]
+use crate::outbox::{Operation, Outbox, PendingQos1, Stage};
+
 type AppResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[cfg(test)]
@@ -605,9 +608,23 @@ async fn run_inner(
     publication: Option<Publication>,
 ) -> AppResult<()> {
     let options = configure_options(cli, password.as_deref())?;
+    #[cfg(target_os = "linux")]
+    let outbox_state = if cli.outbox_dir.is_some() {
+        Some(
+            prepare_outbox(
+                cli,
+                publication
+                    .as_ref()
+                    .ok_or_else(|| protocol_error("payload ausente"))?,
+            )
+            .await?,
+        )
+    } else {
+        None
+    };
     let (client, mut events) = AsyncClient::new(options, 8);
     let limit = Duration::from_secs(u64::from(cli.timeout_seconds));
-    let broker_topic_alias_maximum = loop {
+    let (broker_topic_alias_maximum, session_present) = loop {
         let event = timeout(limit, events.poll())
             .await
             .map_err(|_| protocol_error("tempo esgotado aguardando CONNACK MQTT 5"))?
@@ -620,11 +637,13 @@ async fn run_inner(
                 if let Some(id) = validate_connack(cli, &ack)? {
                     eprintln!("MQTT 5 Client Identifier atribuido: {id}");
                 }
-                break ack
-                    .properties
-                    .as_ref()
-                    .and_then(|properties| properties.topic_alias_max)
-                    .unwrap_or(0);
+                break (
+                    ack.properties
+                        .as_ref()
+                        .and_then(|properties| properties.topic_alias_max)
+                        .unwrap_or(0),
+                    ack.session_present,
+                );
             }
             Event::Incoming(Incoming::ConnAck(ack)) => {
                 return Err(connack_refusal(ack.code).into());
@@ -654,9 +673,36 @@ async fn run_inner(
         .into());
     }
     let publication = publication.ok_or_else(|| protocol_error("payload ausente"))?;
+    #[cfg(target_os = "linux")]
+    if let Some((outbox, pending, existed)) = outbox_state {
+        return publish_from_outbox(
+            cli,
+            &client,
+            &mut events,
+            outbox,
+            pending,
+            existed,
+            session_present,
+            limit,
+        )
+        .await;
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = session_present;
+    publish_regular(cli, &client, &mut events, &publication, topic, limit).await
+}
+
+async fn publish_regular(
+    cli: &Cli,
+    client: &AsyncClient,
+    events: &mut rumqttc::v5::EventLoop,
+    publication: &Publication,
+    topic: &str,
+    limit: Duration,
+) -> AppResult<()> {
     for index in 0..cli.repeat {
         if index > 0 {
-            wait_repeat_interval(&mut events, cli.repeat_interval_ms.unwrap()).await?;
+            wait_repeat_interval(events, cli.repeat_interval_ms.unwrap()).await?;
         }
         let wire_topic = if index > 0 && cli.publish_topic_alias.is_some() {
             ""
@@ -664,17 +710,17 @@ async fn run_inner(
             topic
         };
         send_publication(
-            &client,
+            client,
             cli,
             wire_topic,
             publication.first.clone(),
             cli.publish_topic_alias,
         )
         .await?;
-        await_publish_complete(&mut events, cli.qos, limit).await?;
+        await_publish_complete(events, cli.qos, limit).await?;
         cli.output.complete(cli.qos);
     }
-    request_disconnect(cli, &client)?;
+    request_disconnect(cli, client)?;
     loop {
         let event = timeout(limit, events.poll())
             .await
@@ -688,6 +734,146 @@ async fn run_inner(
         }
     }
     Ok(())
+}
+
+#[cfg(target_os = "linux")]
+async fn disk_operation<T: Send + 'static>(
+    action: impl FnOnce() -> io::Result<T> + Send + 'static,
+) -> io::Result<T> {
+    tokio::task::spawn_blocking(action)
+        .await
+        .map_err(|_| io::Error::other("trabalhador da outbox falhou"))?
+}
+
+#[cfg(target_os = "linux")]
+async fn prepare_outbox(
+    cli: &Cli,
+    publication: &Publication,
+) -> io::Result<(Outbox, PendingQos1, bool)> {
+    let Mode::Pub { topic, .. } = &cli.mode else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "outbox exige pub",
+        ));
+    };
+    let operation = Operation {
+        host: cli.host.clone(),
+        port: cli.port,
+        client_id: cli.client_id.clone(),
+        topic: topic.clone(),
+        payload: publication.first.clone(),
+        retain: cli.retain,
+        message_expiry: cli.message_expiry,
+        payload_format: cli.payload_format,
+        content_type: cli.content_type.clone(),
+        response_topic: cli.response_topic.clone(),
+        correlation_data: cli.correlation_data.clone(),
+        user_properties: cli.publish_user_properties.clone(),
+    };
+    let directory = cli
+        .outbox_dir
+        .as_ref()
+        .expect("CLI validated outbox")
+        .clone();
+    disk_operation(move || {
+        let outbox = Outbox::open(&directory)?;
+        match outbox.load()? {
+            Some(pending) if pending.operation == operation => Ok((outbox, pending, true)),
+            Some(_) => Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "outbox pertence a outra publicacao; conteudo preservado",
+            )),
+            None => {
+                let pending = outbox.prepare(operation)?;
+                Ok((outbox, pending, false))
+            }
+        }
+    })
+    .await
+}
+
+#[cfg(target_os = "linux")]
+#[allow(clippy::too_many_arguments)]
+async fn publish_from_outbox(
+    cli: &Cli,
+    client: &AsyncClient,
+    events: &mut rumqttc::v5::EventLoop,
+    outbox: Outbox,
+    pending: PendingQos1,
+    existed: bool,
+    session_present: bool,
+    limit: Duration,
+) -> AppResult<()> {
+    if (existed && pending.stage == Stage::MayHaveSent && !session_present)
+        || (!existed && session_present)
+    {
+        return Err(protocol_error(
+            "broker nao confirmou sessao compativel; outbox preservada sem reenvio",
+        )
+        .into());
+    }
+    let retransmit = pending.stage == Stage::MayHaveSent;
+    let (outbox, pending) = disk_operation(move || {
+        let pending = outbox.mark_sending()?;
+        Ok((outbox, pending))
+    })
+    .await?;
+    let operation = pending.operation;
+    let has_properties = operation.message_expiry.is_some()
+        || operation.payload_format.is_some()
+        || operation.content_type.is_some()
+        || operation.response_topic.is_some()
+        || operation.correlation_data.is_some()
+        || !operation.user_properties.is_empty();
+    let properties = has_properties.then(|| PublishProperties {
+        message_expiry_interval: operation.message_expiry,
+        payload_format_indicator: operation.payload_format,
+        content_type: operation.content_type,
+        response_topic: operation.response_topic,
+        correlation_data: operation.correlation_data.map(Into::into),
+        user_properties: operation.user_properties,
+        ..PublishProperties::default()
+    });
+    let mut publish = Publish::new(
+        operation.topic,
+        rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
+        operation.payload,
+        properties,
+    );
+    publish.pkid = pending.packet_id;
+    publish.dup = retransmit;
+    publish.retain = operation.retain;
+    client.publish_packet(publish).await?;
+    let deadline = Instant::now() + limit;
+    let reason = loop {
+        let event = timeout_at(deadline, events.poll())
+            .await
+            .map_err(|_| protocol_error("PUBACK pendente; outbox preservada"))?
+            .map_err(|_| protocol_error("conexao interrompida; outbox preservada"))?;
+        match event {
+            Event::Incoming(Incoming::PubAck(ack)) if ack.pkid == pending.packet_id => {
+                break ack.reason;
+            }
+            Event::Outgoing(_) | Event::Incoming(Incoming::PingResp(_)) => {}
+            Event::Incoming(_) => {
+                return Err(protocol_error("resposta inesperada; outbox preservada").into());
+            }
+        }
+    };
+    disk_operation(move || outbox.complete()).await?;
+    if reason != PubAckReason::Success {
+        return Err(puback_refusal(reason).into());
+    }
+    cli.output.complete(QoS::AtLeastOnce);
+    request_disconnect(cli, client)?;
+    loop {
+        let event = timeout(limit, events.poll())
+            .await
+            .map_err(|_| protocol_error("tempo esgotado enviando DISCONNECT MQTT 5"))??;
+        if matches!(event, Event::Outgoing(Outgoing::Disconnect)) {
+            return Ok(());
+        }
+    }
 }
 
 async fn wait_repeat_interval(

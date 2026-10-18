@@ -45,7 +45,7 @@ Esta matriz não declara conformidade integral ou paridade exaustiva.
 | Keepalive | --keepalive-seconds 1..65535, default30 | Zero fora do contrato | src/session.rs; tests/wire.rs |
 | Timeouts | --timeout-seconds 1..300, default8; idle90s preservado | Não é timeout total/espera de aplicação | src/session.rs; registroC37 |
 | Perfis reutilizáveis | CLI/algumas variáveis, configuração systemd | Prompt próprio de perfis | README; packaging |
-| MQTT5/WS/WSS | MQTT5 pub/sub QoS0/1/2, opções de sessão, propriedades PUBLISH C77/C78, JSONL C80, repetição C81, Topic Alias C83, Retain Handling C84 e User Property de SUBSCRIBE/UNSUBSCRIBE C102 e Session Expiry no DISCONNECT C104; WS/WSS ausentes | Fluxo QoS próprio não retoma; matriz completa de propriedades/opções de assinatura pendente | src/cli.rs; src/v5_session.rs; C57–C104 |
+| MQTT5/WS/WSS | MQTT5 pub/sub QoS0/1/2, opções de sessão, propriedades PUBLISH C77/C78, JSONL C80, repetição C81, Topic Alias C83, Retain Handling C84, User Property de SUBSCRIBE/UNSUBSCRIBE C102, Session Expiry no DISCONNECT C104 e outbox explícita C105 para um QoS 1 de saída no Linux/WSL; WS/WSS ausentes | QoS 2 e assinaturas não retomam estado local; múltiplos inflight e matriz completa de propriedades/opções pendentes | src/cli.rs; src/v5_session.rs; src/outbox.rs; C57–C105 |
 
 Mosquitto oferece opções de protocolo, keepalive, repetição e propriedadesMQTT5; sub oferece timeout, exclusão de tópicos e filtros retained. Referências consultadas: [pub](https://mosquitto.org/man/mosquitto_pub-1.html), [sub](https://mosquitto.org/man/mosquitto_sub-1.html). Há opções específicas de2.1; registrar mosquitto --version/compilação antes da campanha. Não assumir equivalência a toda versão instalada.
 

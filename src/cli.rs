@@ -121,6 +121,8 @@ pub struct Cli {
     pub clean_session: bool,
     pub clean_start: SessionStart,
     pub session_expiry: u32,
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    pub outbox_dir: Option<PathBuf>,
     pub disconnect_session_expiry: Option<u32>,
     pub message_expiry: Option<u32>,
     pub payload_format: Option<u8>,
@@ -154,6 +156,7 @@ pub const V5_PUBLISH_USAGE: &str = "MQTT 5 PUBLISH adicional: --response-topic T
 pub const V5_SUBSCRIPTION_USAGE: &str = "MQTT 5 SUBSCRIBE: --unsubscribe-user-property exige --count N; sem --count, nao ha UNSUBSCRIBE.\n";
 pub const AUTH_USAGE: &str = "Autenticacao MQTT 5: --auth-method plain (somente TLS, com --protocol-version 5; senha por arquivo privado ou prompt). --reauth-before-io confirma AUTH PLAIN apos CONNACK e antes de pub/sub; reautenticacao periodica ainda indisponivel.\n";
 pub const V5_WILL_USAGE: &str = "MQTT 5 Will: --will-message-expiry-seconds 0..4294967295, --will-payload-format 0|1, --will-content-type TEXTO (ate 256 bytes), --will-response-topic TOPICO (sem curingas), --will-correlation-data-hex HEX (ate 256 bytes), --will-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes). Exige --will-topic, mensagem Will e --protocol-version 5.\n";
+pub const OUTBOX_USAGE: &str = "Outbox duravel experimental (Linux/WSL): --outbox-dir DIRETORIO existente e privado (0700) exige pub --protocol-version 5 --qos 1 --clean-start false --session-expiry-seconds N --client-id ID fixo, uma mensagem. Repita o mesmo comando para retomar; nao remova pending.json se o broker negar Session Present. O arquivo contem payload em claro sob permissao 0600.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -202,6 +205,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut clean_session = None;
     let mut clean_start = None;
     let mut session_expiry = None;
+    let mut outbox_dir = None;
     let mut disconnect_session_expiry = None;
     let mut message_expiry = None;
     let mut payload_format = None;
@@ -380,6 +384,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             "--clean-session" => &mut clean_session,
             "--clean-start" => &mut clean_start,
             "--session-expiry-seconds" => &mut session_expiry,
+            "--outbox-dir" => &mut outbox_dir,
             "--disconnect-session-expiry-seconds" => &mut disconnect_session_expiry,
             _ => return Err(format!("opcao desconhecida: {flag}")),
         };
@@ -708,6 +713,25 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             .filter(|value| *value != u32::MAX)
             .ok_or("--session-expiry-seconds deve ser 0..4294967294 ou never")?,
     };
+    if outbox_dir.is_some() {
+        if !cfg!(target_os = "linux") {
+            return Err("--outbox-dir esta disponivel somente no Linux/WSL".into());
+        }
+        if protocol_version != ProtocolVersion::Mqtt5
+            || !matches!(&mode, Mode::Pub { .. })
+            || qos != QoS::AtLeastOnce
+            || clean_start != SessionStart::Resume
+            || session_expiry == 0
+            || server_assigned_client_id
+            || client_id.is_none()
+            || repeat_count != 1
+            || line_mode
+            || publish_topic_alias.is_some()
+            || will_topic.is_some()
+        {
+            return Err("--outbox-dir exige pub MQTT 5 QoS 1, ID fixo, Clean Start false, Session Expiry positivo e uma mensagem sem Will/alias".into());
+        }
+    }
     let disconnect_session_expiry = disconnect_session_expiry
         .as_deref()
         .map(|raw| match raw {
@@ -727,6 +751,9 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         }
         if session_expiry == 0 && seconds != 0 {
             return Err("CONNECT com expiração zero não permite DISCONNECT não zero".into());
+        }
+        if outbox_dir.is_some() && seconds == 0 {
+            return Err("--outbox-dir nao permite encerrar a sessao no DISCONNECT".into());
         }
     }
 
@@ -1094,6 +1121,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         clean_session,
         clean_start,
         session_expiry,
+        outbox_dir: outbox_dir.map(PathBuf::from),
         disconnect_session_expiry,
         message_expiry,
         payload_format,
@@ -1639,6 +1667,57 @@ mod tests {
         ];
         assert!(parse(sub.into_iter().map(str::to_owned)).is_err());
         assert!(parse(sub.into_iter().chain(["--count", "1"]).map(str::to_owned)).is_ok());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn durable_qos1_outbox_requires_stable_session_and_one_publication() {
+        use super::parse;
+        let base = [
+            "pub",
+            "--open-lab",
+            "--topic",
+            "test/outbox",
+            "--message",
+            "data",
+            "--protocol-version",
+            "5",
+            "--qos",
+            "1",
+            "--clean-start",
+            "false",
+            "--session-expiry-seconds",
+            "60",
+            "--client-id",
+            "durable-device",
+            "--outbox-dir",
+            "/tmp/xmqr-outbox-test",
+        ];
+        let arguments = |extra: &[&str]| {
+            base.iter()
+                .chain(extra)
+                .map(|value| (*value).to_owned())
+                .collect::<Vec<_>>()
+        };
+        assert!(parse(arguments(&[])).unwrap().outbox_dir.is_some());
+        for extra in [
+            &["--repeat", "2", "--repeat-interval-ms", "1"][..],
+            &["--will-topic", "last", "--will-message", "bye"],
+            &["--disconnect-session-expiry-seconds", "0"],
+        ] {
+            assert!(parse(arguments(extra)).is_err(), "{extra:?}");
+        }
+        for invalid in [
+            ["--clean-start", "true"],
+            ["--session-expiry-seconds", "0"],
+            ["--qos", "2"],
+            ["--protocol-version", "3.1.1"],
+        ] {
+            let mut args = arguments(&[]);
+            let position = args.iter().position(|item| item == invalid[0]).unwrap();
+            args[position + 1] = invalid[1].to_owned();
+            assert!(parse(args).is_err(), "{invalid:?}");
+        }
     }
 
     #[test]

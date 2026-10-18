@@ -11,12 +11,16 @@ Este inventário não substitui esses textos nem uma revisão de licença dos fo
 | aws-lc-rs | 1.18.1 | `ISC AND (Apache-2.0 OR ISC)` |
 | aws-lc-sys | 0.45.0 | `ISC AND (Apache-2.0 OR ISC) AND Apache-2.0 AND MIT AND BSD-3-Clause AND (Apache-2.0 OR ISC OR MIT) AND (Apache-2.0 OR ISC OR MIT-0)` |
 | bitflags | 2.13.2 | `MIT OR Apache-2.0` |
+| block-buffer | 0.10.4 | `MIT OR Apache-2.0` |
 | bytes | 1.12.1 | `MIT` |
 | cc | 1.4.7 | `MIT OR Apache-2.0` |
 | cfg-if | 1.0.5 | `MIT OR Apache-2.0` |
 | cmake | 0.1.58 | `MIT OR Apache-2.0` |
 | core-foundation | 0.10.1 | `MIT OR Apache-2.0` |
 | core-foundation-sys | 0.8.7 | `MIT OR Apache-2.0` |
+| cpufeatures | 0.2.17 | `MIT OR Apache-2.0` |
+| crypto-common | 0.1.7 | `MIT OR Apache-2.0` |
+| digest | 0.10.7 | `MIT OR Apache-2.0` |
 | dunce | 1.0.5 | `CC0-1.0 OR MIT-0 OR Apache-2.0` |
 | equivalent | 1.0.2 | `Apache-2.0 OR MIT` |
 | errno | 0.3.14 | `MIT OR Apache-2.0` |
@@ -24,20 +28,24 @@ Este inventário não substitui esses textos nem uma revisão de licença dos fo
 | find-msvc-tools | 0.1.13 | `MIT OR Apache-2.0` |
 | fixedbitset | 0.5.7 | `MIT OR Apache-2.0` |
 | flume | 0.11.1 | `Apache-2.0/MIT` |
+| fs2 | 0.4.3 | `MIT/Apache-2.0` |
 | fs_extra | 1.3.0 | `MIT` |
 | futures-core | 0.3.34 | `MIT OR Apache-2.0` |
 | futures-sink | 0.3.34 | `MIT OR Apache-2.0` |
 | futures-task | 0.3.34 | `MIT OR Apache-2.0` |
 | futures-util | 0.3.34 | `MIT OR Apache-2.0` |
+| generic-array | 0.14.7 | `MIT` |
 | getrandom | 0.2.17 | `MIT OR Apache-2.0` |
 | getrandom | 0.4.3 | `MIT OR Apache-2.0` |
 | hashbrown | 0.17.1 | `MIT OR Apache-2.0` |
 | indexmap | 2.14.2 | `Apache-2.0 OR MIT` |
+| itoa | 1.0.18 | `MIT OR Apache-2.0` |
 | jobserver | 0.1.35 | `MIT OR Apache-2.0` |
 | libc | 0.2.189 | `MIT OR Apache-2.0` |
 | linux-raw-sys | 0.12.1 | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
 | lock_api | 0.4.14 | `MIT OR Apache-2.0` |
 | log | 0.4.34 | `MIT OR Apache-2.0` |
+| memchr | 2.8.3 | `Unlicense OR MIT` |
 | mio | 1.2.3 | `MIT` |
 | once_cell | 1.21.4 | `MIT OR Apache-2.0` |
 | openssl-probe | 0.2.1 | `MIT OR Apache-2.0` |
@@ -64,7 +72,9 @@ Este inventário não substitui esses textos nem uma revisão de licença dos fo
 | serde | 1.0.229 | `MIT OR Apache-2.0` |
 | serde_core | 1.0.229 | `MIT OR Apache-2.0` |
 | serde_derive | 1.0.229 | `MIT OR Apache-2.0` |
+| serde_json | 1.0.154 | `MIT OR Apache-2.0` |
 | serde_spanned | 1.1.2 | `MIT OR Apache-2.0` |
+| sha2 | 0.10.9 | `MIT OR Apache-2.0` |
 | shlex | 2.0.1 | `MIT OR Apache-2.0` |
 | signal-hook-registry | 1.4.8 | `MIT OR Apache-2.0` |
 | slab | 0.4.12 | `MIT` |
@@ -84,9 +94,14 @@ Este inventário não substitui esses textos nem uma revisão de licença dos fo
 | toml_datetime | 0.7.5+spec-1.1.0 | `MIT OR Apache-2.0` |
 | toml_parser | 1.1.5+spec-1.1.0 | `MIT OR Apache-2.0` |
 | toml_writer | 1.1.3+spec-1.1.0 | `MIT OR Apache-2.0` |
+| typenum | 1.20.1 | `MIT OR Apache-2.0` |
 | unicode-ident | 1.0.26 | `(MIT OR Apache-2.0) AND Unicode-3.0` |
 | untrusted | 0.9.0 | `ISC` |
+| version_check | 0.9.5 | `MIT/Apache-2.0` |
 | wasi | 0.11.1+wasi-snapshot-preview1 | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
+| winapi | 0.3.9 | `MIT/Apache-2.0` |
+| winapi-i686-pc-windows-gnu | 0.4.0 | `MIT/Apache-2.0` |
+| winapi-x86_64-pc-windows-gnu | 0.4.0 | `MIT/Apache-2.0` |
 | windows-link | 0.2.1 | `MIT OR Apache-2.0` |
 | windows-sys | 0.52.0 | `MIT OR Apache-2.0` |
 | windows-sys | 0.61.2 | `MIT OR Apache-2.0` |
@@ -102,3 +117,4 @@ Este inventário não substitui esses textos nem uma revisão de licença dos fo
 | winnow | 0.7.15 | `MIT` |
 | winnow | 1.0.4 | `MIT` |
 | zeroize | 1.9.0 | `Apache-2.0 OR MIT` |
+| zmij | 1.0.23 | `MIT` |

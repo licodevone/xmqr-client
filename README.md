@@ -1,11 +1,26 @@
 # xmqr-client
 
-Na árvore de desenvolvimento após 0.28.0, C104 acrescenta
+Na árvore de desenvolvimento após 0.28.0, C105 acrescenta uma outbox
+experimental para uma publicação MQTT 5 QoS 1 por processo em Linux/WSL.
+Crie um diretório privado com `mkdir -m 700 ~/xmqr-outbox` e use, por exemplo,
+`mqtt-client pub --open-lab --protocol-version 5 --host 127.0.0.1 --port 1883
+--topic lab/temperatura --message 23.5 --qos 1 --client-id sensor-a
+--clean-start false --session-expiry-seconds 60 --outbox-dir ~/xmqr-outbox`.
+Se a confirmação for incerta, repita **o mesmo comando** antes de a sessão
+expirar. A retomada envia DUP com o mesmo Packet Identifier somente quando o
+broker confirma Session Present; caso contrário, a outbox fica preservada
+para investigação, sem publicação automática. O diretório deve existir,
+pertencer ao usuário e ter modo 0700; os arquivos usam 0600 e contêm o
+payload em claro. QoS 1 admite duplicatas; PUBACK não confirma que um
+assinante ou destino externo processou os dados. QoS 2 e assinaturas ainda não
+têm estado local durável. [Prompt C105](prompts/clients/105-durable-qos1-outbox-mqtt5.md).
+
+C104 acrescenta
 `--disconnect-session-expiry-seconds 0..4294967294|never` a `pub --protocol-version 5`
 e `sub --protocol-version 5 --count N`. A opção envia Session Expiry Interval no
 DISCONNECT normal; sem ela, o pacote e o prazo do CONNECT permanecem como antes.
 Se o CONNECT anuncia zero, somente zero pode ser enviado no DISCONNECT.
-O client não persiste estado QoS local; a fase 6B continua aberta.
+Fora da outbox C105, o client não persiste estado QoS local; a fase 6B continua aberta.
 [Prompt C104](prompts/clients/104-disconnect-session-expiry-mqtt5.md).
 
 A release experimental 0.28.0 reúne C101/C102: diagnóstico de DISCONNECT

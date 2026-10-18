@@ -63,7 +63,7 @@ pub fn read_password_file(path: &Path) -> io::Result<String> {
 }
 
 #[cfg(target_os = "linux")]
-fn effective_uid() -> io::Result<u32> {
+pub(crate) fn effective_uid() -> io::Result<u32> {
     // Linux procfs exposes real, effective, saved and filesystem UIDs in order.
     let status = std::fs::read_to_string("/proc/self/status")?;
     status

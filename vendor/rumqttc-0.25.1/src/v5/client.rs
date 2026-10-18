@@ -225,6 +225,20 @@ impl AsyncClient {
         Ok(())
     }
 
+    /// Enqueue a QoS 1 PUBLISH with a caller-owned packet identifier and DUP bit.
+    /// Used by the XMQR durable outbox after it commits the operation to disk.
+    pub async fn publish_packet(&self, publish: Publish) -> Result<(), ClientError> {
+        let valid = publish.qos == QoS::AtLeastOnce
+            && publish.pkid != 0
+            && std::str::from_utf8(&publish.topic).is_ok_and(valid_topic);
+        let request = Request::Publish(publish);
+        if !valid {
+            return Err(ClientError::TryRequest(request));
+        }
+        self.request_tx.send_async(request).await?;
+        Ok(())
+    }
+
     pub async fn publish_bytes_with_properties<S>(
         &self,
         topic: S,
