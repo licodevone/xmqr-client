@@ -56,3 +56,13 @@ build debug. Aplicar `cfg(debug_assertions)` nesses dois pontos sem alterar o
 runtime release e repetir Clippy release/build/pacote antes do aceite. O aviso
 `dpkg-shlibdeps` sobre diversions da própria libc6 é separado e não foi
 interpretado como erro do pacote.
+
+## Revisão após CI da candidata c3155d3
+
+A CI 39160243798 falhou no job Rust, cenário C129 `batch32`: EOF antes de
+completar 32 trocas. O mesmo binário/caso passou oito vezes no Ubuntu/WSL
+local, com duração perto de 2 s; o fixture configura deadline de protocolo
+de apenas 2 s mesmo para 32 gravações duráveis. Preservar o FAIL da CI.
+Ampliar somente o prazo desse cenário para 8 s, sem reduzir o volume nem
+afrouxar os ACKs, a ordem, as provas de saída ou os demais cenários.
+Executar o caso dirigido e a CI integral na nova revisão antes de tag/release.
