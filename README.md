@@ -1,5 +1,10 @@
 # xmqr-client
 
+C123 em `main`, ainda em validação, estende o manifesto de assinatura MQTT 5
+para WSS mTLS com URL canônica e retomada condicionada a Session Present.
+[Prompt C123](prompts/clients/123-wss-durable-subscription.md). A release 0.35.0
+não inclui C122/C123.
+
 A prerelease experimental 0.35.0 reúne C119 e permite outbox MQTT 5
 QoS 1 por WSS mTLS com URL canônica como identidade do destino; TCP mantém
 seus journals antigos. Na 0.35.0, WS aberto, QoS 2 e manifesto de assinatura por URL

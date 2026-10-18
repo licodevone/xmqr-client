@@ -1,5 +1,9 @@
 # Histórico de versões
 
+## Não publicado — C123 em validação
+
+- Manifesto MQTT 5 de assinatura persistente aceita WSS mTLS local/remoto, usando URL canônica como destino e preservando manifestos TCP. WS aberto continua sem estado local.
+
 ## Não publicado — C122 aceito parcialmente
 
 - Outbox MQTT 5 QoS 2 por WSS mTLS reutiliza journal privado, URL canônica e estágios de PUBLISH/PUBREL da outbox TCP. WS aberto e assinatura persistente por URL permanecem recusados.

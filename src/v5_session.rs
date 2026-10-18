@@ -899,9 +899,10 @@ async fn prepare_subscription_state(cli: &Cli) -> io::Result<(Outbox, PendingSub
             "manifesto exige sub",
         ));
     };
+    let (host, port) = durable_endpoint(cli);
     let spec = SubscriptionSpec {
-        host: cli.host.clone(),
-        port: cli.port,
+        host,
+        port,
         client_id: cli.client_id.clone(),
         username: cli.username.clone(),
         session_expiry: cli.session_expiry,

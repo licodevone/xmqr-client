@@ -160,8 +160,8 @@ pub const V5_SUBSCRIPTION_USAGE: &str = "MQTT 5 SUBSCRIBE: --unsubscribe-user-pr
 pub const AUTH_USAGE: &str = "Autenticacao MQTT 5: --auth-method plain (somente TLS, com --protocol-version 5; senha por arquivo privado ou prompt). --reauth-before-io confirma AUTH PLAIN apos CONNACK e antes de pub/sub; reautenticacao periodica ainda indisponivel.\n";
 pub const V5_WILL_USAGE: &str = "MQTT 5 Will: --will-message-expiry-seconds 0..4294967295, --will-payload-format 0|1, --will-content-type TEXTO (ate 256 bytes), --will-response-topic TOPICO (sem curingas), --will-correlation-data-hex HEX (ate 256 bytes), --will-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes). Exige --will-topic, mensagem Will e --protocol-version 5.\n";
 pub const OUTBOX_USAGE: &str = "Outbox duravel experimental (Linux/WSL): --outbox-dir DIRETORIO existente e privado (0700) exige pub --protocol-version 5 --qos 1|2 --clean-start false --session-expiry-seconds N --client-id ID fixo, uma mensagem. Por --ws-url, somente WSS mTLS e URL exata; WS aberto e manifesto de assinatura por URL sao recusados. Repita o mesmo comando para retomar; nao remova o journal pendente se o broker negar Session Present. O arquivo contem payload em claro sob permissao 0600.\n";
-pub const SUBSCRIPTION_STATE_USAGE: &str = "Assinatura persistente experimental (Linux/WSL): --subscription-state-dir DIRETORIO privado (0700) exige sub --protocol-version 5 --clean-start false --session-expiry-seconds N --client-id ID fixo, sem --count. Repita a mesma assinatura para retomar quando o broker confirmar Session Present; sem sessao, o manifesto e preservado e o comando falha. QoS 1/2 recebe ACK apos escrever/flush em stdout; crash pode duplicar a saida, sem garantia de persistencia do consumidor.\n";
-pub const WS_USAGE: &str = "WebSocket experimental: --ws-url ws://127.0.0.1:PORTA/CAMINHO exige --open-lab. WSS mTLS local: --ws-url wss://127.0.0.1:PORTA/mqtt exige --ca, --cert, --key e --username, sem --open-lab. IPv6 [::1] tambem aceito. Pub/sub MQTT 3.1.1 ou 5; sem --host/--port ou userinfo. Estado duravel por URL: apenas outbox MQTT 5 QoS 1/2 em WSS mTLS; assinatura persistente por URL indisponivel.\n";
+pub const SUBSCRIPTION_STATE_USAGE: &str = "Assinatura persistente experimental (Linux/WSL): --subscription-state-dir DIRETORIO privado (0700) exige sub --protocol-version 5 --clean-start false --session-expiry-seconds N --client-id ID fixo, sem --count. Por --ws-url exige WSS mTLS e URL exata. Repita a mesma assinatura para retomar quando o broker confirmar Session Present; sem sessao, o manifesto e preservado e o comando falha. QoS 1/2 recebe ACK apos escrever/flush em stdout; crash pode duplicar a saida, sem garantia de persistencia do consumidor.\n";
+pub const WS_USAGE: &str = "WebSocket experimental: --ws-url ws://127.0.0.1:PORTA/CAMINHO exige --open-lab. WSS mTLS local: --ws-url wss://127.0.0.1:PORTA/mqtt exige --ca, --cert, --key e --username, sem --open-lab. IPv6 [::1] tambem aceito. Pub/sub MQTT 3.1.1 ou 5; sem --host/--port ou userinfo. Estado duravel por URL: outbox MQTT 5 QoS 1/2 ou manifesto de assinatura persistente somente em WSS mTLS.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -818,8 +818,8 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             return Err("--ws-url nao aceita --host ou --port".into());
         }
         let url = url::Url::parse(value).map_err(|_| "--ws-url invalida")?;
-        if subscription_state_dir.is_some() || (outbox_dir.is_some() && url.scheme() != "wss") {
-            return Err("--ws-url aceita apenas outbox QoS 1/2 por WSS mTLS; manifesto de assinatura e WS aberto nao aceitam estado persistente".into());
+        if (subscription_state_dir.is_some() || outbox_dir.is_some()) && url.scheme() != "wss" {
+            return Err("--ws-url aceita estado persistente apenas por WSS mTLS; WS aberto nao aceita outbox ou manifesto".into());
         }
         let valid_mode = matches!(
             (url.scheme(), transport_mode),
@@ -1842,6 +1842,73 @@ mod tests {
             let index = input.iter().position(|value| value == flag).unwrap();
             input[index + 1] = bad.into();
             assert!(parse(input).is_err(), "{flag}");
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn wss_durable_subscription_requires_secure_url_and_remote_opt_in() {
+        let base = [
+            "sub",
+            "--topic",
+            "test/#",
+            "--username",
+            "device",
+            "--ca",
+            "ca.crt",
+            "--cert",
+            "client.crt",
+            "--key",
+            "client.key",
+            "--password-file",
+            "/tmp/password",
+            "--protocol-version",
+            "5",
+            "--qos",
+            "1",
+            "--client-id",
+            "fixed-sub",
+            "--clean-start",
+            "false",
+            "--session-expiry-seconds",
+            "60",
+            "--subscription-state-dir",
+            "/tmp/subscription",
+        ];
+        let input = |extra: &[&str]| {
+            base.iter()
+                .chain(extra)
+                .map(|value| (*value).to_owned())
+                .collect::<Vec<_>>()
+        };
+        assert!(
+            parse(input(&["--ws-url", "wss://127.0.0.1:8443/mqtt"]))
+                .unwrap()
+                .subscription_state_dir
+                .is_some()
+        );
+        assert!(
+            parse(input(&[
+                "--allow-remote-wss",
+                "--ws-url",
+                "wss://broker.example:8443/mqtt"
+            ]))
+            .unwrap()
+            .subscription_state_dir
+            .is_some()
+        );
+        for extra in [
+            vec!["--ws-url", "ws://127.0.0.1:8080/mqtt"],
+            vec!["--ws-url", "wss://broker.example:8443/mqtt"],
+            vec!["--ws-url", "wss://127.0.0.1:8443/mqtt", "--count", "1"],
+            vec![
+                "--ws-url",
+                "wss://127.0.0.1:8443/mqtt",
+                "--host",
+                "127.0.0.1",
+            ],
+        ] {
+            assert!(parse(input(&extra)).is_err(), "{extra:?}");
         }
     }
 
