@@ -23,6 +23,7 @@ jobs:
       - run: python3 scripts/verify_durable_qos1_outbox_mqtt5.py
       - run: python3 scripts/verify_durable_qos2_outbox_mqtt5.py
       - run: python3 scripts/verify_durable_subscription_mqtt5.py
+      - run: python3 scripts/verify_subscription_ack_after_output_mqtt5.py
       - run: python3 scripts/license_inventory.py --check
 
   ubuntu-package:

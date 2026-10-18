@@ -388,6 +388,10 @@ fn configure_connect_properties(options: &mut MqttOptions, cli: &Cli) {
 
 fn configure_options(cli: &Cli, password: Option<&str>) -> AppResult<MqttOptions> {
     let mut options = MqttOptions::new(&cli.client_id, &cli.host, cli.port);
+    #[cfg(target_os = "linux")]
+    if cli.subscription_state_dir.is_some() {
+        options.set_manual_acks(true);
+    }
     options.set_clean_start(cli.clean_start == super::cli::SessionStart::Clean);
     if cli.session_expiry != 0 {
         options.set_session_expiry_interval(Some(cli.session_expiry));
@@ -1414,6 +1418,10 @@ async fn subscribe(
                         .publish_mqtt5(&display, publish.properties.as_ref())?;
                     received += 1;
                 }
+                #[cfg(target_os = "linux")]
+                if cli.subscription_state_dir.is_some() {
+                    client.ack(&publish).await?;
+                }
             }
             Event::Outgoing(_) | Event::Incoming(Incoming::PingResp(_)) => {}
             Event::Incoming(_) => {
@@ -1559,5 +1567,39 @@ mod plain_auth_tests {
             Packet::read(&mut wire, Some(65536)).unwrap(),
             Packet::Auth(request)
         );
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod subscription_ack_tests {
+    use super::configure_options;
+
+    #[test]
+    fn manual_acks_are_opt_in_for_persistent_subscription_only() {
+        let base = [
+            "sub",
+            "--open-lab",
+            "--topic",
+            "sensor/#",
+            "--protocol-version",
+            "5",
+            "--qos",
+            "1",
+            "--client-id",
+            "persistent-sub",
+            "--clean-start",
+            "false",
+            "--session-expiry-seconds",
+            "60",
+        ];
+        let ordinary = crate::cli::parse(base.into_iter().map(str::to_owned)).unwrap();
+        assert!(!configure_options(&ordinary, None).unwrap().manual_acks());
+        let durable = crate::cli::parse(
+            base.into_iter()
+                .chain(["--subscription-state-dir", "/tmp/c110-fixture"])
+                .map(str::to_owned),
+        )
+        .unwrap();
+        assert!(configure_options(&durable, None).unwrap().manual_acks());
     }
 }

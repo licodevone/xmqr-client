@@ -41,6 +41,14 @@ foi incerto, repete SUBSCRIBE. Esse manifesto não guarda mensagens recebidas:
 queda após confirmação MQTT pode perder a saída exibida, e retomada não
 promete processamento exatamente uma vez. [Prompt C108](prompts/clients/108-durable-subscription-resume-mqtt5.md).
 
+Após a release 0.30.0, C110 muda a assinatura persistente para confirmar
+PUBLISH QoS 1/2 somente depois de escrever e dar flush na saída. Uma falha
+de stdout não envia PUBACK/PUBREC; o broker pode reenviar na sessão. Mensagens
+filtradas também são confirmadas. Isso reduz a janela de perda anterior, mas
+o manifesto não guarda mensagens recebidas: queda após flush e antes do ACK
+pode duplicar a saída, e stdout não confirma gravação no consumidor. O modo
+sem `--subscription-state-dir` mantém o comportamento anterior. [Prompt C110](prompts/clients/110-durable-subscription-ack-after-output-mqtt5.md).
+
 C104 acrescenta
 `--disconnect-session-expiry-seconds 0..4294967294|never` a `pub --protocol-version 5`
 e `sub --protocol-version 5 --count N`. A opção envia Session Expiry Interval no
