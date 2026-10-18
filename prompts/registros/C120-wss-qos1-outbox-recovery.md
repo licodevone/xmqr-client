@@ -1,0 +1,5 @@
+# C120 — retomada da outbox QoS 1 em WSS
+
+- [Prompt C120](../clients/120-wss-qos1-outbox-recovery.md) foi publicado antes da fixture (`45ff9aa`). Ensaio `e8990fb`; [CI 39122701532](https://github.com/licodevone/xmqr-client/actions/runs/39122701532) da fonte exata: Rust e pacote Ubuntu 26.04 PASS.
+- Dois handshakes WSS mTLS na mesma URL: o primeiro recebe PUBLISH Packet ID 1 sem PUBACK e fecha a conexão; o segundo confirma Session Present=1, recebe o mesmo Packet ID com DUP=1, envia PUBACK e o journal é removido. Com Session Present=0, a segunda conexão não envia PUBLISH e o journal permanece byte a byte inalterado.
+- A fixture também conserva os casos C114/C116/C119; CI repetiu outbox TCP QoS 1/2, assinatura persistente, fmt, Clippy, licenças e pacote. Aceite parcial de segurança da retomada; o teste controlado não prova todos os interleavings de rede, reinício do broker ou durabilidade global. Código em `main` após a tag 0.34.0; navegador real, QoS 2/manifesto por URL e regressões abrangentes seguem abertos na fase 7.

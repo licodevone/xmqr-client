@@ -4,3 +4,5 @@
 - Outbox privada aceita publicação MQTT 5 QoS 1 por URL WSS mTLS local/remota, com opt-in remoto, Client ID fixo, Clean Start false e Session Expiry positivo. A URL WSS canônica inteira identifica o destino no campo `host` existente, com porta sentinela 0; journals TCP conservam host/porta anteriores. Outro destino é recusado sem alterar o journal.
 - Fixture mTLS confirma PUBACK e remoção do journal; fechamento antes do PUBACK mantém a operação pendente e recusa URL diferente. Integração com broker real confirma publicação/assinatura por WSS, retained e ACL existente. Suíte de 95 unitários e 66 wire, fmt, Clippy, licenças e regressões duráveis TCP/QoS 2/assinatura passaram.
 - Aceite **parcial** da fase 7. WS aberto, QoS 2 por URL e manifesto de assinatura por URL são recusados. A retomada WSS após PUBACK perdido ainda requer ensaio de retransmissão com Session Present e DUP; a falha fechada já foi verificada, mas não se afirma durabilidade completa. Código em `main` após a tag 0.34.0; pacote 0.34.0 não contém C119.
+
+Seguimento: [C120](C120-wss-qos1-outbox-recovery.md) executou esse ensaio controlado; os limites globais da fase 7 continuam abertos.

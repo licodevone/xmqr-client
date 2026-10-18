@@ -3,8 +3,9 @@
 C119 aceito parcialmente em `main` após a prerelease 0.34.0 permite outbox MQTT 5
 QoS 1 por WSS mTLS com URL canônica como identidade do destino; TCP mantém
 seus journals antigos. WS aberto, QoS 2 e manifesto de assinatura por URL
-continuam recusados. Recuperação após PUBACK perdido em WSS ainda carece de
-ensaio próprio. [Registro C119](prompts/registros/C119-wss-qos1-outbox.md).
+continuam recusados. C120 validou reconexão com Session Present e DUP após
+PUBACK perdido em fixture WSS mTLS. [Registros C119](prompts/registros/C119-wss-qos1-outbox.md)
+e [C120](prompts/registros/C120-wss-qos1-outbox-recovery.md).
 
 A prerelease experimental 0.34.0 inclui C117 e permite
 `--allow-remote-wss --ws-url wss://broker.exemplo:8443/mqtt` em mTLS seguro.

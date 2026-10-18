@@ -2,7 +2,8 @@
 
 ## Não publicado — C119 aceito parcialmente
 
-- MQTT 5 QoS 1 com outbox privado aceita WSS mTLS local/remoto; URL WSS canônica distingue o destino dos journals TCP sem alterar o formato. WS aberto, QoS 2 e manifesto de assinatura por URL continuam recusados. Recuperação após PUBACK perdido por WSS ainda precisa de ensaio próprio.
+- MQTT 5 QoS 1 com outbox privado aceita WSS mTLS local/remoto; URL WSS canônica distingue o destino dos journals TCP sem alterar o formato. WS aberto, QoS 2 e manifesto de assinatura por URL continuam recusados.
+- C120 comprovou, em fixture mTLS controlada, retransmissão com DUP e mesmo Packet ID quando Session Present=1, com remoção somente após PUBACK; Session Present=0 preserva o journal sem reenvio.
 
 ## 0.34.0 — perfil WSS e acesso remoto explícito (experimental)
 
