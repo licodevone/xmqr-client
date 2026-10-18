@@ -47,7 +47,7 @@ def ready_subscriber(root, port, topic):
         ready, _, _ = select.select([child.stdout], [], [], 8)
         assert ready, "subscriber SUBACK timeout"
         byte = os.read(child.stdout.fileno(), 1)
-        assert byte, "subscriber exited before SUBACK"
+        assert byte, ("subscriber exited before SUBACK", child.stderr.read(1200))
         line.extend(byte)
     assert b"Assinatura ativa" in line, line
     return child
@@ -161,20 +161,35 @@ def main():
             if child.poll() is None:
                 child.send_signal(signal.SIGTERM)
                 assert child.wait(timeout=8) == 0
-        def endpoint(port, client_id, ca="ca.crt", pwd="password", host="127.0.0.1"):
+        def endpoint(port, client_id, ca="ca.crt", pwd="password", host="127.0.0.1",
+                     broker_id=None):
             return (f'host={json.dumps(host)}\nport={port}\nclient_id="{client_id}"\n'
-                    'username="device"\n'
+                    + (f'broker_id="{broker_id}"\n' if broker_id else '')
+                    + 'username="device"\n'
                     f'password_file={json.dumps(str(root / pwd))}\n'
                     f'ca={json.dumps(str(root / ca))}\n'
                     f'cert={json.dumps(str(root / "client.crt"))}\n'
                     f'key={json.dumps(str(root / "client.key"))}\n')
         def configuration(path, *, destination_port=target_port, dest_ca="ca.crt",
                           dest_pwd="password", dest_host="127.0.0.1", retries=8):
-            private(path, f'version=1\nmax_retries={retries}\n[source]\n'
-                    + endpoint(source_port, "c125-bridge-source")
+            header = f'version=1\nmax_retries={retries}\n'
+            if qos == 1:
+                topology = path.with_suffix('.topology.toml')
+                private(topology, 'version=1\n[[brokers]]\nid="source"\n'
+                        + f'host="127.0.0.1"\nport={source_port}\n'
+                        + '[[brokers]]\nid="target"\n'
+                        + f'host={json.dumps(dest_host)}\nport={destination_port}\n'
+                        + '[[links]]\nid="primary"\nsource_broker="source"\n'
+                        + 'destination_broker="target"\nsource_prefix="sensors/"\n'
+                        + 'target_prefix="mirror/"\nqos=1\n')
+                header += f'topology_file={json.dumps(str(topology))}\nlink_id="primary"\n'
+            private(path, header + '[source]\n'
+                    + endpoint(source_port, "c125-bridge-source",
+                               broker_id="source" if qos == 1 else None)
                     + '[destination]\n'
                     + endpoint(destination_port, "c125-bridge-target", dest_ca,
-                               dest_pwd, dest_host)
+                               dest_pwd, dest_host,
+                               broker_id="target" if qos == 1 else None)
                     + f'[route]\nsource_prefix="sensors/"\ntarget_prefix="mirror/"\nqos={qos}\n')
         config = root / "bridge.toml"
         configuration(config)
@@ -183,6 +198,36 @@ def main():
         rejected = subprocess.run([str(BRIDGE), "--config", str(same)],
                                   capture_output=True, timeout=5)
         assert rejected.returncode == 2 and b"invalida" in rejected.stderr.lower()
+        if qos == 1:
+            alias = root / "alias.toml"
+            configuration(alias, destination_port=source_port, dest_host="localhost")
+            rejected = subprocess.run([str(BRIDGE), "--config", str(alias)],
+                                      capture_output=True, timeout=5)
+            assert rejected.returncode == 2, "localhost/127.0.0.1 alias accepted"
+            cycle = root / "cycle.toml"
+            configuration(cycle)
+            topology = cycle.with_suffix('.topology.toml')
+            private(topology, topology.read_text() +
+                    '[[links]]\nid="reverse"\nsource_broker="target"\n'
+                    'destination_broker="source"\nsource_prefix="mirror/"\n'
+                    'target_prefix="sensors/"\nqos=1\n')
+            rejected = subprocess.run([str(BRIDGE), "--config", str(cycle)],
+                                      capture_output=True, timeout=5)
+            assert rejected.returncode == 2, "topology cycle accepted"
+            mismatch = root / "mismatch.toml"
+            configuration(mismatch)
+            private(mismatch.with_suffix('.topology.toml'),
+                    mismatch.with_suffix('.topology.toml').read_text().replace(
+                        'target_prefix="mirror/"', 'target_prefix="wrong/"'))
+            rejected = subprocess.run([str(BRIDGE), "--config", str(mismatch)],
+                                      capture_output=True, timeout=5)
+            assert rejected.returncode == 2, "route mismatch accepted"
+            unsafe = root / "unsafe.toml"
+            configuration(unsafe)
+            unsafe.with_suffix('.topology.toml').chmod(0o644)
+            rejected = subprocess.run([str(BRIDGE), "--config", str(unsafe)],
+                                      capture_output=True, timeout=5)
+            assert rejected.returncode == 2, "unsafe topology accepted"
         assert subprocess.run([str(BRIDGE), "--version"], capture_output=True,
                               timeout=5).stdout.startswith(b"mqtt-bridge 0.1.0-dev")
         source = start(source_env, source_port)

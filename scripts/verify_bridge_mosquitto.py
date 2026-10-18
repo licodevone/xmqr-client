@@ -92,17 +92,30 @@ def case(broker_root, direction, qos):
                    MQTT_CLIENT_CA=str(root / "ca.crt"),
                    MQTT_USERS_FILE=str(root / "users.toml"),
                    MQTT_ACL_FILE=str(root / "xmqr-acl.toml"))
-        def endpoint(port, identifier):
+        def endpoint(port, identifier, broker_id=None):
             return (f'host="127.0.0.1"\nport={port}\nclient_id="{identifier}"\n'
-                    'username="device"\n'
+                    + (f'broker_id="{broker_id}"\n' if broker_id else '')
+                    + 'username="device"\n'
                     f'password_file={json.dumps(str(root / "password"))}\n'
                     f'ca={json.dumps(str(root / "ca.crt"))}\n'
                     f'cert={json.dumps(str(root / "client.crt"))}\n'
                     f'key={json.dumps(str(root / "client.key"))}\n')
-        private(root / "bridge.toml", 'version=1\nmax_retries=8\n[source]\n'
-                + endpoint(source_port, f"c125-{direction}-source")
+        header = 'version=1\nmax_retries=8\n'
+        if qos == 1:
+            private(root / "topology.toml", 'version=1\n[[brokers]]\nid="source"\n'
+                    + f'host="127.0.0.1"\nport={source_port}\n'
+                    + '[[brokers]]\nid="target"\n'
+                    + f'host="127.0.0.1"\nport={target_port}\n'
+                    + '[[links]]\nid="primary"\nsource_broker="source"\n'
+                    + 'destination_broker="target"\nsource_prefix="sensors/"\n'
+                    + 'target_prefix="mirror/"\nqos=1\n')
+            header += f'topology_file={json.dumps(str(root / "topology.toml"))}\nlink_id="primary"\n'
+        private(root / "bridge.toml", header + '[source]\n'
+                + endpoint(source_port, f"c125-{direction}-source",
+                           broker_id="source" if qos == 1 else None)
                 + '[destination]\n'
-                + endpoint(target_port, f"c125-{direction}-target")
+                + endpoint(target_port, f"c125-{direction}-target",
+                           broker_id="target" if qos == 1 else None)
                 + f'[route]\nsource_prefix="sensors/"\ntarget_prefix="mirror/"\nqos={qos}\n')
         container = f"xmqr-c125-{secrets.token_hex(5)}"
         broker_log = root / "broker.log"

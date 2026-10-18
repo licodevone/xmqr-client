@@ -3,6 +3,7 @@ use std::{
     error::Error,
     fs,
     io::{self, Cursor, Read},
+    net::ToSocketAddrs,
     path::{Path, PathBuf},
     sync::{
         Arc,
@@ -35,6 +36,8 @@ struct Config {
     source: Endpoint,
     destination: Endpoint,
     route: Route,
+    topology_file: Option<PathBuf>,
+    link_id: Option<String>,
     #[serde(default = "default_retries")]
     max_retries: u8,
 }
@@ -42,6 +45,7 @@ struct Config {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Endpoint {
+    broker_id: Option<String>,
     host: String,
     port: u16,
     client_id: String,
@@ -58,6 +62,33 @@ struct Route {
     source_prefix: String,
     target_prefix: String,
     #[serde(default)]
+    qos: u8,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Topology {
+    version: u8,
+    brokers: Vec<BrokerIdentity>,
+    links: Vec<Link>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BrokerIdentity {
+    id: String,
+    host: String,
+    port: u16,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Link {
+    id: String,
+    source_broker: String,
+    destination_broker: String,
+    source_prefix: String,
+    target_prefix: String,
     qos: u8,
 }
 
@@ -106,6 +137,152 @@ fn valid_topic(topic: &str) -> bool {
     !topic.is_empty() && topic.len() <= 1024 && !topic.contains(['#', '+', '\0'])
 }
 
+fn valid_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
+}
+
+fn valid_prefix(prefix: &str) -> bool {
+    prefix.ends_with('/') && valid_topic(prefix) && !prefix.starts_with('$')
+}
+
+fn prefixes_overlap(a: &str, b: &str) -> bool {
+    a.starts_with(b) || b.starts_with(a)
+}
+
+fn same_endpoint(a_host: &str, a_port: u16, b_host: &str, b_port: u16) -> AppResult<bool> {
+    if a_port != b_port {
+        return Ok(false);
+    }
+    if a_host.eq_ignore_ascii_case(b_host) {
+        return Ok(true);
+    }
+    let a_addresses = (a_host, a_port).to_socket_addrs()?.collect::<Vec<_>>();
+    let b_addresses = (b_host, b_port).to_socket_addrs()?.collect::<Vec<_>>();
+    if a_addresses.is_empty() || b_addresses.is_empty() {
+        return Err(invalid("endpoint sem endereco resolvido").into());
+    }
+    Ok(a_addresses
+        .iter()
+        .any(|address| b_addresses.contains(address)))
+}
+
+fn visit_link(index: usize, links: &[Link], state: &mut [u8]) -> bool {
+    if state[index] == 1 {
+        return true;
+    }
+    if state[index] == 2 {
+        return false;
+    }
+    state[index] = 1;
+    for (next, candidate) in links.iter().enumerate() {
+        if links[index].destination_broker == candidate.source_broker
+            && prefixes_overlap(&links[index].target_prefix, &candidate.source_prefix)
+            && visit_link(next, links, state)
+        {
+            return true;
+        }
+    }
+    state[index] = 2;
+    false
+}
+
+fn has_cycle(links: &[Link]) -> bool {
+    let mut state = vec![0_u8; links.len()];
+    (0..links.len()).any(|index| visit_link(index, links, &mut state))
+}
+
+fn check_topology(config: &Config) -> AppResult<()> {
+    let path = config
+        .topology_file
+        .as_ref()
+        .ok_or_else(|| invalid("QoS 1 exige topology_file"))?;
+    if !path.is_absolute() {
+        return Err(invalid("topology_file deve ser absoluto").into());
+    }
+    private(path)?;
+    let contents = limited(path, MAX_CONFIG_BYTES)?;
+    let topology: Topology = toml::from_str(std::str::from_utf8(&contents)?)?;
+    if topology.version != 1
+        || topology.brokers.len() < 2
+        || topology.brokers.len() > 64
+        || topology.links.is_empty()
+        || topology.links.len() > 128
+    {
+        return Err(invalid("topologia invalida ou acima do limite").into());
+    }
+    for (index, broker) in topology.brokers.iter().enumerate() {
+        if !valid_id(&broker.id)
+            || broker.host.is_empty()
+            || broker.host.contains(['/', '\0', ' ', ':'])
+            || broker.port == 0
+            || topology.brokers[..index]
+                .iter()
+                .any(|previous| previous.id == broker.id)
+        {
+            return Err(invalid("identidade ou endereco duplicado na topologia").into());
+        }
+        for previous in &topology.brokers[..index] {
+            if same_endpoint(&previous.host, previous.port, &broker.host, broker.port)? {
+                return Err(invalid("endereco duplicado na topologia").into());
+            }
+        }
+    }
+    let matches_endpoint = |endpoint: &Endpoint| {
+        topology.brokers.iter().any(|broker| {
+            endpoint.broker_id.as_deref() == Some(broker.id.as_str())
+                && endpoint.host.eq_ignore_ascii_case(&broker.host)
+                && endpoint.port == broker.port
+        })
+    };
+    if !matches_endpoint(&config.source) || !matches_endpoint(&config.destination) {
+        return Err(invalid("ponta nao corresponde a topologia").into());
+    }
+    let mut own_links = 0;
+    for (index, link) in topology.links.iter().enumerate() {
+        if !valid_id(&link.id)
+            || !valid_prefix(&link.source_prefix)
+            || !valid_prefix(&link.target_prefix)
+            || link.qos > 1
+            || link.source_broker == link.destination_broker
+            || !topology
+                .brokers
+                .iter()
+                .any(|broker| broker.id == link.source_broker)
+            || !topology
+                .brokers
+                .iter()
+                .any(|broker| broker.id == link.destination_broker)
+            || topology.links[..index]
+                .iter()
+                .any(|previous| previous.id == link.id)
+        {
+            return Err(invalid("link invalido na topologia").into());
+        }
+        if config.link_id.as_deref() == Some(link.id.as_str()) {
+            own_links += 1;
+            if config.source.broker_id.as_deref() != Some(link.source_broker.as_str())
+                || config.destination.broker_id.as_deref() != Some(link.destination_broker.as_str())
+                || config.route.source_prefix != link.source_prefix
+                || config.route.target_prefix != link.target_prefix
+                || config.route.qos != link.qos
+            {
+                return Err(invalid("rota local diverge da topologia").into());
+            }
+        }
+    }
+    if own_links != 1 {
+        return Err(invalid("link_id ausente da topologia").into());
+    }
+    if has_cycle(&topology.links) {
+        return Err(invalid("ciclo de bridge na topologia").into());
+    }
+    Ok(())
+}
+
 fn validate(config: &Config) -> AppResult<()> {
     if config.version != 1 {
         return Err(invalid("versao TOML da bridge desconhecida").into());
@@ -140,14 +317,14 @@ fn validate(config: &Config) -> AppResult<()> {
         regular(&endpoint.ca)?;
         regular(&endpoint.cert)?;
     }
-    if a.host.eq_ignore_ascii_case(&b.host) && a.port == b.port {
+    if same_endpoint(&a.host, a.port, &b.host, b.port)? {
         return Err(invalid("origem e destino devem ser brokers distintos").into());
     }
     if a.client_id == b.client_id {
         return Err(invalid("identidades MQTT das pontas devem ser distintas").into());
     }
     for prefix in [&config.route.source_prefix, &config.route.target_prefix] {
-        if !prefix.ends_with('/') || !valid_topic(prefix) || prefix.starts_with('$') {
+        if !valid_prefix(prefix) {
             return Err(invalid("prefixo de rota invalido").into());
         }
     }
@@ -156,6 +333,9 @@ fn validate(config: &Config) -> AppResult<()> {
     }
     if config.route.qos > 1 {
         return Err(invalid("bridge aceita somente QoS 0 ou 1").into());
+    }
+    if config.route.qos == 1 || config.topology_file.is_some() || config.link_id.is_some() {
+        check_topology(config)?;
     }
     Ok(())
 }
@@ -385,7 +565,7 @@ async fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{Route, mapped_topic, valid_topic};
+    use super::{Link, Route, has_cycle, mapped_topic, valid_topic};
 
     #[test]
     fn prefix_mapping_stays_bounded_and_does_not_match_neighbors() {
@@ -401,5 +581,35 @@ mod tests {
         assert_eq!(mapped_topic(&route, "sensors/room/temp"), None);
         assert_eq!(mapped_topic(&route, "sensor/room/#"), None);
         assert!(!valid_topic(&"x".repeat(1025)));
+    }
+
+    #[test]
+    fn topology_rejects_direct_and_three_link_cycles_but_accepts_chain() {
+        fn link(id: &str, from: &str, to: &str, source: &str, target: &str) -> Link {
+            Link {
+                id: id.into(),
+                source_broker: from.into(),
+                destination_broker: to.into(),
+                source_prefix: source.into(),
+                target_prefix: target.into(),
+                qos: 1,
+            }
+        }
+        let first = link("first", "a", "b", "sensors/", "mirror/");
+        let second = link("second", "b", "c", "mirror/", "archive/");
+        assert!(!has_cycle(&[first, second]));
+        assert!(has_cycle(&[
+            link("first", "a", "b", "sensors/", "mirror/"),
+            link("reverse", "b", "a", "mirror/", "sensors/"),
+        ]));
+        assert!(has_cycle(&[
+            link("first", "a", "b", "sensors/", "mirror/"),
+            link("second", "b", "c", "mirror/", "archive/"),
+            link("third", "c", "a", "archive/", "sensors/"),
+        ]));
+        assert!(has_cycle(&[
+            link("first", "a", "b", "sensors/", "mirror/"),
+            link("reverse", "b", "a", "mirror/room/", "sensors/"),
+        ]));
     }
 }
