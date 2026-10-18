@@ -1,4 +1,4 @@
-# C134 v1.3 — bridge QoS 2 com journal da origem
+# C134 v1.4 — bridge QoS 2 com journal da origem
 
 ## Entrada e fonte normativa
 
@@ -71,3 +71,11 @@ Diagnosticar qual checkpoint e se o subscriber foi registrado no destino
 antes do PUBLISH; capturar somente logs sanitizados/estado do journal e
 reexecutar o caso isolado. Não relaxar o oráculo de entrega ou marcar o crash
 como PASS por causa do smoke test sem crash.
+
+Diagnóstico repetido: o primeiro checkpoint (após PUBCOMP destino) passou;
+o segundo pausou no PUBREC de uma mensagem retained de `sensors/allowed`
+reentregue pela reassinatura, antes da mensagem `/crash`. O journal mostrou
+essa entrada pendente e o assinante de `mirror/crash` ficou sem entrega.
+Restringir **somente o gancho de teste** ao Packet Identifier cujo tópico
+registrado termina em `/crash`, preservando o processamento normal e a
+reprodução retained. Repetir ambos os checkpoints e regressão QoS 1.
