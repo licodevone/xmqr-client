@@ -1,5 +1,12 @@
 # xmqr-client
 
+C116 em `main`, após a release 0.33.0, permite `ws_url = "wss://127.0.0.1:PORTA/mqtt"`
+em `[connection]` do perfil TOML v1. O perfil reutiliza CA/certificado/chave,
+usuário e arquivo privado de senha; `--ws-url` explícito tem precedência.
+`host`/`port` efetivos junto da URL são recusados. WS aberto por perfil,
+TLS-senha, estado durável por URL, navegador e acesso remoto continuam fora
+do escopo. [Prompt C116](prompts/clients/116-wss-mtls-profile.md).
+
 A prerelease experimental 0.33.0 reúne C114: `--ws-url wss://127.0.0.1:PORTA/mqtt`
 permite MQTT 3.1.1/5 via WSS com CA/SAN, certificado de cliente e credenciais
 MQTT do modo seguro. O broker P212 fornece o listener mTLS local na release 0.40.0.
@@ -346,6 +353,10 @@ do perfil. Mantenha o arquivo de senha privado (0600 no Linux). O perfil aceita
 somente parâmetros de conexão, até 64 KiB; payload, senha inline e modos de
 laboratório não são aceitos. A rotação TLS pertence ao broker e é observada
 pelo client em novas conexões.
+
+Para WSS mTLS local em `main` após 0.33.0, substitua `host` e `port` por
+`ws_url = "wss://127.0.0.1:8084/mqtt"` no mesmo perfil e mantenha os demais
+campos. As URLs são validadas como na CLI C114, sem credenciais embutidas.
 
 C48 acrescenta `--tls-password` para usar CA e validar SAN/validade do servidor
 sem certificado de cliente. Exige usuário e senha oculta ou arquivo privado.

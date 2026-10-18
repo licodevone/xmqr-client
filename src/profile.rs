@@ -75,7 +75,7 @@ fn expand_with(
         return Err("use --profile uma unica vez apos pub/sub".into());
     }
     if incompatible_with_profile(&explicit) {
-        return Err("perfil de conexao exige mTLS sem --ws-url".into());
+        return Err("perfil de conexao exige mTLS sem modo de laboratorio".into());
     }
     let index = positions[0];
     let path = args
@@ -142,7 +142,7 @@ fn expand_with(
 }
 
 fn incompatible_with_profile(explicit: &std::collections::BTreeSet<String>) -> bool {
-    ["--open-lab", "--plain-auth-lab", "--ws-url"]
+    ["--open-lab", "--plain-auth-lab"]
         .iter()
         .any(|flag| explicit.contains(*flag))
 }
@@ -172,7 +172,7 @@ fn setting(
     profile_path: &Path,
 ) -> Result<(String, String), String> {
     let (string, is_path) = match key {
-        "host" | "client_id" | "username" | "output" | "protocol_version" => {
+        "host" | "ws_url" | "client_id" | "username" | "output" | "protocol_version" => {
             (value.as_str().map(str::to_owned), false)
         }
         "ca" | "cert" | "key" | "password_file" => (value.as_str().map(str::to_owned), true),
@@ -233,6 +233,65 @@ mod tests {
         assert!(parse_profile(text, &["--profile", "other.toml"]).is_err());
         assert!(parse_profile(text, &["--open-lab"]).is_err());
         assert!(parse_profile(text, &["--ws-url", "wss://127.0.0.1:8084/mqtt"]).is_err());
+    }
+
+    #[test]
+    fn wss_profile_uses_mtls_and_cli_url_precedence() {
+        let text = "version=1\n[connection]\nws_url='wss://127.0.0.1:8084/mqtt'\nusername='device'\nca='ca.crt'\ncert='client.crt'\nkey='client.key'\npassword_file='secret'\n";
+        let cli = parse_profile(text, &[]).unwrap();
+        assert_eq!(cli.ws_url.as_deref(), Some("wss://127.0.0.1:8084/mqtt"));
+        assert_eq!(cli.transport_mode, crate::cli::TransportMode::Secure);
+        assert!(cli.ca.unwrap().is_absolute());
+        assert!(cli.password_file.unwrap().is_absolute());
+        let overridden = parse_profile(text, &["--ws-url", "wss://127.0.0.1:8085/mqtt"]).unwrap();
+        assert_eq!(
+            overridden.ws_url.as_deref(),
+            Some("wss://127.0.0.1:8085/mqtt")
+        );
+        assert!(parse_profile(text, &["--host", "127.0.0.1"]).is_err());
+        assert!(parse_profile(text, &["--port", "8883"]).is_err());
+    }
+
+    #[test]
+    fn wss_profile_rejects_unsafe_urls_and_conflicting_modes() {
+        let base = "version=1\n[connection]\nusername='device'\nca='ca.crt'\ncert='client.crt'\nkey='client.key'\n";
+        for url in [
+            "ws://127.0.0.1:8084/mqtt",
+            "wss://localhost:8084/mqtt",
+            "wss://192.0.2.1:8084/mqtt",
+            "wss://user:secret@127.0.0.1:8084/mqtt",
+            "wss://127.0.0.1:8084/mqtt?secret=yes",
+        ] {
+            let text = format!("{base}ws_url='{url}'\n");
+            let error = parse_profile(&text, &[]).unwrap_err();
+            assert!(!error.contains("secret"));
+        }
+        for conflict in ["host='127.0.0.1'\n", "port=8883\n", "tls_password=true\n"] {
+            let text = format!("{base}ws_url='wss://127.0.0.1:8084/mqtt'\n{conflict}");
+            assert!(parse_profile(&text, &[]).is_err());
+        }
+        let text = format!("{base}ws_url='wss://127.0.0.1:8084/mqtt'\n");
+        assert!(parse_profile(&text, &["--outbox-dir", "/tmp/state"]).is_err());
+        let tls_password = "version=1\n[connection]\nws_url='wss://127.0.0.1:8084/mqtt'\ntls_password=true\nusername='device'\nca='ca.crt'\n";
+        assert!(parse_profile(tls_password, &[]).is_err());
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("connection.toml");
+        std::fs::write(&path, text).unwrap();
+        let args = [
+            "sub",
+            "--topic",
+            "sensor/#",
+            "--profile",
+            path.to_str().unwrap(),
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+        let expanded = super::expand_with(args, |key| {
+            Ok((key == "MQTT_CLIENT_HOST").then(|| "127.0.0.1".to_owned()))
+        })
+        .unwrap();
+        assert!(crate::cli::parse(expanded).is_err());
     }
 
     #[test]

@@ -140,7 +140,7 @@ def serve(root, listener, *, mqtt5, subscribe, no_protocol, wrong_san, errors):
 
 
 def scenario(root, *, mqtt5=False, subscribe=False, no_protocol=False,
-             wrong_san=False, wrong_ca=False):
+             wrong_san=False, wrong_ca=False, profile=False):
     listener = socket.socket()
     listener.bind(("127.0.0.1", 0))
     listener.listen(1)
@@ -153,16 +153,24 @@ def scenario(root, *, mqtt5=False, subscribe=False, no_protocol=False,
                     wrong_san=wrong_san, errors=errors),
         daemon=True)
     worker.start()
-    command = [
-        str(CLIENT), "sub" if subscribe else "pub",
-        "--ws-url", f"wss://127.0.0.1:{port}/mqtt",
-        "--topic", "test/value", "--username", "device",
+    url = f"wss://127.0.0.1:{port}/mqtt"
+    connection = [
+        "--ws-url", url, "--username", "device",
         "--ca", str(root / ("other.crt" if wrong_ca else "ca.crt")),
         "--cert", str(root / "client.crt"), "--key", str(root / "client.key"),
         "--password-file", str(root / "password"),
-        "--protocol-version", "5" if mqtt5 else "3.1.1",
-        "--client-id", "c114-fixture", "--timeout-seconds", "3",
     ]
+    if profile:
+        profile_path = root / "c116-connection.toml"
+        profile_path.write_text(
+            f'version=1\n[connection]\nws_url="{url}"\nusername="device"\n'
+            'ca="ca.crt"\ncert="client.crt"\nkey="client.key"\n'
+            'password_file="password"\n')
+        connection = ["--profile", str(profile_path)]
+    command = [str(CLIENT), "sub" if subscribe else "pub", *connection,
+               "--topic", "test/value", "--protocol-version",
+               "5" if mqtt5 else "3.1.1", "--client-id", "c116-fixture",
+               "--timeout-seconds", "3"]
     command += ["--count", "1"] if subscribe else ["--message", "ok"]
     result = subprocess.run(command, capture_output=True, timeout=9)
     worker.join(timeout=6)
@@ -187,10 +195,11 @@ def main():
         for mqtt5 in (False, True):
             for subscribe in (False, True):
                 scenario(root, mqtt5=mqtt5, subscribe=subscribe)
+                scenario(root, mqtt5=mqtt5, subscribe=subscribe, profile=True)
             scenario(root, mqtt5=mqtt5, no_protocol=True)
         scenario(root, wrong_san=True)
         scenario(root, wrong_ca=True)
-    print("C114_WSS_MTLS_FIXTURE_PASS")
+    print("C114_WSS_MTLS_FIXTURE_PASS C116_PROFILE_FIXTURE_PASS")
 
 
 if __name__ == "__main__":
