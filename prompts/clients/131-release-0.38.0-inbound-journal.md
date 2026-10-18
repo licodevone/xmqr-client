@@ -92,3 +92,20 @@ Usar o equivalente público235f20d097b674fadcbdf85d8c8f1c581ff1eba9,
 cujo diff src/vendor/tests com5ba9cf6 é vazio. CI checkout full history contém
 esse ancestral de mainf3c7162. Nenhum oráculo de migração muda; somente a
 referência histórica. Acrescentar -j1 ao build Docker para honrar orçamento.
+
+## v1.3 — FAIL de limpeza da migração, sem alterar MQTT
+
+CI39137783610/e5ef844:21TCP/6compatPASS, bridge e pacotePASS, migraçãoFAIL
+com OSError depois de comprovar todos os campos de wire/migração; relatório
+preservado emdist/c131-ci-fail-e5ef844. A fonte fecha TemporaryDirectory
+antes de cleanup do filho ainda vivo, permitindo corrida de gravação/remoção.
+Não atribuir esse resultado ao broker/client nem ignorar erro de limpeza.
+
+Antes da correção, regressão determinística deve verificar que qualquer filho
+foi encerrado quando TemporaryDirectory.__exit__ inicia. Usar ELFs explícitos,
+fixture privada real e monkeypatch só para observar lifecycle. Corrigir ordem
+de finally: fechar peer, encerrar/aguardar filho ainda dentro do diretório,
+depois remover temporários; manter cleanup externo defensivo e sem substituir
+erro do teste. Nenhum byte/ACK/tempo/oráculo funcional muda. CI executará a
+regressão com binários reais antes da migração normal. Repetir local/CI e
+registrar novo SHA do harness; preservar relatório antigo e versão do helper.
