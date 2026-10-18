@@ -30,6 +30,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/c129-legacy"
           git archive 235f20d097b674fadcbdf85d8c8f1c581ff1eba9 | tar -x -C "$RUNNER_TEMP/c129-legacy"
           cargo build --locked --bin mqtt-client --manifest-path "$RUNNER_TEMP/c129-legacy/Cargo.toml" --target-dir "$RUNNER_TEMP/c129-legacy-target"
+          python3 -B scripts/test_c131_migration_cleanup.py --legacy-client "$RUNNER_TEMP/c129-legacy-target/debug/mqtt-client" --client target/debug/mqtt-client
           python3 -B scripts/verify_c129_v1_migration.py --legacy-client "$RUNNER_TEMP/c129-legacy-target/debug/mqtt-client" --client target/debug/mqtt-client --report dist/c129-ci-v1-migration.json
       - run: python3 -B scripts/verify_wss_client.py
       - run: python3 -B scripts/verify_wss_durable_subscription.py

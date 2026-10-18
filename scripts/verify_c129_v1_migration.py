@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 """C129: migrate an actual draft-v1 inbound exchange produced by the old ELF."""
 import argparse
+import contextlib
 import hashlib
 import json
 from pathlib import Path
@@ -31,7 +32,10 @@ def main():
     began = time.monotonic()
     child = None
     try:
-        with tempfile.TemporaryDirectory(prefix='xmqr-c129-v1-', dir='/var/tmp') as temporary, listener() as server:
+        with tempfile.TemporaryDirectory(prefix='xmqr-c129-v1-', dir='/var/tmp') as temporary, listener() as server, contextlib.ExitStack() as resources:
+            # Stop the producer before listener/directory teardown, including
+            # assertion failures. It can still commit cleanup after peer EOF.
+            resources.callback(lambda: cleanup(child))
             root = Path(temporary)
             child, peer = activate(legacy, root, server)
             try:
