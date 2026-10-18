@@ -2,7 +2,7 @@
 
 Prompt: [C134 v1.9](../clients/134-bridge-qos2-journal.md), criado e versionado antes da implementação.
 Base: client 0.39.0 em `19cc0e9`; branch `feature/c134-bridge-qos2`.
-Estado: implementação local validada; aceite e integração dependem da CI da fonte exata.
+Estado: fatia C134 aceita na fonte; distribuição em nova versão e fase 8/T02 global continuam pendentes.
 
 ## Entrega
 
@@ -20,10 +20,10 @@ Estado: implementação local validada; aceite e integração dependem da CI da 
 | Dois XMQR TLS/mTLS QoS 2: entrega, retained, reconexão, ACL, CA/SAN/senha, dois checkpoints de crash, restart determinístico do destino com PUBLISH em voo e perda de Session Present com journal preservado | PASS local; CI da revisão corrigida pendente |
 | XMQR→Mosquitto e Mosquitto→XMQR QoS 2 | PASS |
 | Regressões QoS 0/1 e topologia de três brokers | PASS |
-| `systemd-analyze verify` diretamente na fonte montada `/mnt/d` | BLOCKED: `/usr/bin/mqtt-bridge` não está instalado no WSL; unit será verificada no job de pacote após instalação descartável. |
+| `systemd-analyze verify` diretamente na fonte montada `/mnt/d` | BLOCKED local: `/usr/bin/mqtt-bridge` não está instalado no WSL. O job de pacote verificou a unit após instalação descartável (PASS). |
 | [CI de `cb98852`](https://github.com/licodevone/xmqr-client/actions/runs/39157647777) | FAIL no job `bridge-integration`: subscriber não recebeu QoS 2 após restart do destino; Rust, imagem e pacote PASS. |
-| [CI de `ed9b4d5`](https://github.com/licodevone/xmqr-client/actions/runs/39158474523) | FAIL no oráculo de crash: journal continha outra obrigação retained além de `/crash`; Rust e pacote PASS, imagem ainda em execução na observação. |
-| CI da revisão corrigida | PENDING |
+| [CI de `ed9b4d5`](https://github.com/licodevone/xmqr-client/actions/runs/39158474523) | FAIL no oráculo de crash: journal continha outra obrigação retained além de `/crash`; Rust e pacote PASS, imagem cancelada após a falha. |
+| [CI de `7f697958`](https://github.com/licodevone/xmqr-client/actions/runs/39158793553) | PASS nos quatro jobs: Rust, bridge-integration (QoS 0/1/2, XMQR e Mosquitto), ubuntu-package e bridge-image. |
 
 ## Falhas observadas e correção
 

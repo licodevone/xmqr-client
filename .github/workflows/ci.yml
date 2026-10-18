@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main, 'release/**', 'feature/c134-bridge-qos2']
+    branches: [main, 'release/**']
   pull_request:
 permissions:
   contents: read
