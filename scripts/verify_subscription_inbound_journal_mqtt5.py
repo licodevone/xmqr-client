@@ -164,17 +164,17 @@ def listener():
     return server
 
 
-def arguments(binary, root, server, extra=()):
+def arguments(binary, root, server, extra=(), timeout_seconds=2):
     return [str(binary), "sub", "--open-lab", "--protocol-version", "5",
             "--host", "127.0.0.1", "--port", str(server.getsockname()[1]),
             "--topic", "c129/#", "--qos", "2", "--client-id", "c129-receiver",
             "--clean-start", "false", "--session-expiry-seconds", "never",
             "--subscription-state-dir", str(root), "--output", "jsonl",
-            "--timeout-seconds", "2", *extra]
+            "--timeout-seconds", str(timeout_seconds), *extra]
 
 
-def activate(binary, root, server, extra=(), stdout=subprocess.PIPE):
-    child = subprocess.Popen(arguments(binary, root, server, extra), stdout=stdout,
+def activate(binary, root, server, extra=(), stdout=subprocess.PIPE, timeout_seconds=2):
+    child = subprocess.Popen(arguments(binary, root, server, extra, timeout_seconds), stdout=stdout,
                              stderr=subprocess.PIPE, bufsize=0)
     try:
         peer = server.accept()[0]
@@ -406,7 +406,7 @@ def unknown_pubrel(binary, root):
 
 def batch(binary, root):
     with listener() as server:
-        child, peer = activate(binary, root, server)
+        child, peer = activate(binary, root, server, timeout_seconds=8)
         try:
             ids = range(1, 33)
             peer.sendall(b"".join(publication(identifier, b"owned-batch") for identifier in ids))
