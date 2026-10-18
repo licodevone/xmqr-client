@@ -53,14 +53,16 @@ def ready_subscriber(root, port, topic):
     return child
 
 
-def wait_journal_empty(path, seconds=8):
+def wait_journal_empty(path, seconds=8, topic=None):
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
         document = json.loads(path.read_text())
-        if document["pending"] == []:
+        pending = document["pending"]
+        if not pending or (topic is not None and all(entry["topic"] != topic for entry in pending)):
             return
         time.sleep(.1)
-    raise AssertionError("source QoS2 journal did not finish")
+    pending_topics = sorted({entry["topic"] for entry in pending})
+    raise AssertionError(("source QoS2 journal did not finish", topic, pending_topics))
 
 
 def assert_no_new_delivery(root, target_port, topic, seconds=4):
@@ -401,7 +403,7 @@ def main():
                                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                                       bufsize=0)
                     wait_markers(bridge_process, ('origem assinada',), seconds=15)
-                    wait_journal_empty(journal_path)
+                    wait_journal_empty(journal_path, topic='sensors/crash')
                     assert_no_new_delivery(root, target_port, 'mirror/crash')
                     bridge_process.terminate()
                     bridge_process.communicate(timeout=8)
