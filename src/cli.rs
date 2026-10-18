@@ -123,6 +123,8 @@ pub struct Cli {
     pub session_expiry: u32,
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub outbox_dir: Option<PathBuf>,
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    pub subscription_state_dir: Option<PathBuf>,
     pub disconnect_session_expiry: Option<u32>,
     pub message_expiry: Option<u32>,
     pub payload_format: Option<u8>,
@@ -157,6 +159,7 @@ pub const V5_SUBSCRIPTION_USAGE: &str = "MQTT 5 SUBSCRIBE: --unsubscribe-user-pr
 pub const AUTH_USAGE: &str = "Autenticacao MQTT 5: --auth-method plain (somente TLS, com --protocol-version 5; senha por arquivo privado ou prompt). --reauth-before-io confirma AUTH PLAIN apos CONNACK e antes de pub/sub; reautenticacao periodica ainda indisponivel.\n";
 pub const V5_WILL_USAGE: &str = "MQTT 5 Will: --will-message-expiry-seconds 0..4294967295, --will-payload-format 0|1, --will-content-type TEXTO (ate 256 bytes), --will-response-topic TOPICO (sem curingas), --will-correlation-data-hex HEX (ate 256 bytes), --will-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes). Exige --will-topic, mensagem Will e --protocol-version 5.\n";
 pub const OUTBOX_USAGE: &str = "Outbox duravel experimental (Linux/WSL): --outbox-dir DIRETORIO existente e privado (0700) exige pub --protocol-version 5 --qos 1|2 --clean-start false --session-expiry-seconds N --client-id ID fixo, uma mensagem. Repita o mesmo comando para retomar; nao remova o journal pendente se o broker negar Session Present. O arquivo contem payload em claro sob permissao 0600.\n";
+pub const SUBSCRIPTION_STATE_USAGE: &str = "Assinatura persistente experimental (Linux/WSL): --subscription-state-dir DIRETORIO privado (0700) exige sub --protocol-version 5 --clean-start false --session-expiry-seconds N --client-id ID fixo, sem --count. Repita a mesma assinatura para retomar quando o broker confirmar Session Present; sem sessao, o manifesto e preservado e o comando falha.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -206,6 +209,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut clean_start = None;
     let mut session_expiry = None;
     let mut outbox_dir = None;
+    let mut subscription_state_dir = None;
     let mut disconnect_session_expiry = None;
     let mut message_expiry = None;
     let mut payload_format = None;
@@ -385,6 +389,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             "--clean-start" => &mut clean_start,
             "--session-expiry-seconds" => &mut session_expiry,
             "--outbox-dir" => &mut outbox_dir,
+            "--subscription-state-dir" => &mut subscription_state_dir,
             "--disconnect-session-expiry-seconds" => &mut disconnect_session_expiry,
             _ => return Err(format!("opcao desconhecida: {flag}")),
         };
@@ -730,6 +735,21 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             || will_topic.is_some()
         {
             return Err("--outbox-dir exige pub MQTT 5 QoS 1|2, ID fixo, Clean Start false, Session Expiry positivo e uma mensagem sem Will/alias".into());
+        }
+    }
+    if subscription_state_dir.is_some() {
+        if !cfg!(target_os = "linux") {
+            return Err("--subscription-state-dir esta disponivel somente no Linux/WSL".into());
+        }
+        if protocol_version != ProtocolVersion::Mqtt5
+            || !matches!(&mode, Mode::Sub { count: None, .. })
+            || clean_start != SessionStart::Resume
+            || session_expiry == 0
+            || server_assigned_client_id
+            || client_id.is_none()
+            || will_topic.is_some()
+        {
+            return Err("--subscription-state-dir exige sub MQTT 5 sem --count, ID fixo, Clean Start false e Session Expiry positivo sem Will".into());
         }
     }
     let disconnect_session_expiry = disconnect_session_expiry
@@ -1122,6 +1142,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         clean_start,
         session_expiry,
         outbox_dir: outbox_dir.map(PathBuf::from),
+        subscription_state_dir: subscription_state_dir.map(PathBuf::from),
         disconnect_session_expiry,
         message_expiry,
         payload_format,
@@ -1721,6 +1742,49 @@ mod tests {
             let position = args.iter().position(|item| item == invalid[0]).unwrap();
             args[position + 1] = invalid[1].to_owned();
             assert!(parse(args).is_err(), "{invalid:?}");
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn durable_subscription_requires_stable_uncounted_mqtt5_session() {
+        use super::parse;
+        let base = [
+            "sub",
+            "--open-lab",
+            "--topic",
+            "test/#",
+            "--protocol-version",
+            "5",
+            "--qos",
+            "1",
+            "--clean-start",
+            "false",
+            "--session-expiry-seconds",
+            "60",
+            "--client-id",
+            "durable-sub",
+            "--subscription-state-dir",
+            "/tmp/xmqr-sub-test",
+        ];
+        let args = |extra: &[&str]| {
+            base.iter()
+                .chain(extra)
+                .map(|s| (*s).to_owned())
+                .collect::<Vec<_>>()
+        };
+        assert!(parse(args(&[])).unwrap().subscription_state_dir.is_some());
+        assert!(parse(args(&["--count", "1"])).is_err());
+        assert!(parse(args(&["--will-topic", "last", "--will-message", "bye"])).is_err());
+        for (flag, bad) in [
+            ("--protocol-version", "3.1.1"),
+            ("--clean-start", "true"),
+            ("--session-expiry-seconds", "0"),
+        ] {
+            let mut input = args(&[]);
+            let index = input.iter().position(|value| value == flag).unwrap();
+            input[index + 1] = bad.into();
+            assert!(parse(input).is_err(), "{flag}");
         }
     }
 

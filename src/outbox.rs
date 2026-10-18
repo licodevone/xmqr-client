@@ -1,4 +1,4 @@
-//! Private, single-operation MQTT 5 `QoS` 1 journal for Linux/WSL.
+//! Private, single-operation MQTT 5 journals for Linux/WSL.
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Write},
@@ -16,6 +16,8 @@ const PENDING: &str = "pending.json";
 const TEMP: &str = "pending.tmp";
 const PENDING_QOS2: &str = "pending-qos2.json";
 const TEMP_QOS2: &str = "pending-qos2.tmp";
+const SUBSCRIPTION: &str = "subscription.json";
+const SUBSCRIPTION_TEMP: &str = "subscription.tmp";
 const LOCK: &str = "outbox.lock";
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -59,6 +61,41 @@ pub(crate) struct PendingQos2 {
     pub operation: Operation,
     pub stage: Qos2Stage,
     pub packet_id: u16,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct SubscriptionSpec {
+    pub host: String,
+    pub port: u16,
+    pub client_id: String,
+    pub username: Option<String>,
+    pub session_expiry: u32,
+    pub filters: Vec<String>,
+    pub qos: u8,
+    pub retain_handling: u8,
+    pub no_local: bool,
+    pub retain_as_published: bool,
+    pub identifier: Option<usize>,
+    pub user_properties: Vec<(String, String)>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) enum SubscriptionStage {
+    Prepared,
+    Active,
+}
+
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct PendingSubscription {
+    pub spec: SubscriptionSpec,
+    pub stage: SubscriptionStage,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SubscriptionDocument {
+    version: u8,
+    pending: PendingSubscription,
+    checksum: [u8; 32],
 }
 
 #[derive(Serialize, Deserialize)]
@@ -127,6 +164,7 @@ impl Outbox {
         };
         outbox.remove_stale_temp(TEMP)?;
         outbox.remove_stale_temp(TEMP_QOS2)?;
+        outbox.remove_stale_temp(SUBSCRIPTION_TEMP)?;
         Ok(outbox)
     }
 
@@ -166,7 +204,10 @@ impl Outbox {
     }
 
     pub(crate) fn prepare(&self, operation: Operation) -> io::Result<PendingQos1> {
-        if self.load()?.is_some() || self.load_qos2()?.is_some() {
+        if self.load()?.is_some()
+            || self.load_qos2()?.is_some()
+            || self.load_subscription()?.is_some()
+        {
             return Err(io::Error::new(
                 io::ErrorKind::AlreadyExists,
                 "outbox pendente",
@@ -235,7 +276,10 @@ impl Outbox {
     }
 
     pub(crate) fn prepare_qos2(&self, operation: Operation) -> io::Result<PendingQos2> {
-        if self.load()?.is_some() || self.load_qos2()?.is_some() {
+        if self.load()?.is_some()
+            || self.load_qos2()?.is_some()
+            || self.load_subscription()?.is_some()
+        {
             return Err(io::Error::new(
                 io::ErrorKind::AlreadyExists,
                 "outbox pendente",
@@ -280,6 +324,111 @@ impl Outbox {
         self.load_qos2()?
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "outbox QoS 2 ausente"))?;
         fs::remove_file(self.path.join(PENDING_QOS2))?;
+        self.directory.sync_all()
+    }
+
+    pub(crate) fn load_subscription(&self) -> io::Result<Option<PendingSubscription>> {
+        let file = match OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(self.path.join(SUBSCRIPTION))
+        {
+            Ok(file) => file,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error),
+        };
+        private(&file.metadata()?, self.uid, 0o600, false)?;
+        let mut bytes = Vec::new();
+        file.take(MAX_DOCUMENT_BYTES + 1).read_to_end(&mut bytes)?;
+        if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "manifesto excede limite",
+            ));
+        }
+        let document: SubscriptionDocument = serde_json::from_slice(&bytes)
+            .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "manifesto corrompido"))?;
+        let serialized = serde_json::to_vec(&document.pending)?;
+        if document.version != DOCUMENT_VERSION
+            || Sha256::digest(serialized).as_slice() != document.checksum
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "manifesto corrompido",
+            ));
+        }
+        Ok(Some(document.pending))
+    }
+
+    pub(crate) fn prepare_subscription(
+        &self,
+        spec: SubscriptionSpec,
+    ) -> io::Result<PendingSubscription> {
+        if self.load()?.is_some()
+            || self.load_qos2()?.is_some()
+            || self.load_subscription()?.is_some()
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                "journal pendente",
+            ));
+        }
+        let pending = PendingSubscription {
+            spec,
+            stage: SubscriptionStage::Prepared,
+        };
+        self.write_subscription(&pending)?;
+        Ok(pending)
+    }
+
+    pub(crate) fn activate_subscription(&self) -> io::Result<()> {
+        let mut pending = self.load_subscription()?.ok_or_else(|| {
+            io::Error::new(io::ErrorKind::NotFound, "manifesto de assinatura ausente")
+        })?;
+        pending.stage = SubscriptionStage::Active;
+        self.write_subscription(&pending)
+    }
+
+    pub(crate) fn remove_unactivated_subscription(&self) -> io::Result<()> {
+        let pending = self.load_subscription()?.ok_or_else(|| {
+            io::Error::new(io::ErrorKind::NotFound, "manifesto de assinatura ausente")
+        })?;
+        if pending.stage != SubscriptionStage::Prepared {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "assinatura ja ativa",
+            ));
+        }
+        fs::remove_file(self.path.join(SUBSCRIPTION))?;
+        self.directory.sync_all()
+    }
+
+    fn write_subscription(&self, pending: &PendingSubscription) -> io::Result<()> {
+        let serialized = serde_json::to_vec(pending)?;
+        let document = SubscriptionDocument {
+            version: DOCUMENT_VERSION,
+            pending: pending.clone(),
+            checksum: Sha256::digest(serialized).into(),
+        };
+        let bytes = serde_json::to_vec(&document)?;
+        if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "manifesto excede limite",
+            ));
+        }
+        let mut temp = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(self.path.join(SUBSCRIPTION_TEMP))?;
+        temp.write_all(&bytes)?;
+        temp.sync_all()?;
+        fs::rename(
+            self.path.join(SUBSCRIPTION_TEMP),
+            self.path.join(SUBSCRIPTION),
+        )?;
         self.directory.sync_all()
     }
 
@@ -355,7 +504,7 @@ impl Outbox {
 
 #[cfg(test)]
 mod tests {
-    use super::{Operation, Outbox, Qos2Stage, Stage};
+    use super::{Operation, Outbox, Qos2Stage, Stage, SubscriptionSpec, SubscriptionStage};
     use std::{
         fs, io,
         os::unix::fs::{MetadataExt, PermissionsExt, symlink},
@@ -375,6 +524,23 @@ mod tests {
             response_topic: None,
             correlation_data: Some(vec![1, 2]),
             user_properties: vec![("trace".into(), "one".into())],
+        }
+    }
+
+    fn subscription() -> SubscriptionSpec {
+        SubscriptionSpec {
+            host: "127.0.0.1".into(),
+            port: 1883,
+            client_id: "durable-sub".into(),
+            username: None,
+            session_expiry: 60,
+            filters: vec!["test/#".into()],
+            qos: 1,
+            retain_handling: 0,
+            no_local: false,
+            retain_as_published: false,
+            identifier: None,
+            user_properties: Vec::new(),
         }
     }
 
@@ -496,5 +662,46 @@ mod tests {
             outbox.load_qos2().err().unwrap().kind(),
             io::ErrorKind::InvalidData
         );
+    }
+
+    #[test]
+    fn subscription_manifest_survives_reopen_and_rejects_corruption() {
+        let directory = tempfile::tempdir().unwrap();
+        fs::set_permissions(directory.path(), fs::Permissions::from_mode(0o700)).unwrap();
+        let outbox = Outbox::open(directory.path()).unwrap();
+        let prepared = outbox.prepare_subscription(subscription()).unwrap();
+        assert!(matches!(prepared.stage, SubscriptionStage::Prepared));
+        assert!(Outbox::open(directory.path()).is_err());
+        assert!(outbox.prepare(operation()).is_err());
+        drop(outbox);
+        let outbox = Outbox::open(directory.path()).unwrap();
+        assert_eq!(
+            outbox.load_subscription().unwrap().unwrap().spec,
+            subscription()
+        );
+        outbox.activate_subscription().unwrap();
+        drop(outbox);
+        let outbox = Outbox::open(directory.path()).unwrap();
+        assert!(matches!(
+            outbox.load_subscription().unwrap().unwrap().stage,
+            SubscriptionStage::Active
+        ));
+        assert!(outbox.remove_unactivated_subscription().is_err());
+        let path = directory.path().join("subscription.json");
+        fs::write(&path, b"{}").unwrap();
+        assert_eq!(
+            outbox.load_subscription().err().unwrap().kind(),
+            io::ErrorKind::InvalidData
+        );
+        fs::remove_file(&path).unwrap();
+        symlink("outside", &path).unwrap();
+        assert!(outbox.load_subscription().is_err());
+
+        let fresh = tempfile::tempdir().unwrap();
+        fs::set_permissions(fresh.path(), fs::Permissions::from_mode(0o700)).unwrap();
+        let outbox = Outbox::open(fresh.path()).unwrap();
+        outbox.prepare_subscription(subscription()).unwrap();
+        outbox.remove_unactivated_subscription().unwrap();
+        assert!(outbox.load_subscription().unwrap().is_none());
     }
 }

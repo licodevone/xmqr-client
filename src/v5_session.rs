@@ -20,7 +20,10 @@ use crate::{
 };
 
 #[cfg(target_os = "linux")]
-use crate::outbox::{Operation, Outbox, PendingQos1, PendingQos2, Qos2Stage, Stage};
+use crate::outbox::{
+    Operation, Outbox, PendingQos1, PendingQos2, PendingSubscription, Qos2Stage, Stage,
+    SubscriptionSpec, SubscriptionStage,
+};
 
 #[cfg(target_os = "linux")]
 enum DurableOutboxState {
@@ -628,6 +631,12 @@ async fn run_inner(
     } else {
         None
     };
+    #[cfg(target_os = "linux")]
+    let subscription_state = if cli.subscription_state_dir.is_some() {
+        Some(prepare_subscription_state(cli).await?)
+    } else {
+        None
+    };
     let (client, mut events) = AsyncClient::new(options, 8);
     let limit = Duration::from_secs(u64::from(cli.timeout_seconds));
     let (broker_topic_alias_maximum, session_present) = loop {
@@ -667,7 +676,17 @@ async fn run_inner(
         reauthenticate(cli, password, &client, &mut events, limit).await?;
     }
     let Mode::Pub { topic, .. } = &cli.mode else {
-        return subscribe(cli, &client, &mut events, limit).await;
+        return subscribe(
+            cli,
+            &client,
+            &mut events,
+            limit,
+            #[cfg(target_os = "linux")]
+            subscription_state,
+            #[cfg(target_os = "linux")]
+            session_present,
+        )
+        .await;
     };
     if let Some(alias) = cli.publish_topic_alias
         && alias > broker_topic_alias_maximum
@@ -837,6 +856,50 @@ async fn prepare_outbox(cli: &Cli, publication: &Publication) -> io::Result<Dura
                     let pending = outbox.prepare(operation)?;
                     Ok(DurableOutboxState::Qos1(outbox, pending, false))
                 }
+            }
+        }
+    })
+    .await
+}
+
+#[cfg(target_os = "linux")]
+async fn prepare_subscription_state(cli: &Cli) -> io::Result<(Outbox, PendingSubscription, bool)> {
+    let Mode::Sub { filters, .. } = &cli.mode else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "manifesto exige sub",
+        ));
+    };
+    let spec = SubscriptionSpec {
+        host: cli.host.clone(),
+        port: cli.port,
+        client_id: cli.client_id.clone(),
+        username: cli.username.clone(),
+        session_expiry: cli.session_expiry,
+        filters: filters.clone(),
+        qos: cli.qos as u8,
+        retain_handling: cli.subscription_options.retain_handling,
+        no_local: cli.subscription_options.no_local,
+        retain_as_published: cli.subscription_options.retain_as_published,
+        identifier: cli.subscription_options.identifier,
+        user_properties: cli.subscribe_user_properties.clone(),
+    };
+    let directory = cli
+        .subscription_state_dir
+        .as_ref()
+        .expect("CLI validated subscription state")
+        .clone();
+    disk_operation(move || {
+        let outbox = Outbox::open(&directory)?;
+        match outbox.load_subscription()? {
+            Some(pending) if pending.spec == spec => Ok((outbox, pending, true)),
+            Some(_) => Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "manifesto pertence a outra assinatura; conteudo preservado",
+            )),
+            None => {
+                let pending = outbox.prepare_subscription(spec)?;
+                Ok((outbox, pending, false))
             }
         }
     })
@@ -1189,11 +1252,63 @@ fn validate_subscription_identifiers(publish: &Publish) -> AppResult<()> {
     Ok(())
 }
 
+#[cfg(target_os = "linux")]
+async fn start_durable_subscription(
+    cli: &Cli,
+    client: &AsyncClient,
+    filters: &[String],
+    qos: rumqttc::v5::mqttbytes::QoS,
+    state: Option<(Outbox, PendingSubscription, bool)>,
+    session_present: bool,
+) -> AppResult<(bool, Option<Outbox>)> {
+    let Some((outbox, pending, existed)) = state else {
+        send_subscribe(
+            client,
+            filters,
+            qos,
+            cli.subscription_options,
+            &cli.subscribe_user_properties,
+        )
+        .await?;
+        return Ok((false, None));
+    };
+    if existed && pending.stage == SubscriptionStage::Active {
+        if !session_present {
+            return Err(protocol_error(
+                "broker nao confirmou sessao de assinatura; manifesto preservado sem re-assinar",
+            )
+            .into());
+        }
+        cli.output
+            .status("Assinatura retomada (MQTT 5). Aguardando mensagens; Ctrl+C para sair.");
+        return Ok((true, Some(outbox)));
+    }
+    if !existed && session_present {
+        disk_operation(move || outbox.remove_unactivated_subscription()).await?;
+        return Err(protocol_error(
+            "sessao existente antes da primeira assinatura; nenhum SUBSCRIBE enviado",
+        )
+        .into());
+    }
+    send_subscribe(
+        client,
+        filters,
+        qos,
+        cli.subscription_options,
+        &cli.subscribe_user_properties,
+    )
+    .await?;
+    Ok((false, Some(outbox)))
+}
+
+#[allow(clippy::too_many_lines)] // SUBACK commit and message output share one event loop.
 async fn subscribe(
     cli: &Cli,
     client: &AsyncClient,
     events: &mut rumqttc::v5::EventLoop,
     limit: Duration,
+    #[cfg(target_os = "linux")] subscription_state: Option<(Outbox, PendingSubscription, bool)>,
+    #[cfg(target_os = "linux")] session_present: bool,
 ) -> AppResult<()> {
     let Mode::Sub {
         filters,
@@ -1208,15 +1323,28 @@ async fn subscribe(
         QoS::AtLeastOnce => rumqttc::v5::mqttbytes::QoS::AtLeastOnce,
         QoS::ExactlyOnce => rumqttc::v5::mqttbytes::QoS::ExactlyOnce,
     };
-    send_subscribe(
+    #[cfg(target_os = "linux")]
+    let (mut acknowledged, mut subscription_journal) = start_durable_subscription(
+        cli,
         client,
         filters,
         qos,
-        cli.subscription_options,
-        &cli.subscribe_user_properties,
+        subscription_state,
+        session_present,
     )
     .await?;
-    let mut acknowledged = false;
+    #[cfg(not(target_os = "linux"))]
+    let mut acknowledged = {
+        send_subscribe(
+            client,
+            filters,
+            qos,
+            cli.subscription_options,
+            &cli.subscribe_user_properties,
+        )
+        .await?;
+        false
+    };
     let mut received = 0_u64;
     let mut aliases = HashMap::new();
     loop {
@@ -1244,6 +1372,15 @@ async fn subscribe(
                     if !matches!(reason, SubscribeReasonCode::Success(granted) if *granted == qos) {
                         return Err(suback_refusal(index, *reason).into());
                     }
+                }
+                #[cfg(target_os = "linux")]
+                if let Some(outbox) = subscription_journal.take() {
+                    let outbox = disk_operation(move || {
+                        outbox.activate_subscription()?;
+                        Ok(outbox)
+                    })
+                    .await?;
+                    subscription_journal = Some(outbox);
                 }
                 acknowledged = true;
                 cli.output
