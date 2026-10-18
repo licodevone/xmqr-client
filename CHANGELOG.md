@@ -4,6 +4,7 @@
 
 - C117 exige `--allow-remote-wss` para URL WSS não loopback e mantém CA/SAN, certificado cliente, credenciais e subprotocolo seguros; sem fallback WS.
 - O perfil TOML v1 aceita `ws_url` WSS mTLS em loopback e `--ws-url` explícito pode substituir a URL do perfil; conflito com host/port, TLS-senha e estado durável é recusado. Sem novo estado nem alteração do pacote 0.33.0.
+- C118 distribui C116/C117 com pacote Ubuntu 26.04 amd64, imagem numerada e seis anexos verificados por SHA-256 remoto.
 
 ## 0.33.0 — WSS mTLS local (experimental)
 

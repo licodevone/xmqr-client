@@ -1,10 +1,11 @@
 # Versionamento
 
-O candidato 0.34.0 inclui C116/C117: perfil WSS mTLS e acesso remoto somente
+O 0.34.0 publicado inclui C116/C117: perfil WSS mTLS e acesso remoto somente
 com `--allow-remote-wss`. Manifestos duráveis não mudam; o 0.33.0 os lê, mas
-não contém esses recursos. Broker 0.41.0/P214 é o par previsto. Publicar após
-CI da fonte exata, pacote Ubuntu, rollback descartável, imagem por digest e
-verificação dos anexos. [Nota candidata](docs/releases/0.34.0.md).
+não contém esses recursos. Broker 0.41.0/P214 é o par distribuído. CI da fonte
+exata, pacote Ubuntu, rollback descartável, imagem por digest e seis hashes
+remotos PASS. [Release](https://github.com/licodevone/xmqr-client/releases/tag/v0.34.0),
+[nota](docs/releases/0.34.0.md) e [registro](prompts/registros/C118-release-0.34.0.md).
 Fase 7 global aberta.
 
 A prerelease 0.33.0 distribui C114 WSS mTLS local sem alterar manifestos
