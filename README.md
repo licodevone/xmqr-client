@@ -5,7 +5,8 @@ em `[connection]` do perfil TOML v1. O perfil reutiliza CA/certificado/chave,
 usuário e arquivo privado de senha; `--ws-url` explícito tem precedência.
 `host`/`port` efetivos junto da URL são recusados. WS aberto por perfil,
 TLS-senha, estado durável por URL, navegador e acesso remoto continuam fora
-do escopo. [Prompt C116](prompts/clients/116-wss-mtls-profile.md).
+do escopo. [Prompt C116](prompts/clients/116-wss-mtls-profile.md) e
+[registro](prompts/registros/C116-wss-mtls-profile.md).
 
 A prerelease experimental 0.33.0 reúne C114: `--ws-url wss://127.0.0.1:PORTA/mqtt`
 permite MQTT 3.1.1/5 via WSS com CA/SAN, certificado de cliente e credenciais
