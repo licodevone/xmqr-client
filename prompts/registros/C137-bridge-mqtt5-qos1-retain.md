@@ -32,6 +32,10 @@ integra uma release.
 - Regressões C136 MQTT 5/QoS 0, MQTT 3.1.1 QoS 1 e QoS 2 (dois checkpoints
   de crash) com XMQR e Mosquitto: PASS.
 
-CI da fonte exata pendente antes de marcar esta fatia no plano. T02/fase 8
+[CI da fonte exata `9a02631`](https://github.com/licodevone/xmqr-client/actions/runs/39169197510):
+PASS nos cinco jobs (Rust, imagem, pacote Ubuntu, integração da bridge e
+integração do binário extraído do pacote). O job debug executou o checkpoint
+de crash; a variante de pacote o pulou explicitamente, como previsto.
+T02/fase 8
 continua aberta para propriedades MQTT 5, ciclos externos, semântica ampliada
 e distribuição/homologação da nova fatia.
