@@ -62,6 +62,7 @@ fn expand_with(
                 | "--open-lab"
                 | "--plain-auth-lab"
                 | "--tls-password"
+                | "--allow-remote-wss"
         ) {
             1
         } else {
@@ -292,6 +293,18 @@ mod tests {
         })
         .unwrap();
         assert!(crate::cli::parse(expanded).is_err());
+    }
+
+    #[test]
+    fn remote_wss_profile_requires_explicit_flag() {
+        let text = "version=1\n[connection]\nws_url='wss://broker.example:8084/mqtt'\nusername='device'\nca='ca.crt'\ncert='client.crt'\nkey='client.key'\n";
+        assert!(parse_profile(text, &[]).is_err());
+        let cli = parse_profile(text, &["--allow-remote-wss"]).unwrap();
+        assert_eq!(
+            cli.ws_url.as_deref(),
+            Some("wss://broker.example:8084/mqtt")
+        );
+        assert!(parse_profile(text, &["--allow-remote-wss", "--host", "127.0.0.1"]).is_err());
     }
 
     #[test]
