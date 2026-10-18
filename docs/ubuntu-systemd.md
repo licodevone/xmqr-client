@@ -4,15 +4,17 @@ Alvo: Ubuntu26.04 amd64. Construção requer Rust, Python3 e dpkg-dev:
 
 ```sh
 python3 scripts/build_deb.py
-sudo apt install ./dist/xmqr-client_0.40.0-1_amd64.deb
+sudo apt install ./dist/xmqr-client_0.41.0-1_amd64.deb
 mqtt-client --version
 mqtt-bridge --version
 ```
 
-O exemplo usa a [prerelease 0.40.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.40.0).
-Para instalar o pacote publicado, baixe também o `.sha256` da mesma release,
-execute `sha256sum -c xmqr-client_0.40.0-1_amd64.deb.sha256` na pasta dos
-dois arquivos e só então instale. A unit da bridge continua desabilitada.
+O exemplo usa a candidata 0.41.0 construída localmente; a última
+[prerelease publicada é 0.40.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.40.0)
+até o aceite C138. Para instalar um pacote publicado, baixe também o
+`.sha256` da mesma release, execute
+`sha256sum -c xmqr-client_0.41.0-1_amd64.deb.sha256` na pasta dos dois
+arquivos e só então instale. A unit da bridge continua desabilitada.
 
 O pacote instala `mqtt-client` e `mqtt-bridge` em `/usr/bin`, licenças e três units template
 opcionais. Não ativa nem inicia clientes. Cria usuário sem login `xmqr-client`.
@@ -49,7 +51,7 @@ ACK só comprova protocolo. Não há timer instalado nem reenvio automático.
 As templates usam um filtro e TLS/mTLS; múltiplos filtros e outros parâmetros
 podem ser configurados por um override de ExecStart explícito.
 
-O sidecar experimental C125–C127 fica disponível como `mqtt-bridge`, mas não
+O sidecar experimental C125–C137 fica disponível como `mqtt-bridge`, mas não
 é iniciado pela instalação. Para uma instância `lab`, crie
 `/etc/xmqr-client/bridge-lab.toml` e o manifesto de topologia em
 `/etc/xmqr-client/bridge-topology.toml` conforme o

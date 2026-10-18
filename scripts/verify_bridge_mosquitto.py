@@ -130,9 +130,12 @@ def case(broker_root, direction, qos, mqtt5_retain=False):
         bridge = None
         try:
             wait_port(xmqr, xmqr_port)
-            docker("run", "-d", "--name", container, "--user", "0:0",
-                   "-p", f"127.0.0.1:{mosq_port}:1883", "-v", f"{root}:/fixture:ro",
-                   "eclipse-mosquitto:2.0.22", "mosquitto", "-c", "/fixture/mosquitto.conf")
+            try:
+                docker("run", "-d", "--name", container, "--user", "0:0",
+                       "-p", f"127.0.0.1:{mosq_port}:1883", "-v", f"{root}:/fixture:ro",
+                       "eclipse-mosquitto:2.0.22", "mosquitto", "-c", "/fixture/mosquitto.conf")
+            except subprocess.CalledProcessError as error:
+                raise AssertionError(f"Docker listener startup: {error.stderr[-500:]}") from error
             wait_docker(mosq_port)
             if mqtt5_retain:
                 retained = subprocess.run(command(root, source_port, "pub",

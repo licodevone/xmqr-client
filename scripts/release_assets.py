@@ -106,7 +106,7 @@ def main():
                  '--cap-drop=ALL', '--security-opt', 'no-new-privileges',
                  '--entrypoint', '/usr/local/bin/mqtt-bridge', reference,
                  '--version'], text=True).strip()
-            if bridge_version != f'mqtt-bridge 0.2.0 (xmqr-client {version})':
+            if bridge_version != f'mqtt-bridge 0.3.0 (xmqr-client {version})':
                 raise ValueError('bridge binary/version differs from image/source')
             metadata['bridge_version_output'] = bridge_version
         destination = args.output / f'{repository}-{version}-linux-amd64.tar.gz'

@@ -1,11 +1,20 @@
 # xmqr-client
 
+A candidata 0.41.0 do client inclui `mqtt-bridge 0.3.0` com origem MQTT 5
+opt-in em QoS 0/1 e Retain As Published, preservando replay e publicações
+retained vivas no destino MQTT 3.1.1. C137 confirma PUBACK na origem somente
+após PUBACK no destino para QoS 1; a janela de crash admite duplicação.
+[Guia](docs/bridge-one-way.md), [C136](prompts/registros/C136-bridge-mqtt5-retain-as-published.md)
+e [C137](prompts/registros/C137-bridge-mqtt5-qos1-retain.md). A publicação
+0.41.0 depende dos gates C138. A [fase 6](https://github.com/licodevone/xmqr/blob/main/docs/phase6-acceptance.md)
+foi aceita no recorte finito do broker 0.43.0; a fase 8 segue aberta.
+
 A prerelease experimental 0.40.0 distribui C134: bridge MQTT 3.1.1 QoS 2 com journal
 privado da origem e retomada de sessão nas duas pontas. O binário da bridge
 passa a `mqtt-bridge 0.2.0`; a release 0.39.0 continua limitada a QoS 0/1.
 Veja a [release](https://github.com/licodevone/xmqr-client/releases/tag/v0.40.0),
 [nota](docs/releases/0.40.0.md) e [registro C135](prompts/registros/C135-release-0.40.0.md).
-Não há aceite global das fases 6 ou 8 com este pacote.
+Na data desta release histórica, as fases 6 e 8 ainda não tinham aceite.
 
 A fonte C134 acrescenta bridge MQTT 3.1.1 QoS 2 com journal privado da
 origem, retomada condicionada à sessão e ensaios de queda. A
