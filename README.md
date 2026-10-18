@@ -1,5 +1,11 @@
 # xmqr-client
 
+O candidato experimental 0.31.0 distribui C110: com manifesto de assinatura
+MQTT 5 no Linux/WSL, o ACK QoS 1/2 ocorre após a saída; erro de stdout deixa
+o broker reenviar. Ainda não há journal inbound nem processamento exatamente
+uma vez. [Prompt C111](prompts/clients/111-release-0.31.0.md) e
+[nota candidata](docs/releases/0.31.0.md). Fases globais abertas.
+
 A release experimental 0.30.0 reúne C107/C108 sobre a release 0.29.0.
 C107 retoma uma publicação QoS 2 por estágio durável; C108 retoma a declaração
 de uma assinatura MQTT 5 sem reenviar SUBSCRIBE quando o broker confirma a

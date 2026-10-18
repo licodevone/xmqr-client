@@ -1,5 +1,10 @@
 # Histórico de versões
 
+## 0.31.0 — confirmação após saída da assinatura persistente (experimental)
+
+- C110: com `--subscription-state-dir`, PUBLISH MQTT 5 QoS 1/2 recebe PUBACK/PUBREC somente após validação, filtros e escrita/flush em stdout. Falha de saída não confirma; broker pode reenviar na sessão persistente. Mensagens filtradas são confirmadas.
+- O manifesto não guarda mensagens recebidas. Flush não garante gravação no consumidor; queda após flush e antes de ACK pode duplicar a saída. Sem promessa de processamento exatamente uma vez. M03/6B e demais fases globais permanecem abertas.
+
 ## 0.30.0 — outbox QoS 2 e declaração de assinatura persistente (experimental)
 
 - C107: `--outbox-dir` aceita uma publicação MQTT 5 QoS 2 por diretório Linux/WSL. O cliente grava a transição antes do PUBREL, retoma PUBLISH/DUP ou só PUBREL conforme o estágio e exige Session Present.
