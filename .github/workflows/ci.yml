@@ -42,3 +42,19 @@ jobs:
         with:
           name: xmqr-client-ubuntu26-amd64
           path: dist/*
+
+  bridge-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: licodevone/xmqr
+          ref: v0.42.0
+          path: broker
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --locked --bins
+      - run: cargo build --locked --bins --manifest-path broker/Cargo.toml
+      - run: python3 scripts/verify_bridge_brokers.py --broker-root broker
+      - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker
