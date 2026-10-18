@@ -222,6 +222,21 @@ def main():
             rejected = subprocess.run([str(BRIDGE), "--config", str(mismatch)],
                                       capture_output=True, timeout=5)
             assert rejected.returncode == 2, "route mismatch accepted"
+            missing_link = root / "missing-link.toml"
+            configuration(missing_link)
+            private(missing_link, missing_link.read_text().replace(
+                'link_id="primary"', 'link_id="absent"'))
+            rejected = subprocess.run([str(BRIDGE), "--config", str(missing_link)],
+                                      capture_output=True, timeout=5)
+            assert rejected.returncode == 2, "unlisted local link accepted"
+            duplicate = root / "duplicate.toml"
+            configuration(duplicate)
+            duplicate_topology = duplicate.with_suffix('.topology.toml')
+            private(duplicate_topology, duplicate_topology.read_text() +
+                    f'[[brokers]]\nid="alias"\nhost="localhost"\nport={source_port}\n')
+            rejected = subprocess.run([str(BRIDGE), "--config", str(duplicate)],
+                                      capture_output=True, timeout=5)
+            assert rejected.returncode == 2, "broker alias with same address accepted"
             unsafe = root / "unsafe.toml"
             configuration(unsafe)
             unsafe.with_suffix('.topology.toml').chmod(0o644)
