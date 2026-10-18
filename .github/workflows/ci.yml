@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, 'release/**']
   pull_request:
 permissions:
   contents: read
@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -18,6 +20,17 @@ jobs:
       - run: cargo test --locked
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo build --locked
+      - name: C129 inbound journal (all 21 cases) and compatibility
+        run: |
+          python3 -B -m unittest discover -s scripts -p test_c129_harness.py -v
+          python3 -B scripts/verify_subscription_inbound_journal_mqtt5.py --client target/debug/mqtt-client --report dist/c129-ci-inbound.json
+          python3 -B scripts/verify_c129_compatibility.py --client target/debug/mqtt-client --report dist/c129-ci-compatibility.json
+      - name: C129 actual draft-v1 to v2 migration
+        run: |
+          mkdir -p "$RUNNER_TEMP/c129-legacy"
+          git archive 5ba9cf67a36b3c196bd1b60b35b74819d4768c47 | tar -x -C "$RUNNER_TEMP/c129-legacy"
+          cargo build --locked --bin mqtt-client --manifest-path "$RUNNER_TEMP/c129-legacy/Cargo.toml" --target-dir "$RUNNER_TEMP/c129-legacy-target"
+          python3 -B scripts/verify_c129_v1_migration.py --legacy-client "$RUNNER_TEMP/c129-legacy-target/debug/mqtt-client" --client target/debug/mqtt-client --report dist/c129-ci-v1-migration.json
       - run: python3 -B scripts/verify_wss_client.py
       - run: python3 -B scripts/verify_wss_durable_subscription.py
       - run: python3 scripts/verify_subscription_user_properties_mqtt5.py
@@ -27,6 +40,11 @@ jobs:
       - run: python3 scripts/verify_durable_subscription_mqtt5.py
       - run: python3 scripts/verify_subscription_ack_after_output_mqtt5.py
       - run: python3 scripts/license_inventory.py --check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c129-fixture-reports
+          path: dist/c129-ci-*.json
 
   ubuntu-package:
     runs-on: ubuntu-latest
@@ -37,6 +55,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.99.0
       - run: python3 scripts/build_deb.py
       - run: apt-get install -y ./dist/*.deb
+      - run: test "$(mqtt-client --version)" = 'mqtt-client 0.38.0' && test ! -e /usr/bin/mqtt-bridge
       - run: systemd-analyze verify /usr/lib/systemd/system/xmqr-client-sub@.service /usr/lib/systemd/system/xmqr-client-pub@.service
       - uses: actions/upload-artifact@v4
         with:

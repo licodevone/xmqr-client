@@ -1,5 +1,19 @@
 # xmqr-client
 
+## Candidato experimental 0.38.0 — C129
+
+A distribuição em preparação reúne o [journal inbound MQTT 5](docs/mqtt5-inbound-journal.md)
+para assinatura persistente Linux/WSL, incluindo recusa de órfãos, replay com
+Subscription Identifiers mutáveis e leitura validada do draft v1 antes de
+gravar v2 na transição seguinte. A janela stdout→commit não é atômica e pode
+duplicar a saída; ACK não comprova processamento por um consumidor externo.
+[Nota e cuidados de upgrade/rollback](docs/releases/0.38.0.md).
+O client 0.36.0 publicado não deve abrir diretórios C129 pendentes. Preserve
+backups privados e use binário compatível para retomar, sem apagar o journal.
+Os pacotes/imagens desta entrega contêm somente mqtt-client, não a bridge.
+CI/artefatos/publicação devem ser conferidos no [registro C131](prompts/registros/C131-release-0.38.0.md).
+Fase 6 global e homologação Windows dos journals não são declaradas concluídas.
+
 Em `main` após v0.36.0, as fatias experimentais C125–C127 acrescentam o
 sidecar `mqtt-bridge` unidirecional TLS/mTLS QoS 0/1. Ele ainda não integra o
 pacote/imagem publicados. [Guia, configuração e limites](docs/bridge-one-way.md).

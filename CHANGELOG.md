@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## 0.38.0 — journal inbound MQTT 5 (prerelease experimental)
+
+- C129 guarda obrigações QoS 1/2 recebidas na assinatura persistente Linux/WSL, antes da saída e dos ACKs. Retomada exige a sessão do broker e preserva os limites de bytes e filas existentes; não garante processamento exatamente uma vez nem atomicidade com stdout.
+- Recusa journal inbound órfão antes de modificar arquivos ou conectar. Identidade de replay ignora Subscription Identifiers mutáveis, preservando metadados e checksum originais; corrige contagem da propriedade no fork rumqttc.
+- Documento inbound v2 lê o draft v1 validado sem reescrevê-lo até a próxima transição durável. Não execute client 0.36.0 sobre diretórios C129 pendentes; veja a nota de release.
+- Distribuição somente de mqtt-client. Bridge C125–C128 não integra este pacote/imagem e a versão 0.37.0 em elaboração permanece separada. Fase 6 global não é encerrada por esta release.
+
 ## 0.36.0 — estado durável MQTT 5 por WSS mTLS (prerelease experimental)
 
 - Manifesto MQTT 5 de assinatura persistente aceita WSS mTLS local/remoto, usando URL canônica como destino e preservando manifestos TCP. WS aberto continua sem estado local.

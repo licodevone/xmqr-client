@@ -1,5 +1,12 @@
 # Versionamento
 
+Candidato0.38.0 em branch `release/0.38.0` isolada: distribui somente
+mqtt-client/C129, preservando a0.37.0/C128 em elaboração. Documento inbound
+v2 aceita draftv1 válido sem escrita na leitura; demais journals/manifesto
+mantêm versão1. Client036 não conhece inboundC129: downgrade do pacote não
+autoriza retomar esse estado com binário antigo. [Nota](docs/releases/0.38.0.md)
+e [registro](prompts/registros/C131-release-0.38.0.md). Tag somente após gates.
+
 `main` depois da tag 0.36.0 contém as fatias experimentais C125–C127 da
 bridge em binário separado `mqtt-bridge 0.1.0-dev`; não integra o `.deb` nem a
 imagem 0.36.0. A fase 8 permanece aberta. [Contrato e limites](docs/bridge-one-way.md).
