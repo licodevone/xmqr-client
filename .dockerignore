@@ -24,6 +24,7 @@
 !packaging/notices/valuable-0.1.1/LICENSE
 !packaging/notices/rumqttc-0.25.1/
 !packaging/notices/rumqttc-0.25.1/LICENSE
+vendor/rumqttc-0.25.1/target/
 **/.env*
 **/*.key
 **/*.pem

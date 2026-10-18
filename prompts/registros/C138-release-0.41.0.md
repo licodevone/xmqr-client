@@ -37,6 +37,16 @@ de flake no CI.
 
 `dpkg-shlibdeps` advertiu sobre diversions da libc6 do WSL; o pacote
 construiu e passou no contêiner nativo. O hash do pacote local não prova
-reprodutibilidade bit a bit do pacote da CI. CI da candidata, imagem,
-digest, tag, anexos remotos e publicação ainda pendentes. A fase 8/T02
-permanece aberta.
+reprodutibilidade bit a bit do pacote da CI.
+
+A [CI da candidata `eb017e3`](https://github.com/licodevone/xmqr-client/actions/runs/39170168298)
+passou nos cinco jobs, incluindo pacote e imagem em checkout limpo. O
+build Docker **local** do mesmo código falhou duas vezes enviando contexto
+de 134 MB (`context canceled`); o `target/` não rastreado do crate
+vendorizado ocupa 639 MB. Após C138 v1.2 e exclusão explícita no
+`.dockerignore`, o build local terminou PASS sem remover a saída local.
+Os dois FAILs ficam preservados; a causa exata do cancelamento não foi
+provada, mas a exclusão reduz o contexto e elimina essa superfície.
+
+CI da fonte final com `.dockerignore`, digest remoto, tag, anexos e
+publicação ainda pendentes. A fase 8/T02 permanece aberta.
