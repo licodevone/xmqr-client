@@ -226,7 +226,7 @@ impl PublishProperties {
                 }
                 PropertyType::SubscriptionIdentifier => {
                     let (id_len, id) = length(bytes.iter())?;
-                    cursor += 1 + id_len;
+                    cursor += id_len; // Property identifier was counted before the match.
                     bytes.advance(id_len);
                     subscription_identifiers.push(id);
                 }
