@@ -6,4 +6,6 @@ Objetivo: adicionar `--ws-url ws://127.0.0.1:PORTA/CAMINHO` (ou `[::1]`) para `p
 
 Escopo: `Cargo.toml`/lock, CLI, configuração MQTT 3.1.1/5, documentação e testes. Sem WSS neste recorte; WSS seguro exigirá prompt posterior com CA/SAN/mTLS e ensaio próprio. Não alterar broker/admin, perfis nem estado persistente.
 
+Revisão de escopo antes do código: recusar `--outbox-dir` e `--subscription-state-dir` com `--ws-url` neste primeiro recorte. Os manifests atuais identificam host/porta TCP, não URL/caminho WebSocket; aceitar a combinação permitiria retomar uma operação em destino diferente. A integração durável com URL exigirá migração/versão própria. `--ws-url` fica somente na CLI explícita, sem expansão de perfil por enquanto.
+
 Aceite: negativos da CLI para URL externa, esquema errado, userinfo, query, fragmento, porta ausente/zero, conflito de destino e modo seguro; testes de seleção do transporte nos dois protocolos; fixture WebSocket local com subprotocolo `mqtt`, publicação/assinatura e recusa sem subprotocolo, mais regressão TCP/TLS. Fmt, suíte, Clippy, build, licenças/distribuição e CI da fonte exata. Registrar resultado parcial no checklist; fase 7 permanece aberta até WS/WSS broker+client e regressões completas. Sem tag/release isolada.
