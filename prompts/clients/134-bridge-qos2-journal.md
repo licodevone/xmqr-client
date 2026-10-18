@@ -1,4 +1,4 @@
-# C134 v1.2 — bridge QoS 2 com journal da origem
+# C134 v1.3 — bridge QoS 2 com journal da origem
 
 ## Entrada e fonte normativa
 
@@ -63,3 +63,11 @@ O primeiro `cargo test --bin mqtt-bridge` passou 3/3, mas Clippy falhou por
 essas três ocorrências sem mudar o contrato QoS 2; dividir a função em
 subrotinas somente se mantiver ordem journal→PUBREC e a serialização de um
 encaminhamento por vez. Repetir Clippy e testes antes da fixture de fio.
+
+O fluxo real QoS 2 sem crash passou, mas a primeira execução da fixture com
+checkpoint de crash falhou: o assinante do destino não recebeu a publicação
+até o timeout de 8 s, embora o marcador de checkpoint tenha sido observado.
+Diagnosticar qual checkpoint e se o subscriber foi registrado no destino
+antes do PUBLISH; capturar somente logs sanitizados/estado do journal e
+reexecutar o caso isolado. Não relaxar o oráculo de entrega ou marcar o crash
+como PASS por causa do smoke test sem crash.
