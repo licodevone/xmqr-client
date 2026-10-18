@@ -1,0 +1,7 @@
+# C110 — ACK de assinatura persistente após saída MQTT 5
+
+Entrada: client 0.30.0 publicado; C108 mantém manifesto de assinatura persistente no Linux/WSL. O fork `rumqttc` atual confirma PUBLISH QoS 1/2 automaticamente ao receber, antes de o client escrever e dar flush no stdout. Se a saída falha ou o processo cai nesse intervalo, o broker pode considerar a mensagem concluída. Este prompt precede o código C110.
+
+Objetivo observável: somente com `--subscription-state-dir`, habilitar ACK manual no EventLoop MQTT 5 e emitir PUBACK/PUBREC de PUBLISH QoS 1/2 apenas depois de validar tópico/propriedades, aplicar filtros e completar a escrita/flush da saída quando a mensagem é exibida. Mensagens filtradas devem ser confirmadas para liberar o broker. Se a escrita falha, não confirmar o pacote; deixar o broker retransmitir na sessão persistente. Preservar modo sem manifesto, QoS 0 e a outbox de publicação. Não prometer entrega exatamente uma vez: escrita em stdout não confirma persistência do consumidor, e crash entre flush e ACK pode duplicar a linha.
+
+Aceite: teste do fork para opção manual, fixture TCP onde PUBACK/PUBREC não aparece antes do processamento, negativo de stdout falho sem ACK e redelivery após reconnect com Session Present=1, regressão de filtros/QoS 0/1/2 e broker real. Linux/WSL e Windows sem alteração de defaults. Fmt, suíte, Clippy, build, licenças/distribuição e CI da fonte exata. Checklist e registro parciais; M03/6B seguem abertos até journal local e matriz de crash completos. Sem tag/release isolada.
