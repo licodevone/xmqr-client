@@ -76,7 +76,8 @@ def send_frame(stream, body):
 
 
 def serve(root, listener, *, mqtt5, subscribe, no_protocol, wrong_san, durable,
-          drop_ack, errors):
+          drop_ack, errors, session_present=False, expect_dup=False,
+          no_session=False, close_listener=True):
     try:
         raw, _ = listener.accept()
         raw.settimeout(5)
@@ -108,7 +109,15 @@ def serve(root, listener, *, mqtt5, subscribe, no_protocol, wrong_san, durable,
             assert opcode == 2 and connect[0] == 0x10
             assert b"MQTT" + bytes([5 if mqtt5 else 4]) in connect
             assert b"device" in connect and b"temporary-secret" in connect
-            send_frame(stream, b"\x20\x03\x00\x00\x00" if mqtt5 else b"\x20\x02\x00\x00")
+            send_frame(stream, b"\x20\x03" + bytes([int(session_present)]) + b"\x00\x00"
+                       if mqtt5 else b"\x20\x02\x00\x00")
+            if no_session:
+                try:
+                    opcode, packet = read_frame(stream)
+                    assert opcode == 8 or packet[:1] == b"\xe0", packet
+                except (EOFError, OSError):
+                    pass
+                return
             opcode, request = read_frame(stream)
             assert opcode == 2
             if subscribe:
@@ -123,7 +132,8 @@ def serve(root, listener, *, mqtt5, subscribe, no_protocol, wrong_san, durable,
                 if durable:
                     topic_length = int.from_bytes(request[2:4], "big")
                     packet_id = request[4 + topic_length:6 + topic_length]
-                    assert request[0] == 0x32 and packet_id == b"\x00\x01", request
+                    assert request[0] == (0x3a if expect_dup else 0x32)
+                    assert packet_id == b"\x00\x01", request
                     if drop_ack:
                         return
                     send_frame(stream, b"\x40\x04" + packet_id + b"\x00\x00")
@@ -144,7 +154,8 @@ def serve(root, listener, *, mqtt5, subscribe, no_protocol, wrong_san, durable,
     except BaseException as error:
         errors.append(error)
     finally:
-        listener.close()
+        if close_listener:
+            listener.close()
 
 
 def scenario(root, *, mqtt5=False, subscribe=False, no_protocol=False,
@@ -213,6 +224,53 @@ def scenario(root, *, mqtt5=False, subscribe=False, no_protocol=False,
             assert not (outbox / "pending.json").exists(), "PUBACK must complete outbox"
 
 
+def recovery_scenario(root, *, resume_session):
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    outbox = root / f"recovery-{port}"
+    outbox.mkdir(mode=0o700)
+    secret = root / "client-password"
+    secret.write_text("temporary-secret\n")
+    secret.chmod(0o600)
+    command = [str(CLIENT), "pub", "--ws-url", f"wss://127.0.0.1:{port}/mqtt",
+               "--topic", "test/value", "--message", "ok", "--username", "device",
+               "--password-file", str(secret), "--ca", str(root / "ca.crt"),
+               "--cert", str(root / "client.crt"), "--key", str(root / "client.key"),
+               "--protocol-version", "5", "--qos", "1", "--client-id", "c120-fixture",
+               "--clean-start", "false", "--session-expiry-seconds", "60",
+               "--outbox-dir", str(outbox), "--timeout-seconds", "3"]
+    options = dict(mqtt5=True, subscribe=False, no_protocol=False, wrong_san=False,
+                   durable=True, drop_ack=True)
+    errors = []
+    first = threading.Thread(target=serve, args=(root, listener),
+                             kwargs=dict(options, errors=errors, close_listener=False), daemon=True)
+    first.start()
+    interrupted = subprocess.run(command, capture_output=True, timeout=9)
+    first.join(timeout=6)
+    assert not first.is_alive() and not errors, errors
+    assert interrupted.returncode != 0, interrupted.stdout
+    pending = outbox / "pending.json"
+    before = pending.read_bytes()
+    assert b'MayHaveSent' in before
+    second = threading.Thread(target=serve, args=(root, listener),
+                              kwargs=dict(options, errors=errors, drop_ack=False,
+                                          session_present=resume_session,
+                                          expect_dup=resume_session,
+                                          no_session=not resume_session), daemon=True)
+    second.start()
+    retried = subprocess.run(command, capture_output=True, timeout=9)
+    second.join(timeout=6)
+    assert not second.is_alive() and not errors, (errors, retried.stderr)
+    if resume_session:
+        assert retried.returncode == 0, retried.stderr
+        assert not pending.exists(), "PUBACK must clear resumed outbox"
+    else:
+        assert retried.returncode != 0 and b"sessao" in retried.stderr.lower()
+        assert pending.read_bytes() == before, "Session Present=0 modified journal"
+
+
 def main():
     assert CLIENT.is_file(), "build the client before this fixture"
     with tempfile.TemporaryDirectory(prefix="xmqr-c114-") as temporary:
@@ -231,7 +289,10 @@ def main():
         scenario(root, mqtt5=True, durable=True)
         scenario(root, mqtt5=True, durable=True, profile=True)
         scenario(root, mqtt5=True, durable=True, drop_ack=True)
-    print("C114_WSS_MTLS_FIXTURE_PASS C116_PROFILE_FIXTURE_PASS C119_WSS_QOS1_OUTBOX_PASS")
+        recovery_scenario(root, resume_session=True)
+        recovery_scenario(root, resume_session=False)
+    print("C114_WSS_MTLS_FIXTURE_PASS C116_PROFILE_FIXTURE_PASS "
+          "C119_WSS_QOS1_OUTBOX_PASS C120_WSS_QOS1_RECOVERY_PASS")
 
 
 if __name__ == "__main__":
