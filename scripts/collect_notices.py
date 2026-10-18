@@ -88,6 +88,37 @@ def supplement_paths(root, package, packages):
             raise ValueError('supplement license hash mismatch')
         return base, selected, {'source_revision': commit,
                                 'url': 'https://raw.githubusercontent.com/tokio-rs/valuable/' + commit + '/LICENSE'}
+    if key == ('pharos', '0.5.3'):
+        base = Path(package['manifest_path']).parent.resolve()
+        vcs = json.loads((base / '.cargo_vcs_info.json').read_text())
+        commit = 'f5b985a59cfeced5ae66325d477b6c982c9408bf'
+        repository = 'https://github.com/najamelan/pharos'
+        if (vcs['git']['sha1'] != commit or package.get('license') != 'Unlicense'
+                or package.get('repository') != repository):
+            raise ValueError('pharos supplement source/license does not match locked crate')
+        readme = base / 'README.md'
+        if (readme.is_symlink() or digest(readme) != '19578b95fc9fe905a8b1b2cdf27a32fd4df37c10f7002a18e6f2044209f5f331'
+                or '## License\n\n[Unlicence](https://unlicense.org/)' not in readme.read_text()):
+            raise ValueError('pharos original license declaration mismatch')
+        return base, [readme], {'source_revision': commit, 'repository': repository,
+                                'url': repository + '/blob/' + commit + '/README.md#license',
+                                'scope': 'original README license declaration; source tree has no LICENSE file'}
+    if key == ('ws_stream_tungstenite', '0.15.0'):
+        base = Path(package['manifest_path']).parent.resolve()
+        vcs = json.loads((base / '.cargo_vcs_info.json').read_text())
+        commit = '508c0f28037b5decab5eb61ac4ab805f05c96cdf'
+        repository = 'https://github.com/najamelan/ws_stream_tungstenite'
+        if (vcs['git']['sha1'] != commit or vcs.get('path_in_vcs') != ''
+                or package.get('license') != 'Unlicense'
+                or package.get('repository') != repository):
+            raise ValueError('ws_stream_tungstenite supplement source/license does not match locked crate')
+        readme = base / 'README.md'
+        if (readme.is_symlink() or digest(readme) != '3d73da6e62bbed9fb2f082398be3f178b16f5e163415199494c87ee3bd0962d6'
+                or '## License\n\n[Unlicence](https://unlicense.org/)' not in readme.read_text()):
+            raise ValueError('ws_stream_tungstenite original license declaration mismatch')
+        return base, [readme], {'source_revision': commit, 'repository': repository,
+                                'url': repository + '/blob/' + commit + '/README.md#license',
+                                'scope': 'original README license declaration; source tree has no LICENSE file'}
     if key in {('winapi-i686-pc-windows-gnu', '0.4.0'), ('winapi-x86_64-pc-windows-gnu', '0.4.0')}:
         repository = 'https://github.com/retep998/winapi-rs'
         donor = next(p for p in packages if (p['name'], p['version']) == ('winapi', '0.3.9'))

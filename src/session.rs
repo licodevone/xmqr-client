@@ -36,8 +36,11 @@ pub async fn run(
     let total_deadline = cli
         .total_timeout_seconds
         .map(|seconds| Instant::now() + Duration::from_secs(u64::from(seconds)));
-    let mut options = MqttOptions::new(&cli.client_id, &cli.host, cli.port);
-    if matches!(
+    let broker_address = cli.ws_url.as_deref().unwrap_or(&cli.host);
+    let mut options = MqttOptions::new(&cli.client_id, broker_address, cli.port);
+    if cli.ws_url.is_some() {
+        options.set_transport(Transport::ws());
+    } else if matches!(
         cli.transport_mode,
         TransportMode::Secure | TransportMode::TlsPassword
     ) {

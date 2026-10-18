@@ -387,7 +387,8 @@ fn configure_connect_properties(options: &mut MqttOptions, cli: &Cli) {
 }
 
 fn configure_options(cli: &Cli, password: Option<&str>) -> AppResult<MqttOptions> {
-    let mut options = MqttOptions::new(&cli.client_id, &cli.host, cli.port);
+    let broker_address = cli.ws_url.as_deref().unwrap_or(&cli.host);
+    let mut options = MqttOptions::new(&cli.client_id, broker_address, cli.port);
     #[cfg(target_os = "linux")]
     if cli.subscription_state_dir.is_some() {
         options.set_manual_acks(true);
@@ -437,7 +438,9 @@ fn configure_options(cli: &Cli, password: Option<&str>) -> AppResult<MqttOptions
             properties,
         ));
     }
-    if matches!(
+    if cli.ws_url.is_some() {
+        options.set_transport(Transport::ws());
+    } else if matches!(
         cli.transport_mode,
         TransportMode::Secure | TransportMode::TlsPassword
     ) {

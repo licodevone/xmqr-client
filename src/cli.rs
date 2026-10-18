@@ -109,6 +109,7 @@ pub struct Cli {
     pub will: Option<Will>,
     pub host: String,
     pub port: u16,
+    pub ws_url: Option<String>,
     pub ca: Option<PathBuf>,
     pub cert: Option<PathBuf>,
     pub key: Option<PathBuf>,
@@ -160,6 +161,7 @@ pub const AUTH_USAGE: &str = "Autenticacao MQTT 5: --auth-method plain (somente 
 pub const V5_WILL_USAGE: &str = "MQTT 5 Will: --will-message-expiry-seconds 0..4294967295, --will-payload-format 0|1, --will-content-type TEXTO (ate 256 bytes), --will-response-topic TOPICO (sem curingas), --will-correlation-data-hex HEX (ate 256 bytes), --will-user-property CHAVE=VALOR (repetivel; ate 16 pares e 2048 bytes). Exige --will-topic, mensagem Will e --protocol-version 5.\n";
 pub const OUTBOX_USAGE: &str = "Outbox duravel experimental (Linux/WSL): --outbox-dir DIRETORIO existente e privado (0700) exige pub --protocol-version 5 --qos 1|2 --clean-start false --session-expiry-seconds N --client-id ID fixo, uma mensagem. Repita o mesmo comando para retomar; nao remova o journal pendente se o broker negar Session Present. O arquivo contem payload em claro sob permissao 0600.\n";
 pub const SUBSCRIPTION_STATE_USAGE: &str = "Assinatura persistente experimental (Linux/WSL): --subscription-state-dir DIRETORIO privado (0700) exige sub --protocol-version 5 --clean-start false --session-expiry-seconds N --client-id ID fixo, sem --count. Repita a mesma assinatura para retomar quando o broker confirmar Session Present; sem sessao, o manifesto e preservado e o comando falha. QoS 1/2 recebe ACK apos escrever/flush em stdout; crash pode duplicar a saida, sem garantia de persistencia do consumidor.\n";
+pub const WS_USAGE: &str = "WebSocket experimental: --ws-url ws://127.0.0.1:PORTA/CAMINHO (ou [::1]) exige --open-lab; disponivel em pub/sub MQTT 3.1.1 ou 5. Sem --host/--port, credenciais, perfil ou estado persistente local. WSS ainda indisponivel.\n";
 
 #[allow(clippy::too_many_lines)] // One pass enforces uniqueness and validates CLI modes.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
@@ -196,6 +198,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
     let mut count = None;
     let mut host = None;
     let mut port = None;
+    let mut ws_url = None;
     let mut ca = None;
     let mut cert = None;
     let mut key = None;
@@ -377,6 +380,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
             "--count" => &mut count,
             "--host" => &mut host,
             "--port" => &mut port,
+            "--ws-url" => &mut ws_url,
             "--ca" => &mut ca,
             "--cert" => &mut cert,
             "--key" => &mut key,
@@ -799,6 +803,40 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         transport_mode,
         TransportMode::OpenLab | TransportMode::PlainAuthLab
     );
+    if let Some(value) = ws_url.as_deref() {
+        if transport_mode != TransportMode::OpenLab {
+            return Err("--ws-url exige --open-lab".into());
+        }
+        if host.is_some() || port.is_some() {
+            return Err("--ws-url nao aceita --host ou --port".into());
+        }
+        if outbox_dir.is_some() || subscription_state_dir.is_some() {
+            return Err("--ws-url ainda nao aceita estado persistente local".into());
+        }
+        let url = url::Url::parse(value).map_err(|_| "--ws-url invalida")?;
+        let loopback = matches!(
+            url.host(),
+            Some(url::Host::Ipv4(ip)) if ip == std::net::Ipv4Addr::LOCALHOST
+        ) || matches!(
+            url.host(),
+            Some(url::Host::Ipv6(ip)) if ip == std::net::Ipv6Addr::LOCALHOST
+        );
+        if url.scheme() != "ws"
+            || !loopback
+            || url.port().is_none_or(|port| port == 0)
+            || url.path().is_empty()
+            || url.path() == "/"
+            || !url.username().is_empty()
+            || url.password().is_some()
+            || url.query().is_some()
+            || url.fragment().is_some()
+        {
+            return Err(
+                "--ws-url exige ws em IP loopback, porta e caminho, sem credenciais ou parametros"
+                    .into(),
+            );
+        }
+    }
     let host = host.unwrap_or_else(|| "127.0.0.1".into());
     if host.is_empty() || host.chars().any(char::is_whitespace) {
         return Err("--host invalido".into());
@@ -1125,6 +1163,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Cli, String> {
         will,
         host,
         port,
+        ws_url,
         ca,
         cert,
         key,
@@ -3051,6 +3090,71 @@ mod tests {
         assert!(validate_password("").is_err());
         assert!(validate_password("a\nb").is_err());
         assert!(validate_password(&"a".repeat(1025)).is_err());
+    }
+
+    #[test]
+    fn websocket_url_is_explicit_loopback_lab_only() {
+        let base = [
+            "pub",
+            "--open-lab",
+            "--topic",
+            "test/value",
+            "--message",
+            "ok",
+        ];
+        for url in ["ws://127.0.0.1:8083/mqtt", "ws://[::1]:8083/mqtt"] {
+            let parsed =
+                parse(base.into_iter().chain(["--ws-url", url]).map(str::to_owned)).unwrap();
+            assert_eq!(parsed.ws_url.as_deref(), Some(url));
+        }
+        for url in [
+            "ws://192.168.0.1:8083/mqtt",
+            "ws://localhost:8083/mqtt",
+            "wss://127.0.0.1:8083/mqtt",
+            "http://127.0.0.1:8083/mqtt",
+            "ws://127.0.0.1/mqtt",
+            "ws://127.0.0.1:0/mqtt",
+            "ws://127.0.0.1:8083/",
+            "ws://user:pass@127.0.0.1:8083/mqtt",
+            "ws://127.0.0.1:8083/mqtt?token=x",
+            "ws://127.0.0.1:8083/mqtt#fragment",
+        ] {
+            assert!(
+                parse(base.into_iter().chain(["--ws-url", url]).map(str::to_owned)).is_err(),
+                "unexpected URL: {url}"
+            );
+        }
+        for extra in [
+            vec!["--host", "127.0.0.1"],
+            vec!["--port", "1883"],
+            vec!["--outbox-dir", "/tmp/outbox"],
+            vec!["--subscription-state-dir", "/tmp/sub"],
+        ] {
+            assert!(
+                parse(
+                    base.into_iter()
+                        .chain(["--ws-url", "ws://127.0.0.1:8083/mqtt"])
+                        .chain(extra)
+                        .map(str::to_owned)
+                )
+                .is_err()
+            );
+        }
+        assert!(
+            parse(
+                [
+                    "pub",
+                    "--topic",
+                    "test/value",
+                    "--message",
+                    "ok",
+                    "--ws-url",
+                    "ws://127.0.0.1:8083/mqtt"
+                ]
+                .map(str::to_owned)
+            )
+            .is_err()
+        );
     }
 
     #[test]

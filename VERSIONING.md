@@ -1,5 +1,10 @@
 # Versionamento
 
+C112 está em `main` após a tag 0.31.0: WebSocket de laboratório em loopback
+para pub/sub MQTT 3.1.1/5. Sem WSS nem suporte WS do broker XMQR, sem versão
+nova e sem mudança de estado durável. [Registro](prompts/registros/C112-loopback-websocket-transport.md).
+Fase 7 global aberta.
+
 O 0.31.0 publicado distribui C110: ACK QoS 1/2 da assinatura persistente
 após escrita/flush; falha de stdout não confirma. Sem journal inbound ou
 garantia de processamento do consumidor. Client 0.30.0 lê o mesmo manifesto;
