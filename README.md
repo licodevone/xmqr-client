@@ -1,10 +1,12 @@
 # xmqr-client
 
-O candidato experimental 0.36.0 reúne C122/C123: outbox QoS 2 e manifesto
+A prerelease experimental 0.36.0 reúne C122/C123: outbox QoS 2 e manifesto
 de assinatura MQTT 5 por WSS mTLS, com URL canônica como identidade e retomada
 condicionada a Session Present. [Registros C122](prompts/registros/C122-wss-qos2-outbox.md)
 e [C123](prompts/registros/C123-wss-durable-subscription.md). A release 0.35.0
 não inclui essas entregas.
+[Release 0.36.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.36.0),
+[nota](docs/releases/0.36.0.md) e [registro C124](prompts/registros/C124-release-0.36.0.md).
 
 A prerelease experimental 0.35.0 reúne C119 e permite outbox MQTT 5
 QoS 1 por WSS mTLS com URL canônica como identidade do destino; TCP mantém

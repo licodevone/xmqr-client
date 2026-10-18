@@ -1,6 +1,6 @@
 # Histórico de versões
 
-## 0.36.0 — estado durável MQTT 5 por WSS mTLS (candidato experimental)
+## 0.36.0 — estado durável MQTT 5 por WSS mTLS (prerelease experimental)
 
 - Manifesto MQTT 5 de assinatura persistente aceita WSS mTLS local/remoto, usando URL canônica como destino e preservando manifestos TCP. WS aberto continua sem estado local.
 
