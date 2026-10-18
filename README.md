@@ -1,8 +1,9 @@
 # xmqr-client
 
-## Candidato experimental 0.38.0 — C129
+## Prerelease experimental 0.38.0 — C129
 
-A distribuição em preparação reúne o [journal inbound MQTT 5](docs/mqtt5-inbound-journal.md)
+A [distribuição publicada](https://github.com/licodevone/xmqr-client/releases/tag/v0.38.0)
+reúne o [journal inbound MQTT 5](docs/mqtt5-inbound-journal.md)
 para assinatura persistente Linux/WSL, incluindo recusa de órfãos, replay com
 Subscription Identifiers mutáveis e leitura validada do draft v1 antes de
 gravar v2 na transição seguinte. A janela stdout→commit não é atômica e pode

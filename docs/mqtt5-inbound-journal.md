@@ -1,7 +1,7 @@
 # Assinatura MQTT5 com journal de recepção
 
 Checkpoint C129/C130,2026-10-18: implementado e testado em Linux/WSL,
-**ainda aguardando aceite integrado da fase6 e distribuição**. Correções de
+**distribuído na prerelease0.38.0; aceite integrado da fase6 ainda pendente**. Correções de
 SubscriptionIdentifier e journal órfão foram integradas após testes próprios.
 Confira o [registro com fontes/resultados](../prompts/registros/C129-subscription-inbound-state.md).
 

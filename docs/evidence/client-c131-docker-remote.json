@@ -1,0 +1,35 @@
+{
+  "broker_image": "lepinheiro100/xmqr-broker@sha256:f31da3e129848cce9298c845c03ead951d1b613a2a65ca2cbcc0ea5a648d8017",
+  "client_image": "lepinheiro100/xmqr-client@sha256:b025a82ab4172f82223e8b01b125570996f374a27ee524a04cc62eac81a148f9",
+  "scenarios": [
+    "mTLS QoS1 pub/sub read-only/caps-none PASS",
+    "SIGTERM durable/restart/retained volume PASS",
+    "wrong CA and wrong password refused PASS",
+    "remote WSS mTLS MQTT 3.1.1/5 pub/sub and profile, opt-in, CA/SAN/password/ACL negatives PASS"
+  ],
+  "image_metadata": {
+    "broker": {
+      "id": "sha256:f31da3e129848cce9298c845c03ead951d1b613a2a65ca2cbcc0ea5a648d8017",
+      "labels": {
+        "org.opencontainers.image.licenses": "MIT",
+        "org.opencontainers.image.revision": "24d219816fdac3e47115bcb2e59edd55b0c11407",
+        "org.opencontainers.image.source": "https://github.com/licodevone/xmqr",
+        "org.opencontainers.image.title": "XMQR Broker",
+        "org.opencontainers.image.version": "0.42.0"
+      },
+      "user": "10001:10001"
+    },
+    "client": {
+      "id": "sha256:b025a82ab4172f82223e8b01b125570996f374a27ee524a04cc62eac81a148f9",
+      "labels": {
+        "org.opencontainers.image.licenses": "MIT",
+        "org.opencontainers.image.revision": "fca6fc82117b7ee2b770dc2e4ce673b53764b211",
+        "org.opencontainers.image.source": "https://github.com/licodevone/xmqr-client",
+        "org.opencontainers.image.title": "XMQR Client",
+        "org.opencontainers.image.version": "0.38.0"
+      },
+      "user": "10001:10001"
+    }
+  },
+  "status": "PASS"
+}

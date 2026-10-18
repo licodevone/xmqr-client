@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "remote_assets": 6,
+  "source_revision": "fca6fc82117b7ee2b770dc2e4ce673b53764b211",
+  "artifacts": [
+    {
+      "file": "xmqr-client-0.38.0-linux-amd64.tar.gz",
+      "bytes": 34563773,
+      "sha256": "2801154cc8f1c6d75b93bc66e14b1b260794f5ab9f7dc3a04a497600efd34a7d",
+      "status": "PASS"
+    },
+    {
+      "file": "xmqr-client-0.38.0-linux-amd64.tar.gz.sha256",
+      "bytes": 105,
+      "sha256": "38016116a0ffaf3277db7810ea78ba8d780576ccccbe21e8551db25bfed3a610",
+      "status": "PASS"
+    },
+    {
+      "file": "xmqr-client-0.38.0-release-manifest.json",
+      "bytes": 1034,
+      "sha256": "8121861c5d45ebf2463dfbadda189db86c53a874aa803f83a886ff2e05882fcf",
+      "status": "PASS"
+    },
+    {
+      "file": "xmqr-client-0.38.0-release-manifest.json.sha256",
+      "bytes": 108,
+      "sha256": "29dd56ffeda90adb1f7e25781085607837b498f175fbe3fd15a2cb94095d8ef2",
+      "status": "PASS"
+    },
+    {
+      "file": "xmqr-client_0.38.0-1_amd64.deb",
+      "bytes": 2419808,
+      "sha256": "a496e9e2e5887d7211a7e616b43a00e51c3d3afa63beb0f5d60f4c6dc492c90b",
+      "status": "PASS"
+    },
+    {
+      "file": "xmqr-client_0.38.0-1_amd64.deb.sha256",
+      "bytes": 98,
+      "sha256": "e380803761c724ba5827f9d9129e71a288a63c991143f63a933b3df45c788067",
+      "status": "PASS"
+    }
+  ]
+}

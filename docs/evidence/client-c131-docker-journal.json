@@ -1,0 +1,114 @@
+{
+  "client_sha256": "fe2ece0319c6926ee6a8091463b3b1971637be1de1d066d713b940892c71b377",
+  "harness_sha256": "8a5a982387bf8c1bcfe252cf66e61ef4bd2948937e31e7d8e9c52827d729ebda",
+  "scope": "owned synthetic loopback fixture; SIGKILL is not power loss",
+  "scenarios": [
+    {
+      "status": "PASS",
+      "scenario": "crash_after_pubrec_resume_pubrel_and_id_reuse",
+      "journal_before_pubrec": true,
+      "output_replayed_on_pubrel": false
+    },
+    {
+      "status": "PASS",
+      "scenario": "default_continuous_two_qos2"
+    },
+    {
+      "status": "PASS",
+      "scenario": "refuse_session_absent",
+      "no_replay_or_ack": true,
+      "state_preserved": true
+    },
+    {
+      "status": "PASS",
+      "scenario": "refuse_corrupt",
+      "no_replay_or_ack": true,
+      "state_preserved": true
+    },
+    {
+      "status": "PASS",
+      "scenario": "refuse_permission",
+      "no_replay_or_ack": true,
+      "state_preserved": true
+    },
+    {
+      "status": "PASS",
+      "scenario": "refuse_identity",
+      "no_replay_or_ack": true,
+      "state_preserved": true
+    },
+    {
+      "status": "PASS",
+      "scenario": "refuse_lock",
+      "no_replay_or_ack": true,
+      "state_preserved": true
+    },
+    {
+      "status": "PASS",
+      "scenario": "qos1_output_failure_no_ack",
+      "recoverable_received_record": true
+    },
+    {
+      "status": "PASS",
+      "scenario": "qos2_output_failure_no_ack",
+      "recoverable_received_record": true
+    },
+    {
+      "status": "PASS",
+      "scenario": "received_after_output_error_replays_on_sp1"
+    },
+    {
+      "status": "PASS",
+      "scenario": "qos1_conflicting_live_identifier_refused",
+      "state_preserved": true,
+      "no_replay_or_ack": true
+    },
+    {
+      "status": "PASS",
+      "scenario": "absolute_pubrel_deadline",
+      "repeats": 4,
+      "elapsed_seconds": 1.0035,
+      "state_preserved": true
+    },
+    {
+      "status": "PASS",
+      "scenario": "pubrel_commit_failure_no_pubcomp",
+      "state_preserved": true
+    },
+    {
+      "status": "PASS",
+      "scenario": "unknown_and_repeated_pubrel_0x92"
+    },
+    {
+      "status": "PASS",
+      "scenario": "batch_32_no_ack_channel_deadlock",
+      "publications": 32
+    },
+    {
+      "status": "PASS",
+      "scenario": "durable_count_statically_rejected_without_network"
+    },
+    {
+      "status": "PASS",
+      "scenario": "cancel_preserves_idle_manifest"
+    },
+    {
+      "status": "PASS",
+      "scenario": "total_idle_deadline_preserves_manifest"
+    },
+    {
+      "status": "PASS",
+      "scenario": "orphan_refused_before_connect_and_manifest"
+    },
+    {
+      "status": "PASS",
+      "scenario": "mutable_identifier_order"
+    },
+    {
+      "status": "PASS",
+      "scenario": "mutable_identifier_multiplicity"
+    }
+  ],
+  "status": "PASS",
+  "elapsed_seconds": 4.6309
+}

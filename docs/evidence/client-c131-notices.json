@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "source_revision": "fca6fc82117b7ee2b770dc2e4ce673b53764b211",
+  "image_id": "sha256:b025a82ab4172f82223e8b01b125570996f374a27ee524a04cc62eac81a148f9",
+  "results": [
+    {
+      "status": "PASS",
+      "packages": 170,
+      "original_texts": 315,
+      "original_bytes": 1644483,
+      "own_mit_source_raw_sha256": "acfd4bb82db195b2ba0a8a1ea6c5048d2e66c05a0fd0bd843e08d8a46d34b465",
+      "own_mit_packaged_raw_sha256": {
+        "LICENSE": "acfd4bb82db195b2ba0a8a1ea6c5048d2e66c05a0fd0bd843e08d8a46d34b465",
+        "copyright": "acfd4bb82db195b2ba0a8a1ea6c5048d2e66c05a0fd0bd843e08d8a46d34b465"
+      },
+      "own_mit_canonical_lf_sha256": "84381e555814f7125a9db5bce4f79b786cfb795b05eaddc2ef31a3a414842fc9",
+      "own_mit_comparison": "CRLF-to-LF only; no changes to terms/copyright",
+      "third_party_comparison": "strict original bytes; no EOL normalization",
+      "expected_manifest_sha256": "c790fe94d512122036a57a930f3ed768f03664b2719888dba6c6688abb691bb6",
+      "artifact": "deb"
+    },
+    {
+      "status": "PASS",
+      "packages": 170,
+      "original_texts": 315,
+      "original_bytes": 1644483,
+      "own_mit_source_raw_sha256": "acfd4bb82db195b2ba0a8a1ea6c5048d2e66c05a0fd0bd843e08d8a46d34b465",
+      "own_mit_packaged_raw_sha256": {
+        "LICENSE": "acfd4bb82db195b2ba0a8a1ea6c5048d2e66c05a0fd0bd843e08d8a46d34b465"
+      },
+      "own_mit_canonical_lf_sha256": "84381e555814f7125a9db5bce4f79b786cfb795b05eaddc2ef31a3a414842fc9",
+      "own_mit_comparison": "CRLF-to-LF only; no changes to terms/copyright",
+      "third_party_comparison": "strict original bytes; no EOL normalization",
+      "expected_manifest_sha256": "c790fe94d512122036a57a930f3ed768f03664b2719888dba6c6688abb691bb6",
+      "artifact": "image"
+    }
+  ]
+}

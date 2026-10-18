@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "legacy_client_sha256": "bcc2b3f4a9305e48fcb3559cbaa25071162afe9c35eda07ba80f103e373d0338",
+  "client_sha256": "df9bb1f9425b57667e4c20e1e24b3225df148914a374dae6739cb36237037b94",
+  "harness_sha256": "a2aa613408ec603a2888b2408c39f7e0a9f6b0b908f130e629d3c8ccf0c033c3",
+  "helper_sha256": "8a5a982387bf8c1bcfe252cf66e61ef4bd2948937e31e7d8e9c52827d729ebda",
+  "scope": "actual draft-v1 ELF; owned TCP fixture; SIGKILL is not power loss",
+  "original_metadata_preserved": true,
+  "read_and_replay_preserved_v1_bytes": true,
+  "completed_document_version": 2,
+  "duplicate_output": false,
+  "cleanup": "PASS",
+  "elapsed_seconds": 0.1617
+}
