@@ -1,4 +1,4 @@
-# C138 — candidata client 0.41.0 / bridge 0.3.0
+# C138 — prerelease client 0.41.0 / bridge 0.3.0
 
 Prompt [C138 v1.1](../clients/138-release-0.41.0-bridge-mqtt5-retain.md)
 foi publicado antes da alteração de versão. Base C137 `9a02631` com
@@ -48,5 +48,25 @@ vendorizado ocupa 639 MB. Após C138 v1.2 e exclusão explícita no
 Os dois FAILs ficam preservados; a causa exata do cancelamento não foi
 provada, mas a exclusão reduz o contexto e elimina essa superfície.
 
-CI da fonte final com `.dockerignore`, digest remoto, tag, anexos e
-publicação ainda pendentes. A fase 8/T02 permanece aberta.
+[CI da fonte final `1d60d38`](https://github.com/licodevone/xmqr-client/actions/runs/39170753201):
+cinco jobs PASS, incluindo pacote extraído, imagem e fixtures MQTT 5 QoS
+0/1 e MQTT 3.1.1 QoS 2. O `.deb` **da CI** tem SHA-256
+`ca68df0788d62ec2d63701eea07e63a168f4cdc26b0bbd10142dc163f686e6a7`;
+seu ciclo 0.40→0.41→0.40→0.41 passou também no WSL em contêiner
+descartável. O pacote local inicial tem hash diferente; não se alega
+build bit a bit reproduzível.
+
+O tag anotado `v0.41.0` aponta para `1d60d382782ec33ed876b8b43d1c87503df7ef86`.
+A [prerelease](https://github.com/licodevone/xmqr-client/releases/tag/v0.41.0)
+foi publicada com seis anexos; os seis arquivos baixados do GitHub foram
+comparados por SHA-256 com os locais e coincidiram. Os três sidecars
+verificaram o `.deb`, tar da imagem e manifesto. O tar da imagem tem hash
+`d926a30b5dfe089e76f1d9c3d4a33bd4c72e244b2e9ad39dcf1b748c411e81e0`.
+A imagem `lepinheiro100/xmqr-client:0.41.0` foi publicada sem mover
+`latest`; digest remoto confirmado pelo registro:
+`sha256:613d8e18feccee77d97bfe5b272e00522d76ebf33a3bb42aba212510d2166b4e`.
+
+Fonte, binários, package e imagem aceitos no recorte C138. A fase 8/T02
+permanece aberta; sem transação entre brokers, MQTT 5/QoS 2 de origem,
+propriedades propagadas, proteção de ciclos externos, perda de energia
+ou homologação Windows.

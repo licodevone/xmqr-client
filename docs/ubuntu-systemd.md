@@ -9,9 +9,8 @@ mqtt-client --version
 mqtt-bridge --version
 ```
 
-O exemplo usa a candidata 0.41.0 construída localmente; a última
-[prerelease publicada é 0.40.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.40.0)
-até o aceite C138. Para instalar um pacote publicado, baixe também o
+O exemplo usa a [prerelease publicada 0.41.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.41.0).
+Para instalar o pacote publicado, baixe também o
 `.sha256` da mesma release, execute
 `sha256sum -c xmqr-client_0.41.0-1_amd64.deb.sha256` na pasta dos dois
 arquivos e só então instale. A unit da bridge continua desabilitada.

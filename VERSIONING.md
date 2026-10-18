@@ -1,11 +1,12 @@
 # Versionamento
 
-A candidata 0.41.0 agrupa C136/C137: origem MQTT 5/QoS 0/1 da bridge
+A prerelease 0.41.0 agrupa C136/C137: origem MQTT 5/QoS 0/1 da bridge
 com Retain As Published; `mqtt-bridge 0.3.0` acompanha `mqtt-client 0.41.0`.
 O destino ainda usa MQTT 3.1.1; QoS 2 MQTT 5, propriedades propagadas,
 ciclos externos e transação entre brokers ficam fora do recorte. O contrato
 finito da fase 6 foi aceito no broker 0.43.0; fase 8 permanece aberta.
-[Prompt de distribuição C138](prompts/clients/138-release-0.41.0-bridge-mqtt5-retain.md).
+[Release](https://github.com/licodevone/xmqr-client/releases/tag/v0.41.0),
+[nota](docs/releases/0.41.0.md) e [registro C138](prompts/registros/C138-release-0.41.0.md).
 
 A prerelease 0.40.0 acrescenta C134 à bridge experimental: QoS 2 nas duas
 pontas, journal da origem, retomada condicional e unit com StateDirectory
