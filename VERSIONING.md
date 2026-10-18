@@ -1,11 +1,13 @@
 # Versionamento
 
-O candidato 0.35.0 distribui C119/C120: outbox QoS 1 MQTT 5 por WSS mTLS
+A prerelease 0.35.0 distribui C119/C120: outbox QoS 1 MQTT 5 por WSS mTLS
 com URL canônica como identidade e ensaio controlado de retomada. Sem migração
 do journal TCP; o 0.34.0 preserva dados, mas recusa a opção por URL. Broker
-0.42.0/P216 é o par candidato. Publicação depende dos gates do
-[prompt C121](prompts/clients/121-release-0.35.0.md).
-[Nota candidata](docs/releases/0.35.0.md). Fase 7 global aberta.
+0.42.0/P216 é o par distribuído. CI da fonte exata, pacote Ubuntu, rollback
+descartável, imagem por digest e seis hashes remotos PASS.
+[Release](https://github.com/licodevone/xmqr-client/releases/tag/v0.35.0),
+[nota](docs/releases/0.35.0.md) e [registro](prompts/registros/C121-release-0.35.0.md).
+Fase 7 global aberta.
 
 O 0.34.0 publicado inclui C116/C117: perfil WSS mTLS e acesso remoto somente
 com `--allow-remote-wss`. Manifestos duráveis não mudam; o 0.33.0 os lê, mas
