@@ -1,0 +1,15 @@
+{
+  "client_sha256": "109ec97326500b8edfe9c54f09318103f661866a3e16927a9b63e8d4f473d3e9",
+  "harness_sha256": "856aeb67ad360495fda31bb284834bfa26f282f3c2e60440b363c9529b2ca6d7",
+  "scope": "owned synthetic loopback fixture; SIGKILL is not power loss",
+  "scenarios": [
+    {
+      "status": "FAIL",
+      "scenario": "orphan",
+      "error_type": "AssertionError",
+      "reason": "orphaned inbound journal connected before refusal"
+    }
+  ],
+  "status": "FAIL",
+  "elapsed_seconds": 1.4315
+}

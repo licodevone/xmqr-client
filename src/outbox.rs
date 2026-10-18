@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 const DOCUMENT_VERSION: u8 = 1;
+const INBOUND_DOCUMENT_VERSION: u8 = 2;
 const MAX_DOCUMENT_BYTES: u64 = 65_536;
 const PENDING: &str = "pending.json";
 const TEMP: &str = "pending.tmp";
@@ -66,10 +67,19 @@ impl InboundPublication {
     }
 
     fn identity(publish: &mut Publish) -> io::Result<[u8; 32]> {
+        Self::identity_version(publish, INBOUND_DOCUMENT_VERSION)
+    }
+
+    fn identity_version(publish: &mut Publish, version: u8) -> io::Result<[u8; 32]> {
         // Remaining expiry can decrease on retransmission. Aliases and DUP are
         // connection-local; neither identifies the stored application message.
         if let Some(properties) = &mut publish.properties {
             properties.message_expiry_interval = None;
+            if version == INBOUND_DOCUMENT_VERSION {
+                // MQTT5 3.3.4/3.8.3.1: IDs can be reordered or changed on replay.
+                // Keep their original values in wire; only identity ignores them.
+                properties.subscription_identifiers.clear();
+            }
         }
         let mut wire = b"".as_slice().into();
         publish.write(&mut wire).map_err(|_| invalid_inbound())?;
@@ -77,6 +87,10 @@ impl InboundPublication {
     }
 
     pub(crate) fn publication(&self) -> io::Result<Publish> {
+        self.publication_version(INBOUND_DOCUMENT_VERSION)
+    }
+
+    fn publication_version(&self, version: u8) -> io::Result<Publish> {
         if self.wire.len() > 65536 || self.packet_id == 0 || !(1..=2).contains(&self.qos) {
             return Err(invalid_inbound());
         }
@@ -99,7 +113,7 @@ impl InboundPublication {
                 .properties
                 .as_ref()
                 .is_some_and(|p| p.topic_alias.is_some())
-            || Self::identity(&mut publish.clone())? != self.identity
+            || Self::identity_version(&mut publish.clone(), version)? != self.identity
         {
             return Err(invalid_inbound());
         }
@@ -263,6 +277,7 @@ impl Outbox {
             _lock: lock,
             uid,
         };
+        outbox.reject_orphaned_inbound()?;
         outbox.remove_stale_temp(TEMP)?;
         outbox.remove_stale_temp(TEMP_QOS2)?;
         outbox.remove_stale_temp(SUBSCRIPTION_TEMP)?;
@@ -466,6 +481,7 @@ impl Outbox {
         &self,
         spec: SubscriptionSpec,
     ) -> io::Result<PendingSubscription> {
+        self.reject_orphaned_inbound()?;
         if self.load()?.is_some()
             || self.load_qos2()?.is_some()
             || self.load_subscription()?.is_some()
@@ -534,6 +550,19 @@ impl Outbox {
         self.directory.sync_all()
     }
 
+    fn reject_orphaned_inbound(&self) -> io::Result<()> {
+        match fs::symlink_metadata(self.path.join(SUBSCRIPTION)) {
+            Ok(_) => return Ok(()), // existing manifest validation keeps its own errors
+            Err(error) if error.kind() == io::ErrorKind::NotFound => (),
+            Err(error) => return Err(error),
+        }
+        match fs::symlink_metadata(self.path.join(INBOUND)) {
+            Ok(_) => Err(invalid_inbound()),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(error),
+        }
+    }
+
     fn inbound_subscription_checksum(&self) -> io::Result<[u8; 32]> {
         let subscription = self.load_subscription()?.ok_or_else(invalid_inbound)?;
         if subscription.stage != SubscriptionStage::Active {
@@ -558,14 +587,23 @@ impl Outbox {
         if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
             return Err(invalid_inbound());
         }
-        let document: InboundDocument =
+        let mut document: InboundDocument =
             serde_json::from_slice(&bytes).map_err(|_| invalid_inbound())?;
         let serialized = serde_json::to_vec(&(document.subscription_checksum, &document.entries))?;
-        if document.version != DOCUMENT_VERSION
+        if !matches!(document.version, 1 | INBOUND_DOCUMENT_VERSION)
             || document.subscription_checksum != self.inbound_subscription_checksum()?
             || Sha256::digest(serialized).as_slice() != document.checksum
         {
             return Err(invalid_inbound());
+        }
+        if document.version == 1 {
+            // Validate the frozen draft algorithm first, then normalize in RAM.
+            // Loading never rewrites original metadata or bytes. A subsequent
+            // existing durable transition writes a version2 document atomically.
+            for entry in &mut document.entries {
+                let mut publication = entry.publication.publication_version(1)?;
+                entry.publication.identity = InboundPublication::identity(&mut publication)?;
+            }
         }
         Self::validate_inbound(&document.entries)?;
         Ok(document.entries)
@@ -597,7 +635,7 @@ impl Outbox {
         let checksum =
             Sha256::digest(serde_json::to_vec(&(subscription_checksum, &entries))?).into();
         let bytes = serde_json::to_vec(&InboundDocument {
-            version: DOCUMENT_VERSION,
+            version: INBOUND_DOCUMENT_VERSION,
             subscription_checksum,
             entries,
             checksum,
@@ -861,6 +899,203 @@ mod tests {
         );
         publish.pkid = id;
         InboundPublication::from_publish(&publish, "inbound/test").unwrap()
+    }
+
+    #[test]
+    fn inbound_review_subscription_property_cursor_preserves_three_ids_and_binary_payload() {
+        assert_subscription_property_roundtrip(&[1, 1, 2]);
+    }
+
+    #[test]
+    fn inbound_review_subscription_property_cursor_preserves_all_vbi_widths() {
+        assert_subscription_property_roundtrip(&[1, 128, 16_384, 2_097_152]);
+    }
+
+    fn assert_subscription_property_roundtrip(identifiers: &[usize]) {
+        use rumqttc::v5::mqttbytes::{
+            QoS,
+            v5::{Packet, Publish, PublishProperties},
+        };
+        let mut publish = Publish::new(
+            "inbound/test",
+            QoS::ExactlyOnce,
+            vec![0, 255, 3, 0],
+            Some(PublishProperties {
+                subscription_identifiers: identifiers.to_vec(),
+                content_type: Some(String::new()),
+                ..PublishProperties::default()
+            }),
+        );
+        publish.pkid = 7;
+        let mut wire = b"".as_slice().into();
+        publish.write(&mut wire).unwrap();
+        let Packet::Publish(decoded) = Packet::read(&mut wire, Some(65536)).unwrap() else {
+            panic!("expected PUBLISH");
+        };
+        assert_eq!(
+            decoded
+                .properties
+                .as_ref()
+                .unwrap()
+                .subscription_identifiers,
+            identifiers
+        );
+        assert_eq!(
+            decoded.properties.as_ref().unwrap().content_type.as_deref(),
+            Some("")
+        );
+        assert_eq!(decoded.payload.as_ref(), &[0, 255, 3, 0]);
+        assert!(wire.is_empty());
+    }
+
+    #[test]
+    fn inbound_review_orphan_refuses_open_without_touching_temporary_or_document() {
+        let (directory, outbox) = receiver();
+        outbox.receive_inbound(incoming(7, 2, vec![1])).unwrap();
+        let path = directory.path().join(INBOUND);
+        let before = fs::read(&path).unwrap();
+        let temporary = directory.path().join(INBOUND_TEMP);
+        fs::write(&temporary, b"owned-orphan-temporary").unwrap();
+        fs::set_permissions(&temporary, fs::Permissions::from_mode(0o600)).unwrap();
+        fs::remove_file(directory.path().join(super::SUBSCRIPTION)).unwrap();
+        drop(outbox);
+        assert!(Outbox::open(directory.path()).is_err());
+        assert!(!directory.path().join(super::SUBSCRIPTION).exists());
+        assert_eq!(fs::read(path).unwrap(), before);
+        assert_eq!(fs::read(temporary).unwrap(), b"owned-orphan-temporary");
+    }
+
+    #[test]
+    fn inbound_review_orphan_refuses_new_manifest_preparation() {
+        let (directory, outbox) = receiver();
+        outbox.receive_inbound(incoming(7, 2, vec![1])).unwrap();
+        let before = fs::read(directory.path().join(INBOUND)).unwrap();
+        fs::remove_file(directory.path().join(super::SUBSCRIPTION)).unwrap();
+        assert!(outbox.prepare_subscription(subscription()).is_err());
+        assert!(!directory.path().join(super::SUBSCRIPTION).exists());
+        assert_eq!(fs::read(directory.path().join(INBOUND)).unwrap(), before);
+    }
+
+    #[test]
+    fn inbound_review_mutable_subscription_identifiers_do_not_change_obligation() {
+        use rumqttc::v5::mqttbytes::{
+            QoS,
+            v5::{Publish, PublishProperties},
+        };
+        let (directory, outbox) = receiver();
+        let mut publish = Publish::new(
+            "inbound/test",
+            QoS::ExactlyOnce,
+            vec![1, 2],
+            Some(PublishProperties {
+                subscription_identifiers: vec![1, 2],
+                user_properties: vec![
+                    ("key".into(), "first".into()),
+                    ("key".into(), "second".into()),
+                ],
+                ..PublishProperties::default()
+            }),
+        );
+        publish.pkid = 7;
+        outbox
+            .receive_inbound(InboundPublication::from_publish(&publish, "inbound/test").unwrap())
+            .unwrap();
+        outbox.inbound_output_ready(7).unwrap();
+        let before = fs::read(directory.path().join(INBOUND)).unwrap();
+        for identifiers in [vec![2, 1], vec![1], vec![]] {
+            publish
+                .properties
+                .as_mut()
+                .unwrap()
+                .subscription_identifiers = identifiers;
+            let replay = InboundPublication::from_publish(&publish, "inbound/test").unwrap();
+            assert!(matches!(
+                outbox.receive_inbound(replay).unwrap().stage,
+                InboundStage::AwaitPubRel
+            ));
+            assert_eq!(fs::read(directory.path().join(INBOUND)).unwrap(), before);
+            let original = outbox.load_inbound().unwrap()[0]
+                .publication
+                .publication()
+                .unwrap();
+            assert_eq!(
+                original.properties.unwrap().subscription_identifiers,
+                vec![1, 2]
+            );
+        }
+        publish.payload = vec![9].into();
+        assert!(
+            outbox
+                .receive_inbound(
+                    InboundPublication::from_publish(&publish, "inbound/test").unwrap()
+                )
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn inbound_review_v1_draft_is_read_only_until_explicit_v2_transition() {
+        use sha2::{Digest, Sha256};
+        let (directory, outbox) = receiver();
+        let mut publication = incoming(7, 2, vec![1, 2]);
+        let mut original = publication.publication().unwrap();
+        original.properties = Some(rumqttc::v5::mqttbytes::v5::PublishProperties {
+            subscription_identifiers: vec![1, 2],
+            ..Default::default()
+        });
+        publication = InboundPublication::from_publish(&original, "inbound/test").unwrap();
+        // Frozen v1 algorithm: canonical wire hash removes expiry only, not IDs.
+        let mut legacy = original.clone();
+        legacy.dup = false;
+        let mut wire = b"".as_slice().into();
+        legacy.write(&mut wire).unwrap();
+        publication.identity = Sha256::digest(&wire).into();
+        let entries = vec![super::PendingInbound {
+            publication,
+            stage: InboundStage::AwaitPubRel,
+        }];
+        let subscription_checksum = outbox.inbound_subscription_checksum().unwrap();
+        let checksum =
+            Sha256::digest(serde_json::to_vec(&(subscription_checksum, &entries)).unwrap()).into();
+        let bytes = serde_json::to_vec(&super::InboundDocument {
+            version: 1,
+            subscription_checksum,
+            entries,
+            checksum,
+        })
+        .unwrap();
+        let path = directory.path().join(INBOUND);
+        fs::write(&path, &bytes).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+        let mut unknown: super::InboundDocument = serde_json::from_slice(&bytes).unwrap();
+        unknown.version = 99;
+        fs::write(&path, serde_json::to_vec(&unknown).unwrap()).unwrap();
+        assert!(outbox.load_inbound().is_err());
+        let mut corrupt: super::InboundDocument = serde_json::from_slice(&bytes).unwrap();
+        corrupt.entries[0].publication.identity = [0; 32];
+        corrupt.checksum = Sha256::digest(
+            serde_json::to_vec(&(corrupt.subscription_checksum, &corrupt.entries)).unwrap(),
+        )
+        .into();
+        fs::write(&path, serde_json::to_vec(&corrupt).unwrap()).unwrap();
+        assert!(outbox.load_inbound().is_err());
+        fs::write(&path, &bytes).unwrap();
+        let loaded = outbox.load_inbound().unwrap();
+        assert_eq!(
+            loaded[0]
+                .publication
+                .publication()
+                .unwrap()
+                .properties
+                .unwrap()
+                .subscription_identifiers,
+            vec![1, 2]
+        );
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+        assert!(outbox.inbound_pubrel(7).unwrap());
+        let document: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(document["version"], 2);
     }
 
     #[test]

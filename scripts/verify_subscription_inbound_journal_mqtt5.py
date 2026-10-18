@@ -464,6 +464,70 @@ def cancelled_or_idle(binary, root, cancel):
             peer.close()
 
 
+def orphaned_inbound(binary, root):
+    with listener() as server:
+        before = seed(binary, root, server)
+        (root / "subscription.json").unlink()
+        temporary = root / "subscription-inbound.tmp"
+        temporary.write_bytes(b"owned-orphan-temporary")
+        temporary.chmod(0o600)
+        child = subprocess.Popen(arguments(binary, root, server), stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE, bufsize=0)
+        try:
+            if select.select([server], [], [], .5)[0]:
+                with server.accept()[0] as peer:
+                    peer.settimeout(2)
+                    packet(peer)
+                raise AssertionError("orphaned inbound journal connected before refusal")
+            output, _ = child.communicate(timeout=3)
+            assert child.returncode != 0 and not output
+            assert not (root / "subscription.json").exists(), "orphaned journal recreated manifest"
+            assert (root / "subscription-inbound.json").read_bytes() == before
+            assert temporary.read_bytes() == b"owned-orphan-temporary"
+            return dict(status="PASS", scenario="orphan_refused_before_connect_and_manifest")
+        finally:
+            cleanup(child)
+
+
+def mutable_identifier_replay(binary, root, reordered):
+    def send(peer, identifiers, duplicate=False):
+        properties = b"".join(b"\x0b" + bytes([value]) for value in identifiers)
+        body = b"\x00\x08c129/two\x00\x07" + bytes([len(properties)]) + properties + b"owned-mutable"
+        peer.sendall(bytes([0x3c if duplicate else 0x34, len(body)]) + body)
+    with listener() as server:
+        child, peer = activate(binary, root, server)
+        try:
+            send(peer, [1, 2])
+            first = line(child)
+            assert first["metadata"]["subscription_identifiers"] == [1, 2], "initial Subscription IDs were not decoded exactly"
+            assert packet(peer) == (0x50, b"\x00\x07")
+            child.kill()
+            child.communicate(timeout=5)
+            peer.close()
+            before = (root / "subscription-inbound.json").read_bytes()
+            child = subprocess.Popen(arguments(binary, root, server), stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE, bufsize=0)
+            with server.accept()[0] as peer:
+                peer.settimeout(5)
+                assert packet(peer)[0] == 0x10
+                peer.sendall(b"\x20\x03\x01\x00\x00")
+                ready(child)
+                send(peer, [2, 1] if reordered else [1], duplicate=True)
+                assert packet(peer) == (0x50, b"\x00\x07")
+                assert not select.select([child.stdout], [], [], .1)[0], "mutable IDs replayed application output"
+                assert (root / "subscription-inbound.json").read_bytes() == before
+                peer.sendall(b"\x62\x02\x00\x07")
+                assert packet(peer) == (0x70, b"\x00\x07")
+                publish(peer, 8, b"owned-next")
+                assert line(child)["payload_bytes"] == list(b"owned-next")
+                assert packet(peer) == (0x50, b"\x00\x08")
+                peer.sendall(b"\x62\x02\x00\x08")
+                assert packet(peer) == (0x70, b"\x00\x08")
+            return dict(status="PASS", scenario="mutable_identifier_order" if reordered else "mutable_identifier_multiplicity")
+        finally:
+            cleanup(child)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--client", type=Path, required=True)
@@ -481,6 +545,9 @@ def main():
         ("batch32", batch), ("count", count_rejected),
         ("cancel", lambda binary, root: cancelled_or_idle(binary, root, True)),
         ("idle", lambda binary, root: cancelled_or_idle(binary, root, False)),
+        ("orphan", orphaned_inbound),
+        ("identifier_order", lambda binary, root: mutable_identifier_replay(binary, root, True)),
+        ("identifier_multiplicity", lambda binary, root: mutable_identifier_replay(binary, root, False)),
     ]
     parser.add_argument("--case", choices=("all", *[name for name, _ in scenarios]), default="all")
     args = parser.parse_args()

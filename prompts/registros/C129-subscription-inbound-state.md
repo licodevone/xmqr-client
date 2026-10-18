@@ -162,3 +162,103 @@ Marker específico observado após statusPASS. Provas negativas adicionais:
 recovery no ELF anterior FAIL/exit1,0.4719s, também sem marker. Relatórios
 novos dist/c129-marker-subset.json e dist/c129-marker-negative.json preservados.
 Oráculos, cenários, prazos e fontes Rust permaneceram congelados.
+
+## Revisão independente C129 v1.12–v1.18 — correções e novo aceite local
+
+Base do clone próprio5ba9cf6, runtime169c03a; o original C128 não foi tocado.
+Promptv1.12 commitado localmentef139b5b antes dos testes/fixes. Três defeitos
+foram separados da janela stdout→commit já declarada:
+
+- Inbound órfão sem manifesto era tratado como primeira assinatura, recriando
+  manifesto e conectando. Agora abertura/preparação recusam antes de limpar
+  temporário/criar manifesto/rede; documentos e temporário ficam intactos.
+- Hash da obrigação incluía SubscriptionIdentifiers mutáveis. OASIS §3.3.4-4
+  e §3.8.3.1 permitem ordem/conjunto distintos em replay. Agora comparação
+  ignora esses IDs; wire original/ordem/metadados continuam no checksum e no
+  documento. Topic/payload/QoS/UserProperties e demais metadados não relaxados.
+- Fork PUBLISH contava duas vezes o ID da propriedade SubscriptionIdentifier,
+  podendo perder propriedade posterior e deslocá-la ao payload. Patch mínimo
+  em publish.rs soma somente bytes do VBI; notice/copyrights preservados.
+  Parser SUBSCRIBE semelhante não foi modificado fora do escopo autorizado.
+
+### Compatibilidade explícita do draft inbound
+
+Somente subscription-inbound.json passa de versão1 a2 pelo algoritmo novo.
+Outboxes C105/C107, manifesto C108 e versão de pacote continuam inalterados.
+Leitura v1 exige checksum e identityv1 originais válidos; normaliza em memória
+sem reescrever arquivo/wire. Próxima transição atômica grava2. Versão99 e
+identityv1 adulterada com checksum do documento recalculado foram recusadas
+nos unitários; não há reinterpretação silenciosa de corrupção.
+
+### RED preservado antes das correções
+
+ELF anterior real109ec97326500b8edfe9c54f09318103f661866a3e16927a9b63e8d4f473d3e9,
+copiado para área própria congelada, nunca apresentado como candidato novo:
+
+| Prova | Resultado |
+| --- | --- |
+| Unitários review com2IDs, antes do fix |4FAIL:openórfão/prepareórfão/identidade/revisãoformato; compile6.63s/test0.12s,exit1 |
+| [Órfão TCP](../../docs/evidence/client-c129-review-orphan-red.json) |FAIL/exit1,1.4315s, CONNECT indevido |
+| [Ordem TCP](../../docs/evidence/client-c129-review-order-red.json) |FAIL/exit1,1.3449s, EOF antes PUBREC no replaySP1 |
+| [Multiplicidade TCP](../../docs/evidence/client-c129-review-multiplicity-red.json) |FAIL/exit1,1.3985s, mesmo estágio |
+| Parser write/read público antes do patch |2FAIL:ContentType posterior ausente;3IDs pequenos e VBI1/2/3/4bytes,16.16scompile/0.00stest |
+
+Primeiros vetores3IDs falharam antes da identidade, por erro do parser;
+dist/c129-review-order-red.json e multiplicity-red.json preservam essa prova,
+mas somente as repetições red2 acima demonstram o conflito semântico isolado.
+Primeiro REDunitário4FAIL/11.08scompile/0.08stest também preservado no histórico
+do prompt. O comando do parser incluiu leitura posterior de noticeexit0;
+esse status agregado não foi confundido com o cargoRED, que mostrou2FAIL.
+
+Primeiro Clippy recusou dois estilos dos testes (literal/slice), corrigidos
+sobv1.17 sem allow/oráculo novo. AST teve uma chamadaWSL/Service/0x8007274c
+que não iniciou; repetição AST2PASS. Inventário falhou por cargo fora doPATH
+no subprocesso WSL direto; repetido com PATH local explícito/CARGO_NET_OFFLINE
+sem instalação/configuração global, PASS. Windows mantém warning preexistente
+meta/mqtt-bridge.rs123 alheio; arquivo não alterado.
+
+### GREEN final das fontes corrigidas
+
+ELFdebug próprio congelado
+`../p227-binaries/mqtt-client-c129-review-final-0.36.0` (relativo ao clone), SHA:
+`52d4c8119f5da61ffa97b6147e0b51a5f6f8c868283efcd162d1fd1893c7a8ab`.
+Nenhuma versão de distribuição/tag foi criada. Fonte runtime mudou somente
+outbox.rs e uma linha do parserfork; v5_session.rs permaneceu intacto nesta
+revisão. Todos os comandos Rust locked/offline-j1 usam cache privado anterior.
+
+| Gate final | Resultado real |
+| --- | --- |
+| cargo test --locked --offline -j1 integral |181PASS=2bridge+110client+1websocket+68wire,0FAIL/0ignored; compile3.91s,client3.37s,wire14.59s |
+| Direcionados review, já contidos nos181 |6PASS,17.57scompile/0.09stest; não somar novamente |
+| cargo clippy --locked --offline -j1 --all-targets -- -D warnings |PASS,2.67s |
+| cargo fmt --all -- --check e rustfmt--check forkpublish |PASS |
+| cargo build --locked --offline -j1 --bin mqtt-client |PASS,3.77s |
+| license_inventory.py --check, PATH explícito/offline |PASS; não é auditoria legal integral |
+| Contratos Python do agregador |4PASS, sobrepostos à finalidade de classificação, não somados a Rust |
+| Windows cargo check --locked --offline-j1 --bins --target-dir target/c129-windows |PASS,1.93s, warning alheio acima; não teste runtimeWindows |
+| [TCP integral atualizado](../../docs/evidence/client-c129-review-inbound.json) |21/21PASS,8.6118s, C129_INBOUND_JOURNAL_PASS |
+| [Draftv1 real→v2](../../docs/evidence/client-c129-review-v1-migration.json) |PASS,0.3019s, cleanupPASS, C129_V1_MIGRATION_PASS |
+| [Compatibilidade](../../docs/evidence/client-c129-review-compatibility.json) |6/6PASS,10.3605s, C129_COMPATIBILITY_PASS |
+
+Os21 TCP são18 anteriores maisórfão/ordem/multiplicidade. Sem ampliar recursos
+nem reinterpretar testes antigos como nova cobertura. Compatibilidade repete
+C105/C107/C108/C110/C123 e o conjunto WSS C114/C116/C119/C120/C122.
+
+Migração real usa `verify_c129_v1_migration.py --legacy-client` apontando ao
+ELF109ec973 e `--client` ao52d4c811. Journalv1 foi produzido pelo binário
+anterior, não pela edição de um campo version:crash apósPUBREC, SP1 e replay
+com IDs removidos não exibiram nova saída nem alteraram bytesv1; PUBREL/
+PUBCOMP gravou2 preservando wire original enquanto presente. Unitário separado
+cobre documento reconstruído com algoritmo antigo, não confundido com o real.
+
+Hashes dos harnesses finais:
+
+- TCP21:`8a5a982387bf8c1bcfe252cf66e61ef4bd2948937e31e7d8e9c52827d729ebda`.
+- Migração:`dec6578665808b25348199bfc0a8c70b58f0ab026357e780fdb4f0fd92d2143a`.
+- Compat:`5be2d5b8599ca431ff74f2e92964756f72a2fef5c5d73ea50dd28c554fe5f296`.
+
+Reportoriginais exclusivos dist/c129-review-*.json e cópias sanitizadas em
+docs/evidence/client-c129-review-*.json. SHA e tempos são deexecuções locais,
+sem alegação de produção/SLA/powerloss/novoTLS físico. Ainda cabe ao coordenador
+integrar C129 com brokerE/v16/admin e peers externos, validar snapshot/versões
+finais e publicar. Sem push/tag/serviço do operador nesta frente.

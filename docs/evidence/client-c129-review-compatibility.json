@@ -1,0 +1,79 @@
+{
+  "client_sha256": "52d4c8119f5da61ffa97b6147e0b51a5f6f8c868283efcd162d1fd1893c7a8ab",
+  "harness_sha256": "5be2d5b8599ca431ff74f2e92964756f72a2fef5c5d73ea50dd28c554fe5f296",
+  "scope": "existing synthetic TCP/WSS mTLS fixtures; no operator state",
+  "scenarios": [
+    {
+      "status": "PASS",
+      "module": "verify_durable_qos1_outbox_mqtt5",
+      "exit_code": 0,
+      "expected_markers": [
+        "C105_QOS1_OUTBOX_WIRE_PASS"
+      ],
+      "markers_observed": true,
+      "harness_sha256": "29386fec2c1f0ac56c25ee465f8fe10c6dc899882913526358cd22c02652e19d",
+      "elapsed_seconds": 0.8955
+    },
+    {
+      "status": "PASS",
+      "module": "verify_durable_qos2_outbox_mqtt5",
+      "exit_code": 0,
+      "expected_markers": [
+        "C107_QOS2_OUTBOX_WIRE_PASS"
+      ],
+      "markers_observed": true,
+      "harness_sha256": "d1843f90d89acaa7548a5fc77734d9c82fa5d260673a97e1a4139e6639988ee1",
+      "elapsed_seconds": 0.6635
+    },
+    {
+      "status": "PASS",
+      "module": "verify_durable_subscription_mqtt5",
+      "exit_code": 0,
+      "expected_markers": [
+        "C108_SUBSCRIPTION_WIRE_PASS"
+      ],
+      "markers_observed": true,
+      "harness_sha256": "62662028ab69bbe1fb7064701d8d48513d62764be4df10dfe7a739734f751452",
+      "elapsed_seconds": 0.9787
+    },
+    {
+      "status": "PASS",
+      "module": "verify_subscription_ack_after_output_mqtt5",
+      "exit_code": 0,
+      "expected_markers": [
+        "C110_ACK_AFTER_OUTPUT_PASS"
+      ],
+      "markers_observed": true,
+      "harness_sha256": "e9695f25dd1266faf0adce705152cf93900c0255c53ec4b06a0e5cd55b9f39a9",
+      "elapsed_seconds": 0.6879
+    },
+    {
+      "status": "PASS",
+      "module": "verify_wss_durable_subscription",
+      "exit_code": 0,
+      "expected_markers": [
+        "C123_WSS_DURABLE_SUBSCRIPTION_PASS"
+      ],
+      "markers_observed": true,
+      "harness_sha256": "3e7e8858cf114c529738d68964350b1e4ca63c867d5c258a41991a2cfd471699",
+      "elapsed_seconds": 1.2942
+    },
+    {
+      "status": "PASS",
+      "module": "verify_wss_client",
+      "exit_code": 0,
+      "expected_markers": [
+        "C114_WSS_MTLS_FIXTURE_PASS",
+        "C116_PROFILE_FIXTURE_PASS",
+        "C119_WSS_QOS1_OUTBOX_PASS",
+        "C120_WSS_QOS1_RECOVERY_PASS",
+        "C122_WSS_QOS2_OUTBOX_PASS"
+      ],
+      "markers_observed": true,
+      "harness_sha256": "e803eead8e611e000938981cf0154edc8882de6459fe566e012199347b4517c1",
+      "elapsed_seconds": 5.8402
+    }
+  ],
+  "status": "PASS",
+  "elapsed_seconds": 10.3605
+}
