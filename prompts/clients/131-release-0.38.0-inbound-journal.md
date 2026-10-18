@@ -41,3 +41,86 @@ validação. Não anunciar produção, brokerMQTT5integral ou suporteWindows aos
 journals. Se qualquer gate falhar, revisar este prompt antes de corrigir.
 Agente pode executar esta distribuição explicitamente autorizada, mas
 nenhuma mutação em serviços/firewall/firmware/segredos ou estado do operador.
+
+## v1.1 — execução isolada e migração verificável
+
+Entrada confirmada f3c71620d5a3d715fbfb58b3e8f09d69a026f854; clone novo
+`.artifacts/p227-client-release038`, branch `release/0.38.0`, origin local
+somente leitura. Push explícito para GitHub, sem mudar origin ou C128.
+Consultas remotas não encontraram v0.38.0 nem imagem/tag0.38.0 em2026-10-18.
+
+CI preserva jobs existentes e acrescenta release/** e C129:181Rust atuais,
+21TCP,6compat, contratos classificadores e migração. Para migração real no
+CI, checkout histórico fixo5ba9cf67a36b3c196bd1b60b35b74819d4768c47
+(ancestral commitado do draftv1), build somente mqtt-client em target próprio;
+não inventar documento antigo editando o campo version. Local usa ELF109ec973
+congelado, com SHA no relatório. Nenhuma dependência nova.
+
+Versionar somente pacote/client038, Docker default038 e docs de distribuição;
+bridge fonte permanece no repo e nos gates herdados, mas sem binário/unit
+bridge no pacote/imagem. Coletar notices pela fonte/lock exatos. Compilar
+release com um job no cache privado; Debian nativoUbuntu26 existente e
+container Ubuntu26 descartável para instalação/upgrade036→038/rollback/purge.
+
+Rollback do pacote NÃO é compatibilidade do journal inbound:036 publicado
+não conhece C129 e NÃO deve abrir diretório com mensagens pendentes novas.
+Seed real de journalv2 com o038 instalado, guardar hashes privados, voltar036
+sem iniciar assinatura sobre esse diretório; provar bytes/permissões preservados
+e restaurar038 antes de retomar. Não apagar journal para tornar downgrade verde.
+Configuração/credencial sintética preservadas em todo ciclo. Sem systemd host.
+
+Fixtures Docker usarão imagem por ID/digest imutável, volumes/rede privados
+sem portas host e usuário10001:10001. TCP/mTLS e WSS dos testes existentes;
+C129 TCP por wrapper Docker em rede host do Linux VM somente loopback privado
+ou runner descartável compartilhando namespace, com paths privados/mode0700.
+Registros devem distinguir pub/sub por digest de fixtures sintéticas do journal,
+sem inferir brokerE/v16/admin final ou processamento de negócio.
+
+Antes de correção após qualquer FAIL de gate, acrescentar revisão e preservar
+relatório/estágio/exitcode. CI/pacote/imagem/local PASS antes de tag/prerelease;
+assets remotos baixados para pasta nova e comparados por tamanho/SHA256.
+
+## v1.2 — revisão de proveniência antes da migração no CI
+
+O coordenador detectou que5ba9cf6 existe apenas na história do clone de
+aceite: os commits chegaram ao GitHub por cherry-pick. A consulta local
+cat-file não prova alcance pelo GitHub; a alegação de ancestral emv1.1 estava
+incorreta. A primeira fonte512f85e foi enviada para CI antes dessa revisão;
+preservar o resultado se falhar nesse estágio, sem atribuir a runtime.
+
+Usar o equivalente público235f20d097b674fadcbdf85d8c8f1c581ff1eba9,
+cujo diff src/vendor/tests com5ba9cf6 é vazio. CI checkout full history contém
+esse ancestral de mainf3c7162. Nenhum oráculo de migração muda; somente a
+referência histórica. Acrescentar -j1 ao build Docker para honrar orçamento.
+
+## v1.3 — FAIL de limpeza da migração, sem alterar MQTT
+
+CI39137783610/e5ef844:21TCP/6compatPASS, bridge e pacotePASS, migraçãoFAIL
+com OSError depois de comprovar todos os campos de wire/migração; relatório
+preservado emdist/c131-ci-fail-e5ef844. A fonte fecha TemporaryDirectory
+antes de cleanup do filho ainda vivo, permitindo corrida de gravação/remoção.
+Não atribuir esse resultado ao broker/client nem ignorar erro de limpeza.
+
+Antes da correção, regressão determinística deve verificar que qualquer filho
+foi encerrado quando TemporaryDirectory.__exit__ inicia. Usar ELFs explícitos,
+fixture privada real e monkeypatch só para observar lifecycle. Corrigir ordem
+de finally: fechar peer, encerrar/aguardar filho ainda dentro do diretório,
+depois remover temporários; manter cleanup externo defensivo e sem substituir
+erro do teste. Nenhum byte/ACK/tempo/oráculo funcional muda. CI executará a
+regressão com binários reais antes da migração normal. Repetir local/CI e
+registrar novo SHA do harness; preservar relatório antigo e versão do helper.
+
+## v1.4 — privilégios somente no instalador descartável e label exato
+
+Primeiro ciclo de pacoteFAIL/apt100 antes de instalar: --cap-drop ALL impede
+setgroups/seteuid doAPT e chown do `_apt`. Reprodução direta confirmou EPERM,
+não falta de dependência/pacote. Repetir apenas o container de instalação com
+capacidades padrão doDocker, ainda sem rede/serviços/hoststate e com mountsRO;
+runtime MQTT permanece UID10001/capsnone/read-only. Não usar --privileged.
+
+O primeiro comando de build local recebeu um VCS_REF digitado incorretamente
+apesar do prefixo2153ba9. Não aceitar nem publicar essa imagem. Após fontes
+commitadas, calcular o SHA por git rev-parse HEAD na própria invocação e
+repetir build/inspeção/metadados com esse valor, sem tag antiga/latest.
+Build de dependências pode ser reutilizado como cache; label nunca é evidência
+substituta de fonte. Imagem e assets só aceitos com SHA completo correspondente.

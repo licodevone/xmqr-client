@@ -4,7 +4,7 @@ Alvo: Ubuntu26.04 amd64. Construção requer Rust, Python3 e dpkg-dev:
 
 ```sh
 python3 scripts/build_deb.py
-sudo apt install ./dist/xmqr-client_0.37.0-1_amd64.deb
+sudo apt install ./dist/xmqr-client_0.39.0-1_amd64.deb
 mqtt-client --version
 mqtt-bridge --version
 ```
@@ -64,8 +64,8 @@ journalctl -u xmqr-client-bridge@lab.service -n 50 --no-pager
 
 Use um ClientID de origem estável e exclusivo por bridge QoS 1. A topologia
 deve ser idêntica entre as instâncias gerenciadas, reiniciadas após alteração.
-O pacote 0.36.0 anterior não inclui `mqtt-bridge` nem essa unit; em rollback,
-desabilite a instância antes de instalar 0.36.0. O pacote preserva os arquivos
+O pacote 0.38.0 anterior não inclui `mqtt-bridge` nem essa unit; em rollback,
+desabilite a instância antes de instalar 0.38.0. O pacote preserva os arquivos
 de configuração do operador na remoção.
 
 Upgrade/remove param as instâncias e preservam configurações externas. Após

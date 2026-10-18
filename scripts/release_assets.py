@@ -100,6 +100,15 @@ def main():
                                          '--security-opt', 'no-new-privileges', reference, '--version'], text=True).strip()
         if actual != binary + ' ' + version:
             raise ValueError('binary version does not match image/source')
+        if name == 'xmqr-client':
+            bridge_version = subprocess.check_output(
+                ['docker', 'run', '--rm', '--network', 'none', '--read-only',
+                 '--cap-drop=ALL', '--security-opt', 'no-new-privileges',
+                 '--entrypoint', '/usr/local/bin/mqtt-bridge', reference,
+                 '--version'], text=True).strip()
+            if bridge_version != f'mqtt-bridge 0.1.0 (xmqr-client {version})':
+                raise ValueError('bridge binary/version differs from image/source')
+            metadata['bridge_version_output'] = bridge_version
         destination = args.output / f'{repository}-{version}-linux-amd64.tar.gz'
         export_image(reference, destination)
         metadata['version_output'] = actual

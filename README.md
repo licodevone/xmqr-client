@@ -1,9 +1,20 @@
 # xmqr-client
 
-Em `main` após v0.36.0, C125–C128 acrescentam o sidecar experimental
-`mqtt-bridge` unidirecional TLS/mTLS QoS 0/1. O candidato 0.37.0 inclui o
-binário no pacote e na imagem, com serviço opcional; a distribuição aguarda
-os gates de release. [Guia, configuração e limites](docs/bridge-one-way.md).
+## Prerelease experimental 0.39.0 — C133
+
+Esta versão reúne o [journal inbound MQTT 5](docs/mqtt5-inbound-journal.md)
+publicado no client 0.38.0 e o sidecar `mqtt-bridge` C125–C128 no `.deb` e na
+imagem. A bridge TLS/mTLS unidirecional oferece QoS 0/1 e serviço opcional,
+sem início automático. [Guia, configuração e limites](docs/bridge-one-way.md).
+O journal pode duplicar saída na janela stdout→commit; ACK não comprova
+processamento de negócio. Preserve seus diretórios privados em downgrade e
+consulte a [nota 0.38.0](docs/releases/0.38.0.md). A fase 6 global, a fase 8
+global e a homologação Windows não são declaradas concluídas.
+
+[Release 0.39.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.39.0),
+[nota de instalação e rollback](docs/releases/0.39.0.md) e
+[registro C133](prompts/registros/C133-bridge-package-039.md). O client 0.38.0
+anterior contém somente `mqtt-client`, sem a bridge empacotada.
 
 A prerelease experimental 0.36.0 reúne C122/C123: outbox QoS 2 e manifesto
 de assinatura MQTT 5 por WSS mTLS, com URL canônica como identidade e retomada
