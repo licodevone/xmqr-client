@@ -22,6 +22,7 @@ Estado: implementação local validada; aceite e integração dependem da CI da 
 | Regressões QoS 0/1 e topologia de três brokers | PASS |
 | `systemd-analyze verify` diretamente na fonte montada `/mnt/d` | BLOCKED: `/usr/bin/mqtt-bridge` não está instalado no WSL; unit será verificada no job de pacote após instalação descartável. |
 | [CI de `cb98852`](https://github.com/licodevone/xmqr-client/actions/runs/39157647777) | FAIL no job `bridge-integration`: subscriber não recebeu QoS 2 após restart do destino; Rust, imagem e pacote PASS. |
+| [CI de `ed9b4d5`](https://github.com/licodevone/xmqr-client/actions/runs/39158474523) | FAIL no oráculo de crash: journal continha outra obrigação retained além de `/crash`; Rust e pacote PASS, imagem ainda em execução na observação. |
 | CI da revisão corrigida | PENDING |
 
 ## Falhas observadas e correção
@@ -30,6 +31,7 @@ Estado: implementação local validada; aceite e integração dependem da CI da 
 - A primeira fixture de crash pausou uma mensagem retained antes do tópico de teste; o gancho foi limitado ao tópico específico.
 - O novo negativo de perda de sessão tentou reutilizar a sessão com um PUBLISH QoS 2 negado por ACL. O destino fechava a conexão, logo não havia PUBCOMP e a pendência legítima bloqueava a instância serial. O teste foi isolado com IDs e journal próprios; a hipótese intermediária sobre Clean Session do destino foi revertida.
 - A CI revelou janela de reinício do destino. O fork preserva PUBREL pendente na reconexão; o destino QoS 2 agora mantém sessão persistente. A fixture nova interrompe o destino depois do PUBLISH, reinicia-o e confere journal vazio e replay retained. A primeira versão dessa fixture exigia retained após entrega viva; o oráculo foi corrigido publicando antes da assinatura.
+- A CI seguinte mostrou que uma entrada retained anterior pode coexistir no journal com a entrada `/crash`. O oráculo agora exige a entrada específica e, após retomada, journal inteiramente vazio; não exige exclusividade durante a queda.
 
 ## Limites e próximos gates
 

@@ -393,7 +393,8 @@ def main():
                                               json.loads(journal_path.read_text())['pending'],
                                               bridge_process.poll())) from error
                     assert payload.encode() in delivered, delivered
-                    assert len(json.loads(journal_path.read_text())['pending']) == 1
+                    pending = json.loads(journal_path.read_text())['pending']
+                    assert sum(entry['topic'] == 'sensors/crash' for entry in pending) == 1
                     bridge_process.kill()
                     bridge_process.communicate(timeout=8)
                     bridge_process = subprocess.Popen([str(BRIDGE), '--config', str(config)],
@@ -462,7 +463,8 @@ def main():
                 assert sent.returncode == 0, sent.stderr.decode(errors='replace')
                 wait_markers(bridge_process, ('checkpoint apos PUBREC da origem',))
                 pending_before = json.loads(loss_journal_path.read_text())['pending']
-                assert len(pending_before) == 1
+                assert sum(entry['topic'] == 'sensors/session-loss'
+                           for entry in pending_before) == 1
                 bridge_process.kill()
                 bridge_process.communicate(timeout=8)
                 stop(source)
