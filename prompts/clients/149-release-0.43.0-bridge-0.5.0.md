@@ -1,4 +1,4 @@
-# C149 v1.2 — distribuir client 0.43.0 / bridge 0.5.0
+# C149 v1.3 — distribuir client 0.43.0 / bridge 0.5.0
 
 Data: 2026-10-19. Entrada publicada client0.42.1/bridge0.4.0; C147 aceito,
 C148 em validação final conforme promptv1.15. Broker0.43.0/admin0.11.0
@@ -57,3 +57,12 @@ para acomodar teste. Incluir a fixture nos gatesdebug/pacote da CI e no ELF da
 imagem. Se encontrar defeito funcional, preservarFAIL e revisar prompt antes
 de corrigi-lo. A candidata d22a63a ainda não é autorizada para publicação por
 ter sido preparada; revisão exata final deve incluir os novos gates.
+
+Primeiro ensaio security-debug1: oito negativos TLS/credenciaisPASS, depois
+FAIL no oráculo que exigia diagnóstico interno deSUBACK. A bridge redige
+detalhes como erro genérico, corretamente; não mudar produto para expor o erro.
+Revisãov1.3 antes de corrigir fixture: comprovar SUBACK0x87 do broker privado
+por socketmTLS independente e exigir encerramento limitado, nenhum forwarding,
+journal sem pending e identidades conhecidas. Para burst usar estado/ACK/
+ausência de segundoPUBLISH, sem expectativa de texto interno. PreservarFAIL
+inicial e repetir os mesmos cenários; nova descoberta funcional exige revisão.

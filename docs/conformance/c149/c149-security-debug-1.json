@@ -1,0 +1,112 @@
+{
+  "schema": "xmqr-bridge-mqtt5-security-c149-v1",
+  "status": "FAIL",
+  "started_unix": 1792433664,
+  "hashes": {
+    "bridge_elf_sha256": "55d5b289b354582acb11ddf91cb4917c0848f793bf6aea3a1b1b684fa99a58e8",
+    "client_elf_sha256": "ee84dceda265a9a51b7f2cdb12da72e02ba80c35c7526860395a4fef912627ca",
+    "broker_elf_sha256": "fce0b871be72e5cfc7eb5a8dc46d04280075dd21dbbbb5b3677676952c6e9257",
+    "admin_elf_sha256": "6f2de794f67e4f0cf1ed59aaaea933ff7fc31516ac992a49fc2cee1dd27af854",
+    "fixture_sha256": "34cd09cd58fa285ae338851bcc55c4316107193744eaaee700e29bcf21f14b25"
+  },
+  "scenarios": [
+    {
+      "name": "source: reject ca",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "source: reject san",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "source: reject password",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "source: reject clientcert",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "destination: reject ca",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "destination: reject san",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "destination: reject password",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "destination: reject clientcert",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "source: actual ACL refuses SUBACK",
+      "status": "FAIL"
+    }
+  ],
+  "error_type": "CheckError",
+  "error_line": 41,
+  "reason": "source ACL did not produce refused SUBACK",
+  "finished_unix": 1792433691,
+  "passed": 8,
+  "total": 9
+}

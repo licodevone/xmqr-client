@@ -138,6 +138,8 @@ jobs:
           python3 -B scripts/verify_bridge_v5_wire.py --bridge target/debug/mqtt-bridge --broker-root broker --report dist/c148-ci-wire.json
       - name: C148 durable recovery and negative acknowledgements
         run: python3 -B scripts/verify_bridge_v5_crash.py --bridge target/debug/mqtt-bridge --broker-root broker --report dist/c148-ci-recovery.json
+      - name: C149 direct MQTT5 bridge security and inflight quota
+        run: python3 -B scripts/verify_bridge_v5_security.py --bridge target/debug/mqtt-bridge --client target/debug/mqtt-client --broker-root broker --report dist/c148-ci-security.json
       - name: C148 actual brokers multi-route chain and cooperative return
         run: python3 -B scripts/verify_bridge_v5_brokers.py --bridge target/debug/mqtt-bridge --client target/debug/mqtt-client --broker-root broker --mosquitto eclipse-mosquitto:2.0.22 --report dist/c148-ci-brokers.json
       - uses: actions/upload-artifact@v4
@@ -201,6 +203,8 @@ jobs:
         run: python3 -B scripts/verify_bridge_v5_wire.py --bridge "$XMQR_BRIDGE_BIN" --broker-root broker --report dist/c148-package-wire.json
       - name: C148 real brokers on packaged ELF
         run: python3 -B scripts/verify_bridge_v5_brokers.py --bridge "$XMQR_BRIDGE_BIN" --client "$XMQR_CLIENT_BIN" --broker-root broker --mosquitto eclipse-mosquitto:2.0.22 --report dist/c148-package-brokers.json
+      - name: C149 direct security and quota on packaged ELF
+        run: python3 -B scripts/verify_bridge_v5_security.py --bridge "$XMQR_BRIDGE_BIN" --client "$XMQR_CLIENT_BIN" --broker-root broker --report dist/c148-package-security.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

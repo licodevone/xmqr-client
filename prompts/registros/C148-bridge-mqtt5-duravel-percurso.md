@@ -65,3 +65,18 @@ obrigação e investigar offline. Não apagar estado para reiniciar.
 alterar serviços reais ou usar credenciais do operador. Recursos temporários
 próprios encerrados. Fase8/P235 depende ainda da distribuição e reconciliação
 global; os resultados locais não são certificaçãoMQTT5 integral.
+
+## CI da fonte funcional
+
+Fonte exata45ca641b4f6ddd4f230c56d2d5b4704d8fd4e606:
+[CI39300031174](https://github.com/licodevone/xmqr-client/actions/runs/39300031174)
+com os seis jobsPASS (rust,ubuntu-package,bridge-integration,bridge-v5,
+bridge-image,bridge-package-integration). Relatórios baixados e lidos:
+debugwire33PASS/1NOT_RUN, recovery15PASS, brokers34PASS; pacote wire33PASS/
+1NOT_RUN e brokers34PASS. C147regressão e os modos legados também passaram.
+Esses binários intermediários ainda imprimem0.42.1/bridge0.4.0; não substituem
+a tag já publicada de mesmo número. Somente C149 distribui0.43.0/bridge0.5.0.
+
+A auditoria de fechamento ainda pediu negativos diretos de TLS/credenciais,
+ACL e burstQoS0 do engine novo; C149v1.2/v1.3 registra a extensão do gate.
+Portanto esta CI não é, isoladamente, o aceite global nem a publicação final.
