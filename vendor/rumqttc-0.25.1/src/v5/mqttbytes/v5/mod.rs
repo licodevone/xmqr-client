@@ -378,10 +378,20 @@ fn parse_fixed_header(mut stream: Iter<u8>) -> Result<FixedHeader, Error> {
         return Err(Error::InsufficientBytes(2 - stream_len));
     }
 
-    let byte1 = stream.next().unwrap();
+    let byte1 = *stream.next().unwrap();
+    // C144: reject reserved flags before waiting for a peer-controlled body.
+    let expected_flags = match byte1 >> 4 {
+        3 => None, // PUBLISH flags have packet-specific meanings.
+        6 | 8 | 10 => Some(2),
+        1..=15 => Some(0),
+        kind => return Err(Error::InvalidPacketType(kind)),
+    };
+    if expected_flags.is_some_and(|flags| byte1 & 0x0f != flags) {
+        return Err(Error::IncorrectPacketFormat);
+    }
     let (len_len, len) = length(stream)?;
 
-    Ok(FixedHeader::new(*byte1, len_len, len))
+    Ok(FixedHeader::new(byte1, len_len, len))
 }
 
 /// Parses variable byte integer in the stream and returns the length
@@ -423,6 +433,12 @@ fn length(stream: Iter<u8>) -> Result<(usize, usize), Error> {
         return Err(Error::InsufficientBytes(1));
     }
 
+    // MQTT 5 requires the shortest representation for every VBI, including
+    // property lengths and Subscription Identifiers, not only Remaining Length.
+    if len_len != self::len_len(len) {
+        return Err(Error::MalformedRemainingLength);
+    }
+
     Ok((len_len, len))
 }
 
@@ -441,13 +457,19 @@ fn read_mqtt_bytes(stream: &mut Bytes) -> Result<Bytes, Error> {
     Ok(stream.split_to(len))
 }
 
+/// Validate MQTT UTF-8 strings without applying string rules to binary fields.
+fn validate_mqtt_string(bytes: &[u8]) -> Result<&str, Error> {
+    let value = std::str::from_utf8(bytes).map_err(|_| Error::TopicNotUtf8)?;
+    if value.contains('\0') {
+        return Err(Error::MalformedPacket);
+    }
+    Ok(value)
+}
+
 /// Reads a string from bytes stream
 fn read_mqtt_string(stream: &mut Bytes) -> Result<String, Error> {
     let s = read_mqtt_bytes(stream)?;
-    match String::from_utf8(s.to_vec()) {
-        Ok(v) => Ok(v),
-        Err(_e) => Err(Error::TopicNotUtf8),
-    }
+    Ok(validate_mqtt_string(&s)?.to_owned())
 }
 
 /// Serializes bytes to stream (including length)

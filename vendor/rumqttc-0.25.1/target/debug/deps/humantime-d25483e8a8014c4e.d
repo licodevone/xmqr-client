@@ -1,0 +1,10 @@
+/mnt/d/projects/my-project/acmebr-projects/acmebr-broker-client/xmqr-client/vendor/rumqttc-0.25.1/target/debug/deps/humantime-d25483e8a8014c4e.d: /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/lib.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/date.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/duration.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/wrapper.rs
+
+/mnt/d/projects/my-project/acmebr-projects/acmebr-broker-client/xmqr-client/vendor/rumqttc-0.25.1/target/debug/deps/libhumantime-d25483e8a8014c4e.rlib: /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/lib.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/date.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/duration.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/wrapper.rs
+
+/mnt/d/projects/my-project/acmebr-projects/acmebr-broker-client/xmqr-client/vendor/rumqttc-0.25.1/target/debug/deps/libhumantime-d25483e8a8014c4e.rmeta: /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/lib.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/date.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/duration.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/wrapper.rs
+
+/home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/lib.rs:
+/home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/date.rs:
+/home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/duration.rs:
+/home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/humantime-2.3.0/src/wrapper.rs:

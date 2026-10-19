@@ -4,6 +4,8 @@ Source: published `rumqttc` 0.25.1 crate from crates.io, corresponding to upstre
 
 XMQR changes the following MQTT 5 paths:
 
+- C144 rejects U+0000 and malformed UTF-8 in received MQTT strings, including the byte-backed PUBLISH topic and User Property keys/values. Binary payloads and Correlation Data remain binary; empty strings, Unicode and U+FEFF are preserved. The shared MQTT 5 VBI reader rejects redundant encodings for Remaining Length, property lengths and Subscription Identifiers. Fixed-header framing validates reserved flags before waiting for the body (including required 0x2 for PUBREL/SUBSCRIBE/UNSUBSCRIBE). These are receiver validation improvements for the four P232 recommendations; MQTT 3.1.1 and the upstream Apache-2.0 terms remain unchanged. Public decoder vectors in `tests/mqtt5_receive_validation.rs` and bounded CLI wire regressions cover rejection and canonical controls.
+
 - C142 fixes the default auto-ACK QoS 2 receiver: suppress duplicate application PUBLISH events while awaiting PUBREL, still send PUBREC for each, and answer repeated/unknown nonzero PUBREL with PUBCOMP 0x92. Known PUBREL (including error reason) completes with PUBCOMP; identifier zero remains invalid. Manual ACK/journal events remain caller-owned and MQTT 3.1.1 is unchanged. The existing bounded identifier bitset is reused; no persistence is added. `tests/mqtt5_receiver.rs` exercises the public state API and the wire fixture checks the ordinary CLI/event loop. Original Apache-2.0 terms remain intact.
 
 - Expose `Request::Auth` and `AsyncClient::auth`, serialize it through the outgoing state and emit an outgoing event.

@@ -1,0 +1,10 @@
+/mnt/d/projects/my-project/acmebr-projects/acmebr-broker-client/xmqr-client/vendor/rumqttc-0.25.1/target/debug/deps/fixedbitset-4bec973344aa7fb3.d: /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/lib.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/block/mod.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/block/sse2.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/range.rs
+
+/mnt/d/projects/my-project/acmebr-projects/acmebr-broker-client/xmqr-client/vendor/rumqttc-0.25.1/target/debug/deps/libfixedbitset-4bec973344aa7fb3.rlib: /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/lib.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/block/mod.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/block/sse2.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/range.rs
+
+/mnt/d/projects/my-project/acmebr-projects/acmebr-broker-client/xmqr-client/vendor/rumqttc-0.25.1/target/debug/deps/libfixedbitset-4bec973344aa7fb3.rmeta: /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/lib.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/block/mod.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/block/sse2.rs /home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/range.rs
+
+/home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/lib.rs:
+/home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/block/mod.rs:
+/home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/block/sse2.rs:
+/home/licod26/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fixedbitset-0.5.7/src/range.rs:

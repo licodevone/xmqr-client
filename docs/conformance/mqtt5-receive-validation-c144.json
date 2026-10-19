@@ -1,0 +1,776 @@
+{
+  "schema_version": 1,
+  "prompt": "C144",
+  "request_date": "2026-10-18",
+  "user_timezone": "America/Sao_Paulo",
+  "status": "PASS_LOCAL",
+  "source": {
+    "base_commit": "1e73717d37649b2e423b72fd823245991f3fb7f2",
+    "state": "modified local worktree, not a new release or clean-commit build",
+    "declared_version": "0.42.0",
+    "files_sha256": {
+      "Cargo.toml": "7746ba7b18b1060a2789caf53d847e3176a8f84e75abb1fdbf537b1537e8c982",
+      "Cargo.lock": "656db1077e0c268ab21648ac1dfa5eb1dcace855c5483078e02df87f0768517d",
+      "vendor/rumqttc-0.25.1/src/v5/mqttbytes/v5/mod.rs": "9ac2ac3bec693621ab3ccbc81f3d6300679cdea84b5ca4c30d37c3c885cae7f0",
+      "vendor/rumqttc-0.25.1/src/v5/mqttbytes/v5/publish.rs": "fe677b69dfb0a6965996de6944517cf32897b64ea0d55ae88c7a27ce87a2f885",
+      "vendor/rumqttc-0.25.1/XMQR-PATCHES.md": "0d49f90fa3390e1dd53c5adfd53de12f56c34dceff7ca59949ae56445a66873f",
+      "tests/mqtt5_receive_validation.rs": "9c2ae65cf274715a80fd974ff2ecf402f7054c5bd1266b23d5d7bf00244c08c6",
+      "scripts/verify_mqtt5_receive_validation.py": "228f52a663b9e6aeb7fc9e1aee81f84e860cf647e3bf4ac5ab7bee4917999d9f",
+      "scripts/verify_mqtt5_audit_fixes.py": "d520080ec96f3d5e76a7b781c1ad5b319015118fb3437b7a1431d1cd60260c08",
+      ".github/workflows/ci.yml": "d403aeca6ff2358e7c05e4b4d7a46ee1e4cdf5153e42b08daddfc27b025e01c6"
+    }
+  },
+  "environment": "Ubuntu 26.04 WSL; Rust/Cargo 1.99.0; temporary loopback peers",
+  "candidate_binary_sha256": "9381e8c233542db3128d6c99b6e4db73c6719659d0eafd01125626a0912ddb52",
+  "gates": {
+    "cargo fmt --all -- --check": {
+      "status": "PASS",
+      "exit_code": 0
+    },
+    "cargo test --locked": {
+      "status": "PASS",
+      "exit_code": 0,
+      "tests_passed": 200
+    },
+    "cargo clippy --locked --all-targets -- -D warnings": {
+      "status": "PASS",
+      "exit_code": 0
+    },
+    "cargo build --locked --bins": {
+      "status": "PASS",
+      "exit_code": 0
+    },
+    "python3 scripts/license_inventory.py --check": {
+      "status": "PASS",
+      "exit_code": 0
+    }
+  },
+  "red_decoder_tests_before_patch": {
+    "status": "EXPECTED_FAIL",
+    "passed": 2,
+    "failed": 5
+  },
+  "reports": {
+    "baseline_p232": {
+      "schema_version": 1,
+      "audit": "P232",
+      "binary_sha256": "b6523c4e918dcde1cdf04c6b7b2226b987462a4340090083d9e88a7c67695a31",
+      "version": "mqtt-client 0.42.0",
+      "source_commit_declared": "1e73717d37649b2e423b72fd823245991f3fb7f2",
+      "harness_sha256": "3c02cdfa5e8c526de2072954acb21779aaaadffa37ad1dd239ba5003c1b5011d",
+      "helper_sha256": "72d35a2ead597bc9be0d59f6fb70e3d9f6a902dd0d70c50e622e9e48936b831c",
+      "scenarios": [
+        {
+          "name": "canonical_pub_qos1",
+          "status": "PASS",
+          "observed_header": 50,
+          "process_exit": 0,
+          "kind": "wire_probe",
+          "category": "POSITIVE_CONTROL"
+        },
+        {
+          "name": "canonical_sub",
+          "status": "PASS",
+          "process_exit": 0,
+          "displayed_rows": 1,
+          "displayed_expected_topic_and_payload": true,
+          "kind": "wire_probe",
+          "category": "POSITIVE_CONTROL"
+        },
+        {
+          "name": "nul_topic",
+          "status": "FAIL",
+          "process_exit": 0,
+          "displayed_rows": 1,
+          "displayed_expected_topic_and_payload": true,
+          "kind": "wire_probe",
+          "category": "RECEIVE_RECOMMENDATION"
+        },
+        {
+          "name": "malformed_utf8_topic",
+          "status": "PASS",
+          "process_exit": 1,
+          "displayed_rows": 0,
+          "displayed_expected_topic_and_payload": false,
+          "kind": "wire_probe",
+          "category": "RECEIVE_RECOMMENDATION"
+        },
+        {
+          "name": "nonminimal_connack_vbi",
+          "status": "FAIL",
+          "observed_header": 50,
+          "process_exit": 0,
+          "kind": "wire_probe",
+          "category": "RECEIVE_RECOMMENDATION"
+        },
+        {
+          "name": "reserved_puback_flags",
+          "status": "FAIL",
+          "observed_header": 50,
+          "process_exit": 0,
+          "kind": "wire_probe",
+          "category": "RECEIVE_RECOMMENDATION"
+        },
+        {
+          "name": "maximum_qos_zero",
+          "status": "PASS",
+          "observed_header": null,
+          "process_exit": 1,
+          "kind": "wire_probe",
+          "category": "MANDATORY_CLIENT_BEHAVIOR"
+        },
+        {
+          "name": "retain_unavailable",
+          "status": "PASS",
+          "observed_header": null,
+          "process_exit": 1,
+          "kind": "wire_probe",
+          "category": "MANDATORY_CLIENT_BEHAVIOR"
+        },
+        {
+          "name": "resume_without_local_session_state",
+          "status": "PASS",
+          "observed_header": null,
+          "process_exit": 1,
+          "kind": "wire_probe",
+          "category": "MANDATORY_CLIENT_BEHAVIOR"
+        },
+        {
+          "name": "nul_user_property",
+          "status": "FAIL",
+          "observed_header": 50,
+          "process_exit": 0,
+          "kind": "wire_probe",
+          "category": "RECEIVE_RECOMMENDATION"
+        },
+        {
+          "name": "qos2_repeated_pubrel",
+          "status": "PASS",
+          "canonical_qos2_cycle": "PASS",
+          "process_exit": 0,
+          "repeated_reply_header": 112,
+          "clauses": [
+            "MQTT-4.3.3-11"
+          ],
+          "kind": "wire_probe",
+          "category": "MANDATORY_CLIENT_BEHAVIOR"
+        },
+        {
+          "name": "qos2_duplicate_delivery",
+          "status": "PASS",
+          "displayed_same_transaction": 1,
+          "process_exit": 0,
+          "clauses": [
+            "MQTT-4.3.3-10"
+          ],
+          "kind": "wire_probe",
+          "category": "MANDATORY_CLIENT_BEHAVIOR"
+        }
+      ],
+      "limitations": [
+        "synthetic loopback TCP server, not TLS or production",
+        "declared source must be tied to package evidence separately",
+        "a PASS is only the stated probe, not whole-clause conformance",
+        "FAIL of a receiving recommendation is not automatically a MUST violation"
+      ],
+      "binary_unchanged": true,
+      "elapsed_seconds": 0.687,
+      "counts": {
+        "PASS": 8,
+        "FAIL": 4,
+        "BLOCKED": 0
+      },
+      "status": "FAIL"
+    },
+    "candidate_p232_original": {
+      "schema_version": 1,
+      "audit": "P232",
+      "binary_sha256": "9381e8c233542db3128d6c99b6e4db73c6719659d0eafd01125626a0912ddb52",
+      "version": "mqtt-client 0.42.0",
+      "source_commit_declared": "1e73717d37649b2e423b72fd823245991f3fb7f2",
+      "harness_sha256": "3c02cdfa5e8c526de2072954acb21779aaaadffa37ad1dd239ba5003c1b5011d",
+      "helper_sha256": "72d35a2ead597bc9be0d59f6fb70e3d9f6a902dd0d70c50e622e9e48936b831c",
+      "scenarios": [
+        {
+          "name": "canonical_pub_qos1",
+          "status": "PASS",
+          "observed_header": 50,
+          "process_exit": 0,
+          "kind": "wire_probe",
+          "category": "POSITIVE_CONTROL"
+        },
+        {
+          "name": "canonical_sub",
+          "status": "PASS",
+          "process_exit": 0,
+          "displayed_rows": 1,
+          "displayed_expected_topic_and_payload": true,
+          "kind": "wire_probe",
+          "category": "POSITIVE_CONTROL"
+        },
+        {
+          "name": "nul_topic",
+          "status": "PASS",
+          "process_exit": 1,
+          "displayed_rows": 0,
+          "displayed_expected_topic_and_payload": false,
+          "kind": "wire_probe",
+          "category": "RECEIVE_RECOMMENDATION"
+        },
+        {
+          "name": "malformed_utf8_topic",
+          "status": "PASS",
+          "process_exit": 1,
+          "displayed_rows": 0,
+          "displayed_expected_topic_and_payload": false,
+          "kind": "wire_probe",
+          "category": "RECEIVE_RECOMMENDATION"
+        },
+        {
+          "name": "nonminimal_connack_vbi",
+          "status": "PASS",
+          "observed_header": null,
+          "process_exit": 1,
+          "kind": "wire_probe",
+          "category": "RECEIVE_RECOMMENDATION"
+        },
+        {
+          "name": "reserved_puback_flags",
+          "status": "PASS",
+          "observed_header": 50,
+          "process_exit": 1,
+          "kind": "wire_probe",
+          "category": "RECEIVE_RECOMMENDATION"
+        },
+        {
+          "name": "maximum_qos_zero",
+          "status": "PASS",
+          "observed_header": null,
+          "process_exit": 1,
+          "kind": "wire_probe",
+          "category": "MANDATORY_CLIENT_BEHAVIOR"
+        },
+        {
+          "name": "retain_unavailable",
+          "status": "PASS",
+          "observed_header": null,
+          "process_exit": 1,
+          "kind": "wire_probe",
+          "category": "MANDATORY_CLIENT_BEHAVIOR"
+        },
+        {
+          "name": "resume_without_local_session_state",
+          "status": "PASS",
+          "observed_header": null,
+          "process_exit": 1,
+          "kind": "wire_probe",
+          "category": "MANDATORY_CLIENT_BEHAVIOR"
+        },
+        {
+          "name": "nul_user_property",
+          "status": "PASS",
+          "observed_header": null,
+          "process_exit": 1,
+          "kind": "wire_probe",
+          "category": "RECEIVE_RECOMMENDATION"
+        },
+        {
+          "name": "qos2_repeated_pubrel",
+          "status": "PASS",
+          "canonical_qos2_cycle": "PASS",
+          "process_exit": 0,
+          "repeated_reply_header": 112,
+          "clauses": [
+            "MQTT-4.3.3-11"
+          ],
+          "kind": "wire_probe",
+          "category": "MANDATORY_CLIENT_BEHAVIOR"
+        },
+        {
+          "name": "qos2_duplicate_delivery",
+          "status": "PASS",
+          "displayed_same_transaction": 1,
+          "process_exit": 0,
+          "clauses": [
+            "MQTT-4.3.3-10"
+          ],
+          "kind": "wire_probe",
+          "category": "MANDATORY_CLIENT_BEHAVIOR"
+        }
+      ],
+      "limitations": [
+        "synthetic loopback TCP server, not TLS or production",
+        "declared source must be tied to package evidence separately",
+        "a PASS is only the stated probe, not whole-clause conformance",
+        "FAIL of a receiving recommendation is not automatically a MUST violation"
+      ],
+      "binary_unchanged": true,
+      "elapsed_seconds": 0.644,
+      "counts": {
+        "PASS": 12,
+        "FAIL": 0,
+        "BLOCKED": 0
+      },
+      "status": "PASS"
+    },
+    "candidate_receive_validation": {
+      "schema_version": 1,
+      "prompt": "C144",
+      "binary_sha256": "9381e8c233542db3128d6c99b6e4db73c6719659d0eafd01125626a0912ddb52",
+      "harness_sha256": "228f52a663b9e6aeb7fc9e1aee81f84e860cf647e3bf4ac5ab7bee4917999d9f",
+      "helper_sha256": "d520080ec96f3d5e76a7b781c1ad5b319015118fb3437b7a1431d1cd60260c08",
+      "scope": "synthetic loopback TCP, bounded temporary state; no production broker",
+      "scenarios": [
+        {
+          "name": "canonical-unicode-binary",
+          "status": "PASS"
+        },
+        {
+          "name": "nul-topic",
+          "status": "PASS"
+        },
+        {
+          "name": "redundant-remaining-length",
+          "status": "PASS"
+        },
+        {
+          "name": "redundant-property-length",
+          "status": "PASS"
+        },
+        {
+          "name": "redundant-subscription-id",
+          "status": "PASS"
+        },
+        {
+          "name": "puback-reserved-41",
+          "status": "PASS"
+        },
+        {
+          "name": "puback-reserved-42",
+          "status": "PASS"
+        },
+        {
+          "name": "puback-reserved-4f",
+          "status": "PASS"
+        },
+        {
+          "name": "connack-nul-key",
+          "status": "PASS"
+        },
+        {
+          "name": "publish-nul-key",
+          "status": "PASS"
+        },
+        {
+          "name": "puback-nul-key",
+          "status": "PASS"
+        },
+        {
+          "name": "connack-nul-value",
+          "status": "PASS"
+        },
+        {
+          "name": "publish-nul-value",
+          "status": "PASS"
+        },
+        {
+          "name": "puback-nul-value",
+          "status": "PASS"
+        }
+      ],
+      "binary_unchanged": true,
+      "counts": {
+        "PASS": 14,
+        "FAIL": 0
+      },
+      "status": "PASS",
+      "elapsed_seconds": 0.498
+    },
+    "five_fixes_regression": {
+      "suite": "C140-C142",
+      "binary_sha256": "9381e8c233542db3128d6c99b6e4db73c6719659d0eafd01125626a0912ddb52",
+      "version": "mqtt-client 0.42.0",
+      "harness_sha256": "d520080ec96f3d5e76a7b781c1ad5b319015118fb3437b7a1431d1cd60260c08",
+      "scenarios": [
+        {
+          "name": "default-qos0-retainFalse",
+          "status": "PASS"
+        },
+        {
+          "name": "maximum0-qos0-retainFalse",
+          "status": "PASS"
+        },
+        {
+          "name": "maximum1-qos0-retainFalse",
+          "status": "PASS"
+        },
+        {
+          "name": "no-retain-qos0-retainFalse",
+          "status": "PASS"
+        },
+        {
+          "name": "default-qos0-retainTrue",
+          "status": "PASS"
+        },
+        {
+          "name": "maximum0-qos0-retainTrue",
+          "status": "PASS"
+        },
+        {
+          "name": "maximum1-qos0-retainTrue",
+          "status": "PASS"
+        },
+        {
+          "name": "no-retain-qos0-retainTrue",
+          "status": "PASS"
+        },
+        {
+          "name": "default-qos1-retainFalse",
+          "status": "PASS"
+        },
+        {
+          "name": "maximum0-qos1-retainFalse",
+          "status": "PASS"
+        },
+        {
+          "name": "maximum1-qos1-retainFalse",
+          "status": "PASS"
+        },
+        {
+          "name": "no-retain-qos1-retainFalse",
+          "status": "PASS"
+        },
+        {
+          "name": "default-qos1-retainTrue",
+          "status": "PASS"
+        },
+        {
+          "name": "maximum0-qos1-retainTrue",
+          "status": "PASS"
+        },
+        {
+          "name": "maximum1-qos1-retainTrue",
+          "status": "PASS"
+        },
+        {
+          "name": "no-retain-qos1-retainTrue",
+          "status": "PASS"
+        },
+        {
+          "name": "default-qos2-retainFalse",
+          "status": "PASS"
+        },
+        {
+          "name": "maximum0-qos2-retainFalse",
+          "status": "PASS"
+        },
+        {
+          "name": "maximum1-qos2-retainFalse",
+          "status": "PASS"
+        },
+        {
+          "name": "no-retain-qos2-retainFalse",
+          "status": "PASS"
+        },
+        {
+          "name": "default-qos2-retainTrue",
+          "status": "PASS"
+        },
+        {
+          "name": "maximum0-qos2-retainTrue",
+          "status": "PASS"
+        },
+        {
+          "name": "maximum1-qos2-retainTrue",
+          "status": "PASS"
+        },
+        {
+          "name": "no-retain-qos2-retainTrue",
+          "status": "PASS"
+        },
+        {
+          "name": "invalid-maximum2",
+          "status": "PASS"
+        },
+        {
+          "name": "invalid-retain2",
+          "status": "PASS"
+        },
+        {
+          "name": "repeat-allowed",
+          "status": "PASS"
+        },
+        {
+          "name": "repeat-rejected",
+          "status": "PASS"
+        },
+        {
+          "name": "fresh-pub-present",
+          "status": "PASS"
+        },
+        {
+          "name": "fresh-pub-absent",
+          "status": "PASS"
+        },
+        {
+          "name": "fresh-sub-present",
+          "status": "PASS"
+        },
+        {
+          "name": "fresh-sub-absent",
+          "status": "PASS"
+        },
+        {
+          "name": "qos2-cycle-repeat-pubrel",
+          "status": "PASS"
+        },
+        {
+          "name": "qos2-duplicate",
+          "status": "PASS"
+        },
+        {
+          "name": "qos2-unknown-pubrel",
+          "status": "PASS"
+        },
+        {
+          "name": "qos2-pid-reuse",
+          "status": "PASS"
+        },
+        {
+          "name": "first-sub-manifest-present",
+          "status": "PASS"
+        },
+        {
+          "name": "outbox-qos1-capability",
+          "status": "PASS"
+        },
+        {
+          "name": "outbox-qos2-capability",
+          "status": "PASS"
+        },
+        {
+          "name": "outbox-qos1-retain",
+          "status": "PASS"
+        },
+        {
+          "name": "outbox-qos2-retain",
+          "status": "PASS"
+        },
+        {
+          "name": "pubrel-resume-restricted",
+          "status": "PASS"
+        }
+      ],
+      "limitations": [
+        "synthetic TCP loopback, not TLS/certification or business exactly-once",
+        "four P232 receiving recommendations are not included"
+      ],
+      "binary_unchanged": true,
+      "counts": {
+        "PASS": 42,
+        "FAIL": 0
+      },
+      "elapsed_seconds": 0.945,
+      "status": "PASS"
+    },
+    "inbound_journal": {
+      "client_sha256": "9381e8c233542db3128d6c99b6e4db73c6719659d0eafd01125626a0912ddb52",
+      "harness_sha256": "0929ab7c2b1c676b6b62ab803a00e29eb05bb3bb4e70c6e8c0cea70d029ea0d7",
+      "scope": "owned synthetic loopback fixture; SIGKILL is not power loss",
+      "scenarios": [
+        {
+          "status": "PASS",
+          "scenario": "crash_after_pubrec_resume_pubrel_and_id_reuse",
+          "journal_before_pubrec": true,
+          "output_replayed_on_pubrel": false
+        },
+        {
+          "status": "PASS",
+          "scenario": "default_continuous_two_qos2"
+        },
+        {
+          "status": "PASS",
+          "scenario": "refuse_session_absent",
+          "no_replay_or_ack": true,
+          "state_preserved": true
+        },
+        {
+          "status": "PASS",
+          "scenario": "refuse_corrupt",
+          "no_replay_or_ack": true,
+          "state_preserved": true
+        },
+        {
+          "status": "PASS",
+          "scenario": "refuse_permission",
+          "no_replay_or_ack": true,
+          "state_preserved": true
+        },
+        {
+          "status": "PASS",
+          "scenario": "refuse_identity",
+          "no_replay_or_ack": true,
+          "state_preserved": true
+        },
+        {
+          "status": "PASS",
+          "scenario": "refuse_lock",
+          "no_replay_or_ack": true,
+          "state_preserved": true
+        },
+        {
+          "status": "PASS",
+          "scenario": "qos1_output_failure_no_ack",
+          "recoverable_received_record": true
+        },
+        {
+          "status": "PASS",
+          "scenario": "qos2_output_failure_no_ack",
+          "recoverable_received_record": true
+        },
+        {
+          "status": "PASS",
+          "scenario": "received_after_output_error_replays_on_sp1"
+        },
+        {
+          "status": "PASS",
+          "scenario": "qos1_conflicting_live_identifier_refused",
+          "state_preserved": true,
+          "no_replay_or_ack": true
+        },
+        {
+          "status": "PASS",
+          "scenario": "absolute_pubrel_deadline",
+          "repeats": 4,
+          "elapsed_seconds": 1.0043,
+          "state_preserved": true
+        },
+        {
+          "status": "PASS",
+          "scenario": "pubrel_commit_failure_no_pubcomp",
+          "state_preserved": true
+        },
+        {
+          "status": "PASS",
+          "scenario": "unknown_and_repeated_pubrel_0x92"
+        },
+        {
+          "status": "PASS",
+          "scenario": "batch_32_no_ack_channel_deadlock",
+          "publications": 32
+        },
+        {
+          "status": "PASS",
+          "scenario": "durable_count_statically_rejected_without_network"
+        },
+        {
+          "status": "PASS",
+          "scenario": "cancel_preserves_idle_manifest"
+        },
+        {
+          "status": "PASS",
+          "scenario": "total_idle_deadline_preserves_manifest"
+        },
+        {
+          "status": "PASS",
+          "scenario": "orphan_refused_before_connect_and_manifest"
+        },
+        {
+          "status": "PASS",
+          "scenario": "mutable_identifier_order"
+        },
+        {
+          "status": "PASS",
+          "scenario": "mutable_identifier_multiplicity"
+        }
+      ],
+      "status": "PASS",
+      "elapsed_seconds": 6.8131
+    },
+    "durable_tcp_wss_compatibility": {
+      "client_sha256": "9381e8c233542db3128d6c99b6e4db73c6719659d0eafd01125626a0912ddb52",
+      "harness_sha256": "5be2d5b8599ca431ff74f2e92964756f72a2fef5c5d73ea50dd28c554fe5f296",
+      "scope": "existing synthetic TCP/WSS mTLS fixtures; no operator state",
+      "scenarios": [
+        {
+          "status": "PASS",
+          "module": "verify_durable_qos1_outbox_mqtt5",
+          "exit_code": 0,
+          "expected_markers": [
+            "C105_QOS1_OUTBOX_WIRE_PASS"
+          ],
+          "markers_observed": true,
+          "harness_sha256": "29386fec2c1f0ac56c25ee465f8fe10c6dc899882913526358cd22c02652e19d",
+          "elapsed_seconds": 0.521
+        },
+        {
+          "status": "PASS",
+          "module": "verify_durable_qos2_outbox_mqtt5",
+          "exit_code": 0,
+          "expected_markers": [
+            "C107_QOS2_OUTBOX_WIRE_PASS"
+          ],
+          "markers_observed": true,
+          "harness_sha256": "d1843f90d89acaa7548a5fc77734d9c82fa5d260673a97e1a4139e6639988ee1",
+          "elapsed_seconds": 0.3734
+        },
+        {
+          "status": "PASS",
+          "module": "verify_durable_subscription_mqtt5",
+          "exit_code": 0,
+          "expected_markers": [
+            "C108_SUBSCRIPTION_WIRE_PASS"
+          ],
+          "markers_observed": true,
+          "harness_sha256": "69d8d7ad57d83b480785ad28fec1893d68259a2b3b08d085210d974265c23f75",
+          "elapsed_seconds": 0.6979
+        },
+        {
+          "status": "PASS",
+          "module": "verify_subscription_ack_after_output_mqtt5",
+          "exit_code": 0,
+          "expected_markers": [
+            "C110_ACK_AFTER_OUTPUT_PASS"
+          ],
+          "markers_observed": true,
+          "harness_sha256": "e9695f25dd1266faf0adce705152cf93900c0255c53ec4b06a0e5cd55b9f39a9",
+          "elapsed_seconds": 0.369
+        },
+        {
+          "status": "PASS",
+          "module": "verify_wss_durable_subscription",
+          "exit_code": 0,
+          "expected_markers": [
+            "C123_WSS_DURABLE_SUBSCRIPTION_PASS"
+          ],
+          "markers_observed": true,
+          "harness_sha256": "3e7e8858cf114c529738d68964350b1e4ca63c867d5c258a41991a2cfd471699",
+          "elapsed_seconds": 1.0184
+        },
+        {
+          "status": "PASS",
+          "module": "verify_wss_client",
+          "exit_code": 0,
+          "expected_markers": [
+            "C114_WSS_MTLS_FIXTURE_PASS",
+            "C116_PROFILE_FIXTURE_PASS",
+            "C119_WSS_QOS1_OUTBOX_PASS",
+            "C120_WSS_QOS1_RECOVERY_PASS",
+            "C122_WSS_QOS2_OUTBOX_PASS"
+          ],
+          "markers_observed": true,
+          "harness_sha256": "e803eead8e611e000938981cf0154edc8882de6459fe566e012199347b4517c1",
+          "elapsed_seconds": 3.1847
+        }
+      ],
+      "status": "PASS",
+      "elapsed_seconds": 6.1651
+    }
+  },
+  "limitations": [
+    "Finite targeted receiver validation, not overall MQTT conformance",
+    "P232 source_commit_declared is the base; candidate local source hashes above identify modifications",
+    "No publication, package/image acceptance or remote CI execution",
+    "No native Windows validation; existing WSS mTLS fixtures passed"
+  ]
+}

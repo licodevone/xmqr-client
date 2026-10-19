@@ -1,11 +1,30 @@
 # xmqr-client
 
+## Correção local C144 — validação recebida MQTT 5
+
+A fonte local posterior à release 0.42.0 rejeita NUL em tópico e em chave/valor
+de User Property, VBI com representação redundante e flags reservadas inválidas
+no cabeçalho MQTT 5, incluindo PUBACK. Payload e Correlation Data continuam
+binários; Unicode e BOM são preservados. A recusa ocorre antes de entregar a
+mensagem ou confirmar sucesso. O decoder MQTT 3.1.1 permanece igual.
+
+O probe P232 original passou 12/12 no executável local; a nova fixture passou
+14/14, além dos controles/regressões C140–C142, journal e WSS mTLS. Esses
+resultados resolvem as quatro recomendações no recorte testado e não declaram
+conformidade global. [Prompt C144](prompts/clients/144-mqtt5-receive-validation.md),
+[registro de execução](prompts/registros/C144-mqtt5-receive-validation.md) e
+[evidências](docs/conformance/mqtt5-receive-validation-c144.json).
+Nenhuma nova versão, pacote, imagem ou release foi publicada nesta etapa.
+Servidores que enviem essas entradas inválidas precisam ser corrigidos;
+não há migração do estado durável.
+
 ## Prerelease 0.42.0 publicada — correções da auditoria MQTT 5
 
 C140–C142 corrigem as cinco falhas obrigatórias P232: publicação acima de
 Maximum QoS, retained indisponível, aceitação de sessão sem estado local,
-entrega duplicada QoS 2 e ausência de PUBCOMP para PUBREL repetido. As quatro
-recomendações de validação recebida permanecem abertas; isso não é certificação.
+entrega duplicada QoS 2 e ausência de PUBCOMP para PUBREL repetido. Nessa release,
+as quatro recomendações de validação recebida ainda estavam abertas; C144 acima
+é uma alteração local posterior. Isso não é certificação.
 Os prompts e [registro de aceite](prompts/registros/C143-five-audit-fixes.md)
 preservam os resultados anteriores. A release também inclui C139:
 `mqtt-bridge 0.4.0`, origem MQTT 5/QoS 2 com journal privado e destino MQTT 3.1.1.

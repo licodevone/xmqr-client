@@ -65,6 +65,7 @@ impl Publish {
         let variable_header_index = fixed_header.fixed_header_len;
         bytes.advance(variable_header_index);
         let topic = read_mqtt_bytes(&mut bytes)?;
+        validate_mqtt_string(&topic)?;
 
         // Packet identifier exists where QoS > 0
         let pkid = match qos {

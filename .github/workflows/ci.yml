@@ -22,6 +22,8 @@ jobs:
       - run: cargo build --locked
       - name: C140-C142 five MQTT 5 audit corrections and controls
         run: python3 -B scripts/verify_mqtt5_audit_fixes.py --client target/debug/mqtt-client --report dist/c140-ci-audit-fixes.json
+      - name: C144 four MQTT 5 receiving recommendations and controls
+        run: python3 -B scripts/verify_mqtt5_receive_validation.py --client target/debug/mqtt-client --report dist/c144-ci-receive-validation.json
       - name: C129 inbound journal (all 21 cases) and compatibility
         run: |
           python3 -B -m unittest discover -s scripts -p test_c129_harness.py -v
@@ -53,6 +55,11 @@ jobs:
         with:
           name: c140-audit-fix-report
           path: dist/c140-ci-audit-fixes.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c144-receive-validation-report
+          path: dist/c144-ci-receive-validation.json
 
   ubuntu-package:
     runs-on: ubuntu-latest
@@ -135,11 +142,17 @@ jobs:
       - run: mkdir -p dist/unpacked && dpkg-deb -x dist/xmqr-client_0.42.0-1_amd64.deb dist/unpacked
       - run: test "$($XMQR_CLIENT_BIN --version)" = 'mqtt-client 0.42.0' && test "$($XMQR_BRIDGE_BIN --version)" = 'mqtt-bridge 0.4.0 (xmqr-client 0.42.0)'
       - run: python3 -B scripts/verify_mqtt5_audit_fixes.py --client "$XMQR_CLIENT_BIN" --report dist/c140-package-audit-fixes.json
+      - run: python3 -B scripts/verify_mqtt5_receive_validation.py --client "$XMQR_CLIENT_BIN" --report dist/c144-package-receive-validation.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: c140-package-audit-fix-report
           path: dist/c140-package-audit-fixes.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c144-package-receive-validation-report
+          path: dist/c144-package-receive-validation.json
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --qos2 --skip-crash-checkpoint
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --qos2
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --mqtt5-retain
