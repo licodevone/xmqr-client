@@ -70,3 +70,14 @@ real. A publicação 0.42.0 e os ledgers históricos P232 continuam imutáveis.
 Não houve homologação nativa Windows, fuzzing, todos os servidores externos
 ou declaração de conformidade integral. Nenhum gate local listado ficou
 BLOCKED. Estado, credenciais reais e os repositórios broker/admin não mudaram.
+
+## Verificação posterior da fonte publicada — C145, 19/10/2026
+
+O relato anterior descreve a execução local anterior ao commit. Depois,
+C144 foi incorporado a `25c2e8a64f0db759776d4eed7b3e17d2986f75e0` e enviado
+a origin/main. A [CI dessa fonte](https://github.com/licodevone/xmqr-client/actions/runs/39194165930)
+concluiu com sucesso, incluindo as fixtures configuradas para debug e pacote.
+Isso não torna o pacote histórico 0.42.0 uma distribuição de C144 nem altera
+os hashes/relatórios locais acima. O commit também incluiu o target vendorizado
+preexistente; C145 retira apenas sua rastreabilidade, preservando os arquivos
+locais e o histórico. Ainda não há tag/release própria de C144.
