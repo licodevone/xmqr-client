@@ -1,5 +1,10 @@
 # Bridge XMQR experimental — C125/C126/C134/C136/C137/C139
 
+Marco publicado 0.42.0: `mqtt-bridge 0.4.0` inclui C139/origem MQTT 5 QoS 2.
+A candidata client 0.42.1 mantém essa versão da bridge e acrescenta validação
+de recepção C144 no codec MQTT 5 compartilhado. A [nota 0.42.1](releases/0.42.1.md)
+e o registro C146 distinguem a candidata dos artefatos efetivamente publicados.
+
 O binário `mqtt-bridge` é um **sidecar experimental** do pacote do client. A release 0.39.0 contém bridge 0.1.0 com QoS 0/1; o client 0.40.0 distribui bridge 0.2.0 com QoS 2 C134. A prerelease client 0.41.0/bridge 0.3.0 acrescenta C136/C137. Por padrão, as duas pontas usam MQTT 3.1.1 sobre TLS/mTLS. Uma instância só encaminha da origem para o destino. `route.qos=0` mantém o modo melhor esforço C125. `route.qos=1` usa sessão persistente na origem, assinatura QoS 1, um encaminhamento em voo por vez e ACK manual da origem somente após o PUBACK do destino. O broker XMQR continua independente do processo da bridge.
 
 Em C136/C137, `source_protocol="mqtt5"` na raiz do TOML seleciona origem MQTT 5 com `route.qos=0` ou `route.qos=1`; o destino permanece MQTT 3.1.1. A assinatura envia `Retain As Published=1`, permitindo encaminhar como retained tanto o replay inicial quanto publicações retained vivas, sem marcar publicações normais como retained. A bridge espera o destino conectar antes de assinar; se ele falhar, encerra sem afirmar que o replay foi entregue. Com QoS 1, a origem usa sessão persistente com expiração de 24 horas e ACK manual depois do PUBACK do destino. Uma queda nesse intervalo pode duplicar o encaminhamento. As opções QoS 0/1 integram a release 0.41.0. A fonte C139 acrescenta QoS 2 com origem MQTT 5; ainda não integra essa release.

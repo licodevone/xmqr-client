@@ -1,6 +1,16 @@
 # xmqr-client
 
-## Correção local C144 — validação recebida MQTT 5
+## Candidata corretiva 0.42.1 — C144/C146
+
+Inclui as quatro validações recebidas MQTT 5 de C144 e as cinco correções
+obrigatórias já publicadas na 0.42.0. A bridge mantém `0.4.0`. A fonte C144
+passou na CI; a distribuição da candidata exige sua própria CI e conferência
+de pacote/imagem. [Nota e rollback](docs/releases/0.42.1.md) e
+[registro C146](prompts/registros/C146-release-0.42.1.md).
+Sem migração de estado; servidores com pacotes inválidos passam a causar erro
+antes de entrega ou ACK. Conformidade global continua sem demonstração.
+
+## Histórico C144 — validação recebida MQTT 5
 
 A fonte local posterior à release 0.42.0 rejeita NUL em tópico e em chave/valor
 de User Property, VBI com representação redundante e flags reservadas inválidas
