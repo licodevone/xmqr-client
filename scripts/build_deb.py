@@ -59,7 +59,7 @@ def main():
             put(unit, 'usr/lib/systemd/system/' + unit.name)
         documents = ['LICENSE', 'docs/third-party-licenses.md', 'docs/ubuntu-systemd.md']
         if not broker:
-            documents.append('docs/bridge-one-way.md')
+            documents.extend(['docs/bridge-one-way.md', 'docs/bridge-mqtt5.md'])
         for file in documents:
             put(root / file, 'usr/share/doc/' + name + '/' + Path(file).name)
         put(root / 'LICENSE', 'usr/share/doc/' + name + '/copyright')

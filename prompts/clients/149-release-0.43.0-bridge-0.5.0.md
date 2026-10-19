@@ -1,4 +1,4 @@
-# C149 v1.0 — distribuir client 0.43.0 / bridge 0.5.0
+# C149 v1.1 — distribuir client 0.43.0 / bridge 0.5.0
 
 Data: 2026-10-19. Entrada publicada client0.42.1/bridge0.4.0; C147 aceito,
 C148 em validação final conforme promptv1.15. Broker0.43.0/admin0.11.0
@@ -36,3 +36,8 @@ e respectivos sidecars). Baixar os seis anexos e confrontar hashes, conferir
 tag/alvo remotos e pull/run da imagem por digest. Não publicar candidata
 reprovada. Registrar evidências e reconciliar P235/T02/plano em prompt próprio;
 fechar fase8 somente após comprovar cada requisito e distribuição final.
+
+Revisão v1.1, antes de corrigir gate legado: auditoria estática detectou
+verify_bridge_brokers.py exigindo prefixo0.4.0. Atualizar sua expectativa
+para0.5.0, mantendo todos os cenários. Não executar a candidata com oráculo
+da versão anterior nem alterar as expectativas de rollback0.42.1/0.4.0.

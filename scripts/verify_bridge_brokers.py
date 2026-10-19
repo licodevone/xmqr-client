@@ -295,7 +295,7 @@ def main():
                                       capture_output=True, timeout=5)
             assert rejected.returncode == 2, "unsafe topology accepted"
         assert subprocess.run([str(BRIDGE), "--version"], capture_output=True,
-                              timeout=5).stdout.startswith(b"mqtt-bridge 0.4.0")
+                              timeout=5).stdout.startswith(b"mqtt-bridge 0.5.0")
         source = start(source_env, source_port)
         target = start(target_env, target_port)
         bridge_process = None

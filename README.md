@@ -1,6 +1,6 @@
 # xmqr-client
 
-## Fonte C147/C148 — bridge MQTT 5 durável e múltiplas rotas
+## Candidata 0.43.0 / bridge 0.5.0 — C147/C148/C149
 
 O modo v2 opt-in oferece uma a oito rotas isoladas, MQTT 5 nas duas pontas,
 metadados de aplicação, expiração sem renovar TTL, journal de encaminhamento
@@ -8,6 +8,8 @@ e marcador limitado de percurso. [Configuração, limites e migração](docs/bri
 e [registro C148](prompts/registros/C148-bridge-mqtt5-duravel-percurso.md).
 Validação local: wire33PASS/1NOT_RUN, recuperação15PASS, brokers reais34PASS
 e regressão C14723PASS. CI e distribuição da candidata seguem pendentes.
+[Nota de atualização e rollback](docs/releases/0.43.0.md) e
+[registro C149](prompts/registros/C149-release-0.43.0.md).
 Client0.42.1/bridge0.4.0 publicados abaixo ainda não incluem C147/C148.
 
 ## Prerelease corretiva 0.42.1 publicada — C144/C146

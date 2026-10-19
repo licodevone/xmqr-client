@@ -1,5 +1,22 @@
 # Versionamento
 
+Candidata experimental **0.43.0 / bridge 0.5.0**: C149 prepara C147/C148 após
+aceite funcional local da fonte `45ca641`. Inclui múltiplas rotas, MQTT 5 nas
+duas pontas, metadados, validade, percurso e encaminhamento durável privado.
+**Publicação pendente:** CI da revisão exata da candidata, pacote, imagem,
+tag e anexos remotos precisam dos próprios gates. A última prerelease
+confirmada permanece 0.42.1; [nota da candidata](docs/releases/0.43.0.md) e
+[registro C149](prompts/registros/C149-release-0.43.0.md).
+
+O modo novo usa `bridge-forward.json` formato 2 em diretório novo com IDs
+novos; 0.42.1 não lê esse estado. Drenar e preservar o modo novo antes do
+rollback, retomando somente a configuração/estado antigos preservados.
+Draft v2 origem MQTT 5 → destino 3.1.1 exige `legacy_metadata_policy="drop"`;
+v1 publicado continua compatível. Recusa persistida em `refused` requer
+intervenção offline, sem apagar a obrigação para forçar downgrade.
+Broker/admin conservam versões independentes; este marco não declara
+certificação integral nem atomicidade distribuída.
+
 Prerelease corretiva 0.42.1 publicada: distribui C144, validação de pacotes recebidos
 MQTT 5, mantendo bridge 0.4.0. Sem mudança de formatos duráveis ou broker/admin.
 Fonte `db844a0`, CI com cinco jobs PASS, tag anotada e artefatos remotos conferidos;

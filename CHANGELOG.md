@@ -1,5 +1,15 @@
 # Histórico de versões
 
+## 0.43.0 / bridge 0.5.0 — candidata experimental, publicação pendente
+
+- C149 prepara a distribuição de C147/C148; a fonte funcional `45ca641` tem aceite local, enquanto CI exata da candidata, pacote, imagem, tag e prerelease ainda exigem seus próprios gates. A última publicação confirmada permanece 0.42.1.
+- Configuração v2 com uma a oito rotas, identidades e estado independentes, diagnóstico sem conexões e manifesto acíclico. Draft v2 de origem MQTT 5 com destino 3.1.1 exige `legacy_metadata_policy="drop"`; o formato v1 publicado mantém seu comportamento.
+- Novo modo MQTT 5 nas duas pontas preserva PFI, Content Type, Response Topic com política explícita, Correlation Data binária, User Properties ordenadas/repetidas e retained inicial/vivo/tombstone. Alias e Subscription Identifier são locais à conexão.
+- Journal de encaminhamento formato 2, privado, com um voo por rota, fases duráveis, identidade por perna, contadores de descarte e validade recalculada após espera/commit, sem renovar TTL. Sessão ausente, relógio regressivo ou estado inválido falham preservando a obrigação.
+- Percurso limitado em `xmqr.bridge.path` descarta retorno/teto; depende de intermediários preservarem a propriedade. QoS 2 não duplica o voo pendente e trata PUBLISH após PUBCOMP como nova mensagem, mesmo com PID reutilizado e DUP=1.
+- ACK negativo conhecido é persistido em `refused`; reabrir falha antes de conectar, sem ACK de sucesso na origem nem retry automático. Não há comando de desbloqueio nesta fatia.
+- Migração exige diretório/IDs novos e preservação do estado anterior. 0.42.1 não lê o formato 2; rollback requer drenagem e análise das obrigações pendentes. Não há commit atômico distribuído, certificação MQTT 5 integral ou fechamento automático da fase 8. [Nota C149](docs/releases/0.43.0.md).
+
 ## 0.42.0 — prerelease experimental publicada, C139–C143
 
 - Client MQTT 5 respeita Maximum QoS/Retain Available antes de publicar, sem downgrade silencioso e sem descartar outbox. Continuação PUBREL persistida não é tratada como novo PUBLISH.
