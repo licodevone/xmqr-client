@@ -1,4 +1,4 @@
-# C149 v1.1 — distribuir client 0.43.0 / bridge 0.5.0
+# C149 v1.2 — distribuir client 0.43.0 / bridge 0.5.0
 
 Data: 2026-10-19. Entrada publicada client0.42.1/bridge0.4.0; C147 aceito,
 C148 em validação final conforme promptv1.15. Broker0.43.0/admin0.11.0
@@ -41,3 +41,19 @@ Revisão v1.1, antes de corrigir gate legado: auditoria estática detectou
 verify_bridge_brokers.py exigindo prefixo0.4.0. Atualizar sua expectativa
 para0.5.0, mantendo todos os cenários. Não executar a candidata com oráculo
 da versão anterior nem alterar as expectativas de rollback0.42.1/0.4.0.
+
+Revisão v1.2: auditoriaP235 identificou lacunas de prova direta no novo engine,
+apesar dos negativos herdados do legado. Antes de publicar, adicionar fixture
+verify_bridge_v5_security.py com binários explícitos, recursos privados e
+relatório novo/sanitizado: CA/SAN/senha/certificado cliente inválidos em cada
+perna, SUBACK da origem recusado por ACL e PUBLISH do destino recusado porACL,
+preservando obrigação e sem confirmar origem. Também provar mensagemQoS0
+adicional enquanto um voo está pendente: recusa explícita/encerramento limitado,
+sem alegar ReceiveMaximum protegeQoS0. O oráculo deve verificar comportamento,
+estado/ACK e ausência de encaminhamento extra, não apenas exitcode.
+
+Usar helpers existentes de brokers reais e wire independentes; sem mudar core
+para acomodar teste. Incluir a fixture nos gatesdebug/pacote da CI e no ELF da
+imagem. Se encontrar defeito funcional, preservarFAIL e revisar prompt antes
+de corrigi-lo. A candidata d22a63a ainda não é autorizada para publicação por
+ter sido preparada; revisão exata final deve incluir os novos gates.
