@@ -1,5 +1,44 @@
 # Bridge XMQR experimental — C125/C126/C134/C136/C137/C139
 
+## Fonte C147 — múltiplos mapeamentos (ainda sem nova release)
+
+O TOML `version=2` aceita de uma a oito tabelas `[[routes]]`, no lugar de
+`[route]`. Cada uma tem `id`, `source_prefix`, `target_prefix` e `qos`.
+Os IDs devem coincidir com os links do manifesto `topology_file`, obrigatório
+no v2; prefixos de origem não podem se sobrepor. Endpoints e `source_protocol`
+continuam comuns. Não misture campos v1 (`route`, `link_id`, `journal_dir`).
+
+```toml
+version = 2
+source_protocol = "mqtt5"
+topology_file = "/etc/xmqr/topology.toml"
+state_dir = "/var/lib/xmqr-bridge/lab"
+max_retries = 8
+# Acrescente [source] e [destination] completos como abaixo.
+[[routes]]
+id = "temperatura"
+source_prefix = "sensors/"
+target_prefix = "mirror/"
+qos = 1
+[[routes]]
+id = "umidade"
+source_prefix = "metrics/"
+target_prefix = "archive/"
+qos = 2
+```
+
+Cada identidade MQTT recebe o sufixo `-ID_DA_ROTA`, respeitando 128 bytes.
+Crie previamente `state_dir` absoluto com modo 0700 quando houver QoS2;
+a execução cria seu filho privado por rota QoS2. Symlinks são recusados.
+Uma falha fatal encerra o grupo. Publique na origem com QoS até o da rota:
+o ACK e o journal respeitam o QoS recebido, enquanto o destino usa o da rota.
+Republicar com QoS maior não acrescenta garantia à perna de origem QoS0.
+
+`mqtt-bridge --check --config /etc/xmqr/bridge.toml` valida configuração,
+topologia e materiais TLS sem abrir conexão nem criar diretórios. A ordem
+`--config ARQUIVO --check` também é aceita. O formato v1 continua disponível.
+Diagnóstico estático não comprova senha, ACL ou disponibilidade dos brokers.
+
 Marco publicado 0.42.0: `mqtt-bridge 0.4.0` inclui C139/origem MQTT 5 QoS 2.
 O client 0.42.1 publicado mantém essa versão da bridge e acrescenta validação
 de recepção C144 no codec MQTT 5 compartilhado. A [nota 0.42.1](releases/0.42.1.md)

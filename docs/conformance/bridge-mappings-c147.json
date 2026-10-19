@@ -1,0 +1,99 @@
+{
+  "prompt": "C147",
+  "binary_sha256": "37a11f629bc1c46650a869d11e50d998940f5349cf3aab3d2ff800fcbf4187a8",
+  "client_sha256": "d644cbaaa2bacb631f47e362bd266004da978603b76fc6c5fecd91bf10896034",
+  "harness_sha256": "5feb93932b7e6d30e90ed2c4e4d41811d344dfa65da1e658067f55bde2624182",
+  "scenarios": [
+    {
+      "name": "check_duas_ordens_sem_conexao_ou_mutacao",
+      "status": "PASS"
+    },
+    {
+      "name": "id_duplicado",
+      "status": "PASS"
+    },
+    {
+      "name": "prefixo_sobreposto",
+      "status": "PASS"
+    },
+    {
+      "name": "identidade_longa",
+      "status": "PASS"
+    },
+    {
+      "name": "rota_ausente_manifesto",
+      "status": "PASS"
+    },
+    {
+      "name": "mistura_route_routes",
+      "status": "PASS"
+    },
+    {
+      "name": "sem_rotas",
+      "status": "PASS"
+    },
+    {
+      "name": "mais_de_oito",
+      "status": "PASS"
+    },
+    {
+      "name": "sem_estado_qos2",
+      "status": "PASS"
+    },
+    {
+      "name": "estado_permissivo_recusado",
+      "status": "PASS"
+    },
+    {
+      "name": "symlink_pendente_recusado",
+      "status": "PASS"
+    },
+    {
+      "name": "manifesto_permissivo_recusado",
+      "status": "PASS"
+    },
+    {
+      "name": "configuracao_permissiva_recusada",
+      "status": "PASS"
+    },
+    {
+      "name": "encaminhamento_sensors/value_qos0",
+      "status": "PASS"
+    },
+    {
+      "name": "encaminhamento_sensors/value_qos1",
+      "status": "PASS"
+    },
+    {
+      "name": "encaminhamento_metrics/value_qos0",
+      "status": "PASS"
+    },
+    {
+      "name": "encaminhamento_metrics/value_qos1",
+      "status": "PASS"
+    },
+    {
+      "name": "encaminhamento_metrics/value_qos2",
+      "status": "PASS"
+    },
+    {
+      "name": "journal_qos2_isolado_sem_pid_zero",
+      "status": "PASS"
+    },
+    {
+      "name": "reinicio_preserva_identidades_e_duas_rotas",
+      "status": "PASS"
+    },
+    {
+      "name": "worker_fatal_encerra_grupo_preserva_corrupcao",
+      "status": "PASS"
+    }
+  ],
+  "binary_unchanged": true,
+  "counts": {
+    "PASS": 21,
+    "FAIL": 0
+  },
+  "status": "PASS",
+  "elapsed_seconds": 15.285
+}

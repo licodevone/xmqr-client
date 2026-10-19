@@ -1,0 +1,72 @@
+{
+  "prompt": "C147",
+  "binary_sha256": "37a11f629bc1c46650a869d11e50d998940f5349cf3aab3d2ff800fcbf4187a8",
+  "client_sha256": "d644cbaaa2bacb631f47e362bd266004da978603b76fc6c5fecd91bf10896034",
+  "harness_sha256": "950670052dbd288ab1f19230ec7584dddec620b82411203915a95e143c4489f2",
+  "scenarios": [
+    {
+      "name": "check_duas_ordens_sem_conexao_ou_mutacao",
+      "status": "PASS"
+    },
+    {
+      "name": "id_duplicado",
+      "status": "PASS"
+    },
+    {
+      "name": "prefixo_sobreposto",
+      "status": "PASS"
+    },
+    {
+      "name": "identidade_longa",
+      "status": "PASS"
+    },
+    {
+      "name": "rota_ausente_manifesto",
+      "status": "PASS"
+    },
+    {
+      "name": "mistura_route_routes",
+      "status": "PASS"
+    },
+    {
+      "name": "sem_rotas",
+      "status": "PASS"
+    },
+    {
+      "name": "mais_de_oito",
+      "status": "PASS"
+    },
+    {
+      "name": "sem_estado_qos2",
+      "status": "PASS"
+    },
+    {
+      "name": "estado_permissivo_recusado",
+      "status": "PASS"
+    },
+    {
+      "name": "symlink_pendente_recusado",
+      "status": "PASS"
+    },
+    {
+      "name": "manifesto_permissivo_recusado",
+      "status": "PASS"
+    },
+    {
+      "name": "configuracao_permissiva_recusada",
+      "status": "PASS"
+    },
+    {
+      "name": "execucao",
+      "status": "FAIL",
+      "error": "('subscriber exited before SUBACK', b'Erro: SUBACK recusou ou alterou QoS solicitado; confira ACL e limites do broker; MQTT 3.1.1 nao informa causa especifica\\n')"
+    }
+  ],
+  "binary_unchanged": true,
+  "counts": {
+    "PASS": 13,
+    "FAIL": 1
+  },
+  "status": "FAIL",
+  "elapsed_seconds": 5.512
+}

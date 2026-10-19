@@ -1,4 +1,4 @@
-# C147 v1.0 — múltiplos mapeamentos e diagnóstico da bridge
+# C147 v1.1 — múltiplos mapeamentos e diagnóstico da bridge
 
 Data: 2026-10-19. Entrada `6baeeec`, client 0.42.1/bridge 0.4.0 publicados;
 Git limpo e builds locais ignorados. Pedido atual: implementar toda a fase 8,
@@ -34,3 +34,8 @@ simultâneos, QoS mistos na origem, isolamento de tópicos/estado, falhas de ACL
 configuração e regressões dos modos v1. fmt/test/Clippy/build/inventário e CI
 da fonte exata. Registro com PASS/FAIL/BLOCKED, guia atualizado e commit/push.
 Sem bump/tag nesta fatia; distribuição e matriz global são etapas posteriores.
+
+Revisão após execução local 1: os 13 negativos/diagnóstico passaram, mas a
+assinatura observadora foi recusada pela ACL da fixture. Declarar também os
+tópicos exatos observados, como nos ensaios anteriores; preservar o relatório
+FAIL em dist/c147-local-1.json e repetir em arquivo novo. Não relaxar ACL real.

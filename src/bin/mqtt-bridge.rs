@@ -1,6 +1,8 @@
 //! C125-C139: bounded, one-way MQTT bridge sidecar (experimental).
 #[path = "../bridge_journal.rs"]
 mod bridge_journal;
+#[path = "../bridge_multi.rs"]
+mod bridge_multi;
 use std::{
     error::Error,
     fs,
@@ -57,7 +59,7 @@ struct Config {
     max_retries: u8,
 }
 
-#[derive(Debug, Default, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 enum SourceProtocol {
     #[default]
@@ -65,7 +67,7 @@ enum SourceProtocol {
     Mqtt5,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Endpoint {
     broker_id: Option<String>,
@@ -460,7 +462,7 @@ async fn forward_mqtt5_qos1(
     destination_connected: &AtomicBool,
     ack_rx: &mut mpsc::Receiver<()>,
 ) -> AppResult<()> {
-    if message.qos != QoS5::AtLeastOnce || message.payload.len() > MAX_PAYLOAD_BYTES {
+    if message.qos == QoS5::ExactlyOnce || message.payload.len() > MAX_PAYLOAD_BYTES {
         return Err(invalid("mensagem MQTT 5 QoS invalida ou acima do limite").into());
     }
     let topic = std::str::from_utf8(&message.topic)
@@ -507,8 +509,7 @@ async fn forward_mqtt5_qos2(
     ack_rx: &mut mpsc::Receiver<()>,
     journal: &mut Journal,
 ) -> AppResult<bool> {
-    if message.qos != QoS5::ExactlyOnce
-        || message.pkid == 0
+    if (message.qos != QoS5::AtMostOnce && message.pkid == 0)
         || message.payload.len() > MAX_PAYLOAD_BYTES
     {
         return Err(invalid("mensagem MQTT 5 QoS 2 invalida ou acima do limite").into());
@@ -517,12 +518,19 @@ async fn forward_mqtt5_qos2(
         std::str::from_utf8(&message.topic).map_err(|_| invalid("topico MQTT 5 invalido"))?;
     let target_topic = mapped_topic(&config.route, source_topic)
         .ok_or_else(|| invalid("topico MQTT 5 de origem nao mapeavel"))?;
-    journal.clear_completed_for_new_publish(message.pkid)?;
-    if journal.already_forwarded(message.pkid, source_topic, &message.payload, message.retain)? {
-        source_client.ack(message).await?;
-        return Ok(false);
+    if message.qos == QoS5::ExactlyOnce {
+        journal.clear_completed_for_new_publish(message.pkid)?;
+        if journal.already_forwarded(
+            message.pkid,
+            source_topic,
+            &message.payload,
+            message.retain,
+        )? {
+            source_client.ack(message).await?;
+            return Ok(false);
+        }
+        journal.make_v5_room()?;
     }
-    journal.make_v5_room()?;
     timeout(Duration::from_secs(20), async {
         while !destination_connected.load(Ordering::Acquire) {
             sleep(Duration::from_millis(50)).await;
@@ -543,7 +551,9 @@ async fn forward_mqtt5_qos2(
     })
     .await
     .map_err(|_| invalid("destino sem PUBCOMP no prazo"))??;
-    journal.record(message.pkid, source_topic, &message.payload, message.retain)?;
+    if message.qos == QoS5::ExactlyOnce {
+        journal.record(message.pkid, source_topic, &message.payload, message.retain)?;
+    }
     #[cfg(debug_assertions)]
     if std::env::var_os("XMQR_BRIDGE_TEST_PAUSE_AFTER_DEST_ACK").is_some()
         && message.topic.ends_with(b"/crash")
@@ -625,7 +635,7 @@ async fn run_mqtt5(config: Config) -> AppResult<()> {
                                  [SubscribeReasonCode::Success(actual)] if *actual == expected) {
                         return Err(invalid("origem recusou assinatura MQTT 5").into());
                     }
-                    eprintln!("Bridge: origem assinada");
+                    eprintln!("Bridge: origem assinada (rota {})", config.link_id.as_deref().unwrap_or("unica"));
                 }
                 Ok(v5::Event::Incoming(v5::Incoming::Publish(message))) => {
                     if qos == 2 {
@@ -784,12 +794,13 @@ async fn forward_durable(
     } else {
         QoS::AtLeastOnce
     };
-    if message.qos != expected_qos || message.payload.len() > MAX_PAYLOAD_BYTES {
+    if message.qos as u8 > config.route.qos || message.payload.len() > MAX_PAYLOAD_BYTES {
         return Err(invalid("mensagem QoS invalida ou acima do limite").into());
     }
     let topic = mapped_topic(&config.route, &message.topic)
         .ok_or_else(|| invalid("topico de origem nao mapeavel"))?;
-    if let Some(journal) = journal.as_ref()
+    if message.qos == QoS::ExactlyOnce
+        && let Some(journal) = journal.as_ref()
         && journal.already_forwarded(
             message.pkid,
             &message.topic,
@@ -815,7 +826,9 @@ async fn forward_durable(
     })
     .await
     .map_err(|_| invalid("destino sem ACK terminal no prazo"))??;
-    if let Some(journal) = journal.as_mut() {
+    if message.qos == QoS::ExactlyOnce
+        && let Some(journal) = journal.as_mut()
+    {
         journal.record(
             message.pkid,
             &message.topic,
@@ -908,7 +921,7 @@ async fn run(config: Config) -> AppResult<()> {
                     eprintln!("Bridge: origem conectada");
                 }
                 Ok(Event::Incoming(Incoming::SubAck(_))) => {
-                    eprintln!("Bridge: origem assinada");
+                    eprintln!("Bridge: origem assinada (rota {})", config.link_id.as_deref().unwrap_or("unica"));
                 }
                 Ok(Event::Incoming(Incoming::Publish(message))) => {
                     if durable_source {
@@ -975,27 +988,37 @@ async fn main() {
     }
     if args.len() == 1 && matches!(args[0].as_str(), "--help" | "-h") {
         println!(
-            "Uso: mqtt-bridge --config ARQUIVO_PRIVADO_TOML\nBridge experimental unidirecional TLS/mTLS QoS 0, 1 ou 2."
+            "Uso: mqtt-bridge [--check] --config ARQUIVO_PRIVADO_TOML\nBridge TLS/mTLS QoS 0/1/2; v1: uma rota, v2: ate oito rotas.\n--check valida configuracao, topologia e materiais TLS sem conectar."
         );
         return;
     }
-    if args.len() != 2 || args[0] != "--config" {
-        eprintln!("Erro: use mqtt-bridge --config ARQUIVO_PRIVADO_TOML");
-        std::process::exit(2);
-    }
-    let result = (|| -> AppResult<Config> {
-        let path = Path::new(&args[1]);
-        private(path)?;
-        let bytes = limited(path, MAX_CONFIG_BYTES)?;
-        let config: Config = toml::from_str(std::str::from_utf8(&bytes)?)?;
-        validate(&config)?;
-        Ok(config)
-    })();
-    let Ok(config) = result else {
+    let (path, check) = match args.as_slice() {
+        [flag, path] if flag == "--config" => (path, false),
+        [check, flag, path] if check == "--check" && flag == "--config" => (path, true),
+        [flag, path, check] if flag == "--config" && check == "--check" => (path, true),
+        _ => {
+            eprintln!("Erro: use mqtt-bridge [--check] --config ARQUIVO_PRIVADO_TOML");
+            std::process::exit(2);
+        }
+    };
+    let config_path = PathBuf::from(path);
+    let result = tokio::task::spawn_blocking(move || -> AppResult<bridge_multi::Loaded> {
+        private(&config_path)?;
+        bridge_multi::load(&limited(&config_path, MAX_CONFIG_BYTES)?, check)
+    })
+    .await;
+    let Ok(Ok(config)) = result else {
         eprintln!("Erro: configuracao da bridge invalida ou inacessivel");
         std::process::exit(2);
     };
-    if run(config).await.is_err() {
+    if check {
+        println!(
+            "Configuracao da bridge valida: {} rota(s); nenhuma conexao iniciada.",
+            config.route_count()
+        );
+        return;
+    }
+    if config.run().await.is_err() {
         eprintln!("Erro: bridge encerrada por falha de conexao ou configuracao");
         std::process::exit(1);
     }
