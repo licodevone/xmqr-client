@@ -27,6 +27,12 @@ build --bins e inventário. Regressões verify_bridge_brokers.py
 --mqtt5-retain --qos2 (incluindo dois checkpoints de crash) e --qos1 PASS.
 CI da fonte exata será vinculada após push; não é PASS por antecipação.
 
+CI confirmada após publicação: [39271798362](https://github.com/licodevone/xmqr-client/actions/runs/39271798362),
+commit8d34c240bbfb3b4d9b0f6f65d838ebd927bb97bc, cinco jobs concluídos com
+sucesso, incluindo novos21cenários no job bridge-integration, regressões
+XMQR/Mosquitto, imagem e instalação/rollback descartáveis. Não houve release
+nova nem movimentação de tags.
+
 Limites: destino continua MQTT3.1.1, sem propagação de metadados nem percurso
 externo. Journal legado não contém payload/outbox do destino. C148 preparado
 para esses requisitos. Sem bump, pacote, imagem ou tag nesta fatia.
