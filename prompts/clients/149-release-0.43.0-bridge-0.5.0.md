@@ -1,4 +1,4 @@
-# C149 v1.3 — distribuir client 0.43.0 / bridge 0.5.0
+# C149 v1.4 — distribuir client 0.43.0 / bridge 0.5.0
 
 Data: 2026-10-19. Entrada publicada client0.42.1/bridge0.4.0; C147 aceito,
 C148 em validação final conforme promptv1.15. Broker0.43.0/admin0.11.0
@@ -66,3 +66,20 @@ por socketmTLS independente e exigir encerramento limitado, nenhum forwarding,
 journal sem pending e identidades conhecidas. Para burst usar estado/ACK/
 ausência de segundoPUBLISH, sem expectativa de texto interno. PreservarFAIL
 inicial e repetir os mesmos cenários; nova descoberta funcional exige revisão.
+
+Gate de parada da imagemf695eb6: wire33PASS/1NOT_RUN, brokers34PASS e
+security11PASS, mas SIGTERM encerra com-15 em vez de parada normal. Dois
+relatórios imutáveis mostram journalSent byte a byte preservado e zeroACK;
+não houve perda de obrigação, porém falta cancelamento normal do processo.
+Revisãov1.4 antes da correção funcional: reutilizar src/signals.rs no binário
+bridge e manter um ouvinte global SIGINT/SIGTERM durante configuração,
+conexões, disco e execução das rotas, cancelando o grupo com exit0 sem ACK
+prematuro nem exclusão de estado. Erro ao registrar sinal falha explicitamente.
+Preservar contratos de CLI/--check e modoslegados. Sem nova dependência.
+
+Acrescentar à fixturesecurity provas SIGTERM antes de CONNACK e com envio
+pendente/retomada do mesmo journal, válidas no debug/pacote/imagem; completar
+crashdebug com SIGTERM durante checkpoint assíncrono, além do SIGINT existente.
+Repetir gatesRust/CI exata e validação da nova imagem; não publicar a imagem
+anterior por ter passado as outras suítes. Preservar relatórios anteriores
+e registrar CI intermediária como superada, sem transformar cancelamento emFAIL.

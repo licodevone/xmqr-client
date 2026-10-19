@@ -8,6 +8,7 @@
 - Journal de encaminhamento formato 2, privado, com um voo por rota, fases duráveis, identidade por perna, contadores de descarte e validade recalculada após espera/commit, sem renovar TTL. Sessão ausente, relógio regressivo ou estado inválido falham preservando a obrigação.
 - Percurso limitado em `xmqr.bridge.path` descarta retorno/teto; depende de intermediários preservarem a propriedade. QoS 2 não duplica o voo pendente e trata PUBLISH após PUBCOMP como nova mensagem, mesmo com PID reutilizado e DUP=1.
 - ACK negativo conhecido é persistido em `refused`; reabrir falha antes de conectar, sem ACK de sucesso na origem nem retry automático. Não há comando de desbloqueio nesta fatia.
+- SIGINT e SIGTERM encerram normalmente também durante configuração/conexão/etapas assíncronas, preservando o journal para retomada sem confirmar obrigação pendente.
 - Migração exige diretório/IDs novos e preservação do estado anterior. 0.42.1 não lê o formato 2; rollback requer drenagem e análise das obrigações pendentes. Não há commit atômico distribuído, certificação MQTT 5 integral ou fechamento automático da fase 8. [Nota C149](docs/releases/0.43.0.md).
 
 ## 0.42.0 — prerelease experimental publicada, C139–C143

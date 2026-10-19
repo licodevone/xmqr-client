@@ -1,0 +1,10 @@
+{
+  "status": "FAIL",
+  "bridge_elf_sha256": "1cbe5eb18abe1119ec5d91f39b0b9ee509cc1d20a3ff6673c29782d4daada7e5",
+  "exit_code": -15,
+  "elapsed_seconds": 0.0035143290006089956,
+  "pending_phase": "sent",
+  "journal_unchanged": true,
+  "no_source_ack": true,
+  "no_extra_publish": true
+}

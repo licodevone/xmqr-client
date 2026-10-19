@@ -188,7 +188,10 @@ Depois de o diagnóstico terminar com sucesso, conecte explicitamente:
 ```
 
 Cada assinatura só é anunciada ativa depois do SUBACK. Ctrl+C encerra a
-instância e preserva o estado. Falhas de conexão têm retentativas limitadas;
+instância e preserva o estado. SIGTERM, usado por Docker/systemd, também
+encerra normalmente com código zero e preserva a transferência pendente para
+retomada; não confirma uma mensagem apenas para parar. O cancelamento abrange
+configuração, conexão, disco e execução das rotas. Falhas de conexão têm retentativas limitadas;
 recusas de protocolo, capacidades incompatíveis e erros de estado falham
 preservando a obrigação. Verifique o estado das transferências antes de
 trocar identidades, configuração ou versão.

@@ -1,0 +1,137 @@
+{
+  "schema": "xmqr-bridge-mqtt5-security-c149-v1",
+  "status": "PASS",
+  "started_unix": 1792433839,
+  "hashes": {
+    "bridge_elf_sha256": "1cbe5eb18abe1119ec5d91f39b0b9ee509cc1d20a3ff6673c29782d4daada7e5",
+    "client_elf_sha256": "c674ae9d5f7778e426b8598855c6dee25574ed5ab460e78c0bf238bc89dbd40a",
+    "broker_elf_sha256": "fce0b871be72e5cfc7eb5a8dc46d04280075dd21dbbbb5b3677676952c6e9257",
+    "admin_elf_sha256": "6f2de794f67e4f0cf1ed59aaaea933ff7fc31516ac992a49fc2cee1dd27af854",
+    "fixture_sha256": "3590911fca3a86c90a46c64031e72dddb5f3f02e370c693734b38833fe93c5cb"
+  },
+  "scenarios": [
+    {
+      "name": "source: reject ca",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "source: reject san",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "source: reject password",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "source: reject clientcert",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "destination: reject ca",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "destination: reject san",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "destination: reject password",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "destination: reject clientcert",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "source: actual ACL refuses SUBACK",
+      "status": "PASS",
+      "evidence": {
+        "actual_acl_suback_refused": true,
+        "no_destination_message": true,
+        "pending": false,
+        "source_retained_preserved": true
+      }
+    },
+    {
+      "name": "destination: actual ACL refuses PUBLISH without source ACK",
+      "status": "PASS",
+      "evidence": {
+        "actual_acl_publish_refused": true,
+        "no_source_ack": true,
+        "no_destination_message": true,
+        "preserved_phase": "refused",
+        "restart_refuses_unchanged": true
+      }
+    },
+    {
+      "name": "one-flight: additional QoS0 refuses without replacing obligation",
+      "status": "PASS",
+      "evidence": {
+        "first_destination_publish": 1,
+        "extra_destination_publish": 0,
+        "no_source_ack": true,
+        "preserved_phase": "sent",
+        "receive_maximum_does_not_protect_qos0": true
+      }
+    }
+  ],
+  "finished_unix": 1792433872,
+  "passed": 11,
+  "total": 11
+}

@@ -10,6 +10,7 @@ from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import tempfile
@@ -191,6 +192,85 @@ def qos0_bound(lab):
                 preserved_phase='sent', receive_maximum_does_not_protect_qos0=True)
 
 
+def terminate_normally(case):
+    began = time.monotonic()
+    case.child.send_signal(signal.SIGTERM)
+    require(case.child.wait(timeout=5) == 0, 'SIGTERM did not produce normal exit0')
+    elapsed = time.monotonic() - began
+    require(elapsed < 5, 'SIGTERM exceeded bounded shutdown deadline')
+    return elapsed
+
+
+def sigterm_before_connack(lab):
+    with wire_case(lab, 'sigterm-before-connack') as case:
+        case.launch()
+        raw, address = case.destination_peer.listener.accept()
+        require(address[0] == '127.0.0.1', 'pre-CONNACK connection escaped owned loopback')
+        raw.settimeout(5)
+        stream = case.destination_peer.context.wrap_socket(raw, server_side=True)
+        case.destination_peer.connections.append(stream)
+        header, body = receive(stream)
+        require(header == 0x10, 'pre-CONNACK peer did not receive CONNECT')
+        cursor = Cursor(body)
+        require(cursor.text() == 'MQTT' and cursor.number() == 5, 'pre-CONNACK used wrong protocol')
+        require(cursor.number() == 0xC0 and cursor.number(2) == 30, 'pre-CONNACK changed persistent flags')
+        cursor.properties()
+        require(cursor.text() == 'c148-target-route', 'pre-CONNACK changed destination client ID')
+        state = case.document()
+        require(not state['source_known'] and not state['destination_known'] and state['pending'] is None,
+                'unacknowledged CONNECT adopted a session or obligation')
+        before = case.journal.read_bytes()
+        elapsed = terminate_normally(case)
+        quiet(stream, closed=True)
+        require(case.journal.read_bytes() == before, 'SIGTERM before CONNACK mutated durable identity')
+        case.source_peer.listener.settimeout(.2)
+        try:
+            unexpected, _ = case.source_peer.listener.accept()
+        except TimeoutError:
+            pass
+        else:
+            unexpected.close()
+            raise AssertionError('source connected before destination CONNACK')
+    return dict(exit_code=0, elapsed_seconds=round(elapsed, 4), no_connack_sent=True,
+                no_source_connection=True, journal_unchanged=True, pending=False)
+
+
+def sigterm_pending_resume(lab):
+    with wire_case(lab, 'sigterm-pending-resume') as case:
+        case.start()
+        case.source.sendall(publish(qos=1, payload=b'fixture'))
+        first = read_publish(case.destination)
+        case.phase('sent')
+        quiet(case.source)
+        identity = case.document()['identity']
+        before = case.journal.read_bytes()
+        elapsed = terminate_normally(case)
+        quiet(case.source, closed=True)
+        quiet(case.destination, closed=True)
+        require(case.journal.read_bytes() == before, 'SIGTERM changed pending obligation')
+        # Case.start validates stable derived IDs and resumes the same config,
+        # journal path and identities; both broker sessions are explicitly present.
+        case.start(destination_session=True, source_session=True)
+        replay = read_publish(case.destination)
+        require(replay['duplicate'] and replay['pkid'] == first['pkid'] == 1,
+                'SIGTERM recovery lost stable destination PID or DUP')
+        for field_name in ['topic', 'payload', 'qos', 'retain', 'properties']:
+            require(replay[field_name] == first[field_name], 'SIGTERM recovery changed application envelope')
+        require(case.document()['identity'] == identity, 'SIGTERM recovery changed journal identity')
+        quiet(case.source)
+        quiet(case.destination)
+        # PUBACK at destination PID1 must precede source PUBACK at PID37.
+        case.finish(1, 37)
+        quiet(case.destination)
+        quiet(case.source)
+        case.stop()
+    return dict(exit_code=0, elapsed_seconds=round(elapsed, 4), preserved_phase='sent',
+                journal_unchanged_on_stop=True, same_journal_and_client_ids=True,
+                replay_duplicate=True, destination_pkid=1, source_pkid=37,
+                no_premature_source_ack=True, pending_cleared_after_correct_ack=True,
+                no_extra_destination_publish=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ['bridge', 'client', 'broker-root', 'report']:
@@ -245,6 +325,8 @@ def main():
                     scenario('source: actual ACL refuses SUBACK', lambda: source_acl(lab, target))
                     scenario('destination: actual ACL refuses PUBLISH without source ACK', lambda: destination_acl(lab))
                     scenario('one-flight: additional QoS0 refuses without replacing obligation', lambda: qos0_bound(lab))
+                    scenario('SIGTERM: normal bounded exit before CONNACK', lambda: sigterm_before_connack(lab))
+                    scenario('SIGTERM: pending sent preserved and resumed with stable IDs and ACK', lambda: sigterm_pending_resume(lab))
                     result['status'] = 'PASS'
                 finally:
                     lab.close()

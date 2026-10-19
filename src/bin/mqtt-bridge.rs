@@ -9,6 +9,8 @@ mod bridge_multi;
 mod bridge_store;
 #[path = "../bridge_v5.rs"]
 mod bridge_v5;
+#[path = "../signals.rs"]
+mod signals;
 use std::{
     error::Error,
     fs,
@@ -1007,7 +1009,23 @@ async fn main() {
             std::process::exit(2);
         }
     };
-    let config_path = PathBuf::from(path);
+    let exit_code = tokio::select! {
+        signal = signals::shutdown() => {
+            if signal.is_ok() {
+                0
+            } else {
+                eprintln!("Erro: nao foi possivel observar sinais de encerramento");
+                1
+            }
+        }
+        code = execute(PathBuf::from(path), check) => code,
+    };
+    if exit_code != 0 {
+        std::process::exit(exit_code);
+    }
+}
+
+async fn execute(config_path: PathBuf, check: bool) -> i32 {
     let result = tokio::task::spawn_blocking(move || -> AppResult<bridge_multi::Loaded> {
         private(&config_path)?;
         bridge_multi::load(&limited(&config_path, MAX_CONFIG_BYTES)?, check)
@@ -1015,19 +1033,20 @@ async fn main() {
     .await;
     let Ok(Ok(config)) = result else {
         eprintln!("Erro: configuracao da bridge invalida ou inacessivel");
-        std::process::exit(2);
+        return 2;
     };
     if check {
         println!(
             "Configuracao da bridge valida: {} rota(s); nenhuma conexao iniciada.",
             config.route_count()
         );
-        return;
+        return 0;
     }
     if config.run().await.is_err() {
         eprintln!("Erro: bridge encerrada por falha de conexao ou configuracao");
-        std::process::exit(1);
+        return 1;
     }
+    0
 }
 
 #[cfg(test)]

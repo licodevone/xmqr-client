@@ -49,15 +49,16 @@ def first_source_refusal(fixture):
         require(case.document()['destination_known'], 'aceite do destino não foi persistido')
 
 
-def graceful_busy(fixture):
-    with owned(fixture, 'graceful-during-durable-step') as case:
+def graceful_busy(fixture, stop_signal=signal.SIGINT):
+    name = signal.Signals(stop_signal).name
+    with owned(fixture, 'graceful-during-durable-step-' + name.lower()) as case:
         case.start(checkpoint='after-source-persist')
         case.source.sendall(publish(qos=1))
         checkpoint(case, 'after-source-persist')
         case.phase('prepared')
         began = time.monotonic()
-        case.child.send_signal(signal.SIGINT)
-        require(case.child.wait(timeout=4) == 0, 'SIGINT não encerrou com sucesso')
+        case.child.send_signal(stop_signal)
+        require(case.child.wait(timeout=4) == 0, name + ' não encerrou com sucesso')
         require(time.monotonic() - began < 4, 'encerramento excedeu o limite')
         require(case.document()['pending']['phase'] == 'prepared', 'encerramento perdeu obrigação durável')
 
@@ -310,6 +311,7 @@ def main():
                       scope='Administração de processos e peers mTLS próprios; queda de processo não simula power loss')
         scenarios = [('retentativa_apos_recusa_primeira_origem', first_source_refusal),
                      ('sigint_durante_etapa_assincrona', graceful_busy),
+                     ('sigterm_durante_etapa_assincrona', lambda f: graceful_busy(f, signal.SIGTERM)),
                      ('permissoes_exatas_0600', permission_contract),
                      ('contadores_descarte_duraveis', durable_discards)]
         if not args.audit_only:
