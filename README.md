@@ -1,11 +1,13 @@
 # xmqr-client
 
-## Candidata corretiva 0.42.1 — C144/C146
+## Prerelease corretiva 0.42.1 publicada — C144/C146
 
 Inclui as quatro validações recebidas MQTT 5 de C144 e as cinco correções
-obrigatórias já publicadas na 0.42.0. A bridge mantém `0.4.0`. A fonte C144
-passou na CI; a distribuição da candidata exige sua própria CI e conferência
-de pacote/imagem. [Nota e rollback](docs/releases/0.42.1.md) e
+obrigatórias já publicadas na 0.42.0. A bridge mantém `0.4.0`.
+[CI da fonte exata](https://github.com/licodevone/xmqr-client/actions/runs/39257417702)
+aprovada nos cinco jobs; [release](https://github.com/licodevone/xmqr-client/releases/tag/v0.42.1),
+pacote, imagem por digest e seis anexos remotos conferidos.
+[Nota e rollback](docs/releases/0.42.1.md) e
 [registro C146](prompts/registros/C146-release-0.42.1.md).
 Sem migração de estado; servidores com pacotes inválidos passam a causar erro
 antes de entrega ou ACK. Conformidade global continua sem demonstração.

@@ -1,8 +1,8 @@
 # Versionamento
 
-Candidata corretiva 0.42.1: distribui C144, validação de pacotes recebidos
+Prerelease corretiva 0.42.1 publicada: distribui C144, validação de pacotes recebidos
 MQTT 5, mantendo bridge 0.4.0. Sem mudança de formatos duráveis ou broker/admin.
-Publicação condicionada aos gates C146 da fonte exata e artefatos remotos;
+Fonte `db844a0`, CI com cinco jobs PASS, tag anotada e artefatos remotos conferidos;
 [nota](docs/releases/0.42.1.md) e [registro](prompts/registros/C146-release-0.42.1.md).
 Rollback para 0.42.0 conserva formatos, mas reintroduz as quatro recomendações.
 
