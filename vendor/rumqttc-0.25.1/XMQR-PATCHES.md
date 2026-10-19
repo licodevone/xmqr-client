@@ -4,6 +4,8 @@ Source: published `rumqttc` 0.25.1 crate from crates.io, corresponding to upstre
 
 XMQR changes the following MQTT 5 paths:
 
+- C142 fixes the default auto-ACK QoS 2 receiver: suppress duplicate application PUBLISH events while awaiting PUBREL, still send PUBREC for each, and answer repeated/unknown nonzero PUBREL with PUBCOMP 0x92. Known PUBREL (including error reason) completes with PUBCOMP; identifier zero remains invalid. Manual ACK/journal events remain caller-owned and MQTT 3.1.1 is unchanged. The existing bounded identifier bitset is reused; no persistence is added. `tests/mqtt5_receiver.rs` exercises the public state API and the wire fixture checks the ordinary CLI/event loop. Original Apache-2.0 terms remain intact.
+
 - Expose `Request::Auth` and `AsyncClient::auth`, serialize it through the outgoing state and emit an outgoing event.
 - Accept incoming AUTH in the packet decoder and event loop, including AUTH Success with zero remaining length; reject nonzero reserved AUTH header flags.
 - Correct AUTH property byte counts and variable-length framing, reject duplicate/trailing properties, and re-export the AUTH property/reason types.

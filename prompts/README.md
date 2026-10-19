@@ -1,5 +1,13 @@
 # Prompts do xmqr-client
 
+Checkpoint 2026-10-18: correções da auditoria P232 em três fatias sequenciais:
+[C140 capacidades](clients/140-mqtt5-publish-capabilities.md),
+[C141 sessão local](clients/141-mqtt5-local-session-state.md),
+[C142 receptor QoS2](clients/142-mqtt5-qos2-receiver.md), seguidas pelo
+[C143 aceite/distribuição](clients/143-five-audit-fixes-acceptance.md).
+[Registro real](registros/C143-five-audit-fixes.md). Os checkpoints abaixo
+são históricos, não substituem o aceite atual.
+
 Próxima fatia corrente C45: [robustez/reconexão fase3](clients/45-robustez-reconexao.md),
 preparada antes das fontes; [registro real](registros/C45-robustez-reconexao.md).
 O histórico abaixo não substitui os aceites posterioresC39/C43/C44.

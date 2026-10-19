@@ -1,5 +1,14 @@
 # Cobertura atual dos prompts do cliente
 
+## C139–C143 — candidata 0.42.0, 2026-10-18
+
+Bridge MQTT5/QoS2 C139 já integrado na fonte anterior. C140–C142 corrigem
+cinco falhas obrigatórias P232 com prompts anteriores ao código, testes de
+capacidades/sessão e receptor QoS2 público + wire. C143 registra RED/GREEN,
+regressões e distribuição separadamente: [registro](registros/C143-five-audit-fixes.md).
+Não apaga a auditoria histórica, não fecha as quatro recomendações recebidas
+nem declara conformidade/certificação global. Checkpoints abaixo são históricos.
+
 ## C45/C46 — aceite técnico da fase 3, 2026-10-13
 
 Client **0.9.0 aceito tecnicamente e distribuído no recorte experimental**

@@ -104,7 +104,7 @@ def foreign_session(port, directory):
             stream.sendall(b"\x20\x03\x01\x00\x00")
             assert stream.recv(1) == b""
         _, stderr = child.communicate(timeout=5)
-        assert child.returncode != 0 and b"sessao existente" in stderr.lower(), stderr
+        assert child.returncode != 0 and b"sem estado local" in stderr.lower(), stderr
     assert not os.path.exists(os.path.join(directory, "subscription.json"))
 
 

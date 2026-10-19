@@ -1,5 +1,26 @@
 # xmqr-client
 
+## Candidata 0.42.0 — correções da auditoria MQTT 5
+
+C140–C142 corrigem as cinco falhas obrigatórias P232: publicação acima de
+Maximum QoS, retained indisponível, aceitação de sessão sem estado local,
+entrega duplicada QoS 2 e ausência de PUBCOMP para PUBREL repetido. As quatro
+recomendações de validação recebida permanecem abertas; isso não é certificação.
+Os prompts e [registro de aceite](prompts/registros/C143-five-audit-fixes.md)
+preservam os resultados anteriores. A candidata também inclui C139:
+`mqtt-bridge 0.4.0`, origem MQTT 5/QoS 2 com journal privado e destino MQTT 3.1.1.
+[Mudanças e migração](docs/releases/0.42.0.md). Distribuição só após gates.
+
+Um processo novo MQTT 5 sem estado local recusa Session Present=1, mesmo
+com `--clean-start false`. Para operação sem retomada, use Clean Start padrão.
+Para retomar no Linux/WSL, use outbox ou manifesto/journal válidos descritos
+abaixo, com diretório privado 0700 e a mesma identidade/configuração. Não apague
+estado pendente para contornar uma recusa. Capacidade insuficiente no CONNACK
+falha antes de PUBLISH, sem reduzir QoS nem remover a outbox; um PUBREL já
+persistido continua concluindo sua transação sem republicar. Os exemplos
+históricos C66–C99 abaixo que retomam apenas por ID/flags não substituem esse
+contrato atual e são recusados se o broker declarar sessão anterior.
+
 A prerelease 0.41.0 do client inclui `mqtt-bridge 0.3.0` com origem MQTT 5
 opt-in em QoS 0/1 e Retain As Published, preservando replay e publicações
 retained vivas no destino MQTT 3.1.1. C137 confirma PUBACK na origem somente

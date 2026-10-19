@@ -1,5 +1,14 @@
 # Versionamento
 
+Candidata 0.42.0/bridge 0.4.0: C139 e cinco correções obrigatórias da auditoria
+P232 (C140–C142). Minor experimental porque inclui a nova origem MQTT5/QoS2,
+não apenas patches. [Notas e migração](docs/releases/0.42.0.md) e
+[aceite C143](prompts/registros/C143-five-audit-fixes.md). Tag/pacote/imagem
+somente após gates; não alterar v0.41.0 ou latest. Broker 0.43.0 e admin
+independente 0.11.0 não mudam. Formatos duráveis não são migrados por essas
+cinco correções. Reverter para 0.41.0 reintroduz os cinco defeitos; a bridge
+antiga não aceita origem MQTT5/QoS2 com o journal C139.
+
 A prerelease 0.41.0 agrupa C136/C137: origem MQTT 5/QoS 0/1 da bridge
 com Retain As Published; `mqtt-bridge 0.3.0` acompanha `mqtt-client 0.41.0`.
 O destino ainda usa MQTT 3.1.1; QoS 2 MQTT 5, propriedades propagadas,

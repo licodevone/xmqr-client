@@ -34,6 +34,85 @@ enum DurableOutboxState {
 type AppResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[cfg(test)]
+mod audited_connack_tests {
+    use super::{check_local_session, check_publish_capabilities};
+    use bytes::BytesMut;
+    use rumqttc::v5::mqttbytes::v5::{ConnAck, Packet};
+
+    fn ack(max_qos: Option<u8>, retain_available: Option<u8>) -> ConnAck {
+        let mut properties = Vec::new();
+        if let Some(qos) = max_qos {
+            properties.extend([0x24, qos]);
+        }
+        if let Some(available) = retain_available {
+            properties.extend([0x25, available]);
+        }
+        let size = u8::try_from(properties.len()).unwrap();
+        let mut wire = BytesMut::from(&[0x20, 3 + size, 0, 0, size][..]);
+        wire.extend_from_slice(&properties);
+        match Packet::read(&mut wire, Some(65536)).unwrap() {
+            Packet::ConnAck(ack) => ack,
+            _ => panic!("expected CONNACK"),
+        }
+    }
+
+    #[test]
+    fn publish_capabilities_enforce_boundaries_without_downgrading() {
+        for qos in ["0", "1", "2"] {
+            for retain in ["false", "true"] {
+                let cli = crate::cli::parse(
+                    [
+                        "pub",
+                        "--open-lab",
+                        "--protocol-version",
+                        "5",
+                        "--topic",
+                        "audit/t",
+                        "--message",
+                        "synthetic",
+                        "--qos",
+                        qos,
+                        "--retain",
+                        retain,
+                    ]
+                    .into_iter()
+                    .map(str::to_owned),
+                )
+                .unwrap();
+                for maximum in [None, Some(0), Some(1)] {
+                    for available in [None, Some(0), Some(1)] {
+                        let expected = qos.parse::<u8>().unwrap() <= maximum.unwrap_or(2)
+                            && (retain == "false" || available != Some(0));
+                        assert_eq!(
+                            check_publish_capabilities(&cli, &ack(maximum, available), true)
+                                .is_ok(),
+                            expected
+                        );
+                        assert!(
+                            check_publish_capabilities(&cli, &ack(maximum, available), false)
+                                .is_ok()
+                        );
+                    }
+                }
+                assert!(check_publish_capabilities(&cli, &ack(Some(2), None), false).is_err());
+                assert!(check_publish_capabilities(&cli, &ack(None, Some(2)), false).is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn session_present_requires_actual_local_state() {
+        for present in [false, true] {
+            let mut ack = ack(None, None);
+            ack.session_present = present;
+            for local in [false, true] {
+                assert_eq!(check_local_session(&ack, local).is_ok(), !present || local);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
 mod assigned_client_id_tests {
     use super::{configure_options, validate_connack};
     use bytes::BytesMut;
@@ -536,6 +615,49 @@ fn validate_connack(cli: &Cli, ack: &ConnAck) -> AppResult<Option<String>> {
     Ok(assigned.map(str::to_owned))
 }
 
+fn check_publish_capabilities(cli: &Cli, ack: &ConnAck, sends_publish: bool) -> AppResult<()> {
+    let maximum_qos = ack.properties.as_ref().and_then(|p| p.max_qos);
+    let retain_available = ack.properties.as_ref().and_then(|p| p.retain_available);
+    if maximum_qos.is_some_and(|qos| qos > 1)
+        || retain_available.is_some_and(|available| available > 1)
+    {
+        return Err(protocol_error("CONNACK MQTT 5 trouxe capacidade invalida").into());
+    }
+    // A journaled PUBREL completes an existing exchange; it sends no PUBLISH.
+    if sends_publish {
+        if cli.qos as u8 > maximum_qos.unwrap_or(2) {
+            return Err(protocol_error("broker MQTT 5 nao suporta o QoS solicitado").into());
+        }
+        if cli.retain && retain_available == Some(0) {
+            return Err(protocol_error("broker MQTT 5 nao suporta publicacao retained").into());
+        }
+    }
+    Ok(())
+}
+
+fn check_local_session(ack: &ConnAck, has_local_session: bool) -> AppResult<()> {
+    if ack.session_present && !has_local_session {
+        return Err(protocol_error(
+            "CONNACK MQTT 5 informou sessao anterior sem estado local; conexao encerrada",
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn check_publish_alias(cli: &Cli, broker_topic_alias_maximum: u16) -> AppResult<()> {
+    if let Some(alias) = cli.publish_topic_alias
+        && alias > broker_topic_alias_maximum
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("broker anuncia Topic Alias Maximum {broker_topic_alias_maximum}; alias solicitado {alias}"),
+        )
+        .into());
+    }
+    Ok(())
+}
+
 fn plain_reauth_request(cli: &Cli, password: &str) -> AppResult<Auth> {
     Ok(Auth {
         code: AuthReasonCode::ReAuthentivate,
@@ -639,6 +761,37 @@ fn new_connection(cli: &Cli, options: MqttOptions) -> (AsyncClient, rumqttc::v5:
     (client, events)
 }
 
+#[cfg(target_os = "linux")]
+fn durable_session_flags(
+    outbox: Option<&DurableOutboxState>,
+    subscription: Option<&(Outbox, PendingSubscription, bool)>,
+) -> (bool, bool) {
+    let has_local_session = matches!(
+        outbox,
+        Some(DurableOutboxState::Qos1(_, _, true) | DurableOutboxState::Qos2(_, _, true))
+    ) || subscription.is_some_and(|(_, _, existed)| *existed);
+    let sends_publish = !matches!(outbox, Some(DurableOutboxState::Qos2(_, pending, _))
+        if pending.stage == Qos2Stage::PubRelReady);
+    (has_local_session, sends_publish)
+}
+
+#[cfg(target_os = "linux")]
+async fn check_durable_session(
+    ack: &ConnAck,
+    has_local_session: bool,
+    subscription: &mut Option<(Outbox, PendingSubscription, bool)>,
+) -> AppResult<()> {
+    if ack.session_present
+        && !has_local_session
+        && let Some((outbox, _, false)) = subscription.take()
+    {
+        // Preserve C108: discard only this newly prepared, never activated
+        // declaration. Existing operator state is never removed here.
+        disk_operation(move || outbox.remove_unactivated_subscription()).await?;
+    }
+    check_local_session(ack, has_local_session)
+}
+
 async fn run_inner(
     cli: &Cli,
     password: Option<String>,
@@ -660,11 +813,17 @@ async fn run_inner(
         None
     };
     #[cfg(target_os = "linux")]
-    let subscription_state = if cli.subscription_state_dir.is_some() {
+    let mut subscription_state = if cli.subscription_state_dir.is_some() {
         Some(prepare_subscription_state(cli).await?)
     } else {
         None
     };
+    #[cfg(target_os = "linux")]
+    let (has_local_session, sends_publish) =
+        durable_session_flags(outbox_state.as_ref(), subscription_state.as_ref());
+    #[cfg(not(target_os = "linux"))]
+    let (has_local_session, sends_publish) = (false, true);
+    let sends_publish = sends_publish && matches!(&cli.mode, Mode::Pub { .. });
     let (client, mut events) = new_connection(cli, options);
     let limit = Duration::from_secs(u64::from(cli.timeout_seconds));
     let (broker_topic_alias_maximum, session_present) = loop {
@@ -680,6 +839,11 @@ async fn run_inner(
                 if let Some(id) = validate_connack(cli, &ack)? {
                     eprintln!("MQTT 5 Client Identifier atribuido: {id}");
                 }
+                check_publish_capabilities(cli, &ack, sends_publish)?;
+                #[cfg(target_os = "linux")]
+                check_durable_session(&ack, has_local_session, &mut subscription_state).await?;
+                #[cfg(not(target_os = "linux"))]
+                check_local_session(&ack, has_local_session)?;
                 break (
                     ack.properties
                         .as_ref()
@@ -716,15 +880,7 @@ async fn run_inner(
         )
         .await;
     };
-    if let Some(alias) = cli.publish_topic_alias
-        && alias > broker_topic_alias_maximum
-    {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("broker anuncia Topic Alias Maximum {broker_topic_alias_maximum}; alias solicitado {alias}"),
-        )
-        .into());
-    }
+    check_publish_alias(cli, broker_topic_alias_maximum)?;
     let publication = publication.ok_or_else(|| protocol_error("payload ausente"))?;
     #[cfg(target_os = "linux")]
     if let Some(state) = outbox_state {

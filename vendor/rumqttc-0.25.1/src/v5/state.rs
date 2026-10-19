@@ -1,7 +1,7 @@
 use super::mqttbytes::v5::{
     ConnAck, ConnectReturnCode, Disconnect, DisconnectProperties, DisconnectReasonCode, Packet,
     PingReq, PubAck, PubAckReason, PubComp, PubCompReason, PubRec, PubRecReason, PubRel,
-    PubRelReason, Publish, SubAck, Subscribe, SubscribeReasonCode, UnsubAck, UnsubAckReason,
+    Publish, SubAck, Subscribe, SubscribeReasonCode, UnsubAck, UnsubAckReason,
     Unsubscribe,
 };
 use super::mqttbytes::{self, Error as MqttError, QoS};
@@ -228,7 +228,17 @@ impl MqttState {
         &mut self,
         mut packet: Incoming,
     ) -> Result<Option<Packet>, StateError> {
-        self.events.push_back(Event::Incoming(packet.to_owned()));
+        // C142: auto-ACK QoS 2 delivers only the first PUBLISH for a pending
+        // identifier. Keep manual ACK paths visible: their durable caller owns
+        // output/commit/PUBREC ordering and recovery, including duplicates.
+        let duplicate_qos2 = !self.manual_acks
+            && !self.manual_incoming_qos2
+            && matches!(&packet, Incoming::Publish(publish)
+                if publish.qos == QoS::ExactlyOnce
+                    && self.incoming_pub.contains(publish.pkid as usize));
+        if !duplicate_qos2 {
+            self.events.push_back(Event::Incoming(packet.to_owned()));
+        }
 
         let outgoing = match &mut packet {
             Incoming::Auth(_) => None,
@@ -449,32 +459,25 @@ impl MqttState {
     }
 
     fn handle_incoming_pubrel(&mut self, pubrel: &PubRel) -> Result<Option<Packet>, StateError> {
+        if pubrel.pkid == 0 {
+            return Err(StateError::Unsolicited(0));
+        }
         if self.manual_incoming_qos2 {
             // The transient bitset is not a recovery oracle. The durable caller
             // receives this event before any PUBCOMP is put on the network.
-            if pubrel.pkid == 0 {
-                return Err(StateError::Unsolicited(0));
-            }
             return Ok(None);
         }
-        if !self.incoming_pub.contains(pubrel.pkid as usize) {
-            error!("Unsolicited pubrel packet: {:?}", pubrel.pkid);
-            return Err(StateError::Unsolicited(pubrel.pkid));
-        }
+        let known = self.incoming_pub.contains(pubrel.pkid as usize);
         self.incoming_pub.set(pubrel.pkid as usize, false);
-
-        if pubrel.reason != PubRelReason::Success {
-            warn!(
-                "PubRel Pkid = {:?}, reason: {:?}",
-                pubrel.pkid, pubrel.reason
-            );
-            return Ok(None);
-        }
 
         let event = Event::Outgoing(Outgoing::PubComp(pubrel.pkid));
         self.events.push_back(event);
 
-        Ok(Some(Packet::PubComp(PubComp::new(pubrel.pkid, None))))
+        let mut pubcomp = PubComp::new(pubrel.pkid, None);
+        if !known {
+            pubcomp.reason = PubCompReason::PacketIdentifierNotFound;
+        }
+        Ok(Some(Packet::PubComp(pubcomp)))
     }
 
     fn outgoing_manual_pubcomp(&mut self, pubcomp: PubComp) -> Result<Option<Packet>, StateError> {

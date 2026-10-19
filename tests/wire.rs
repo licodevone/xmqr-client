@@ -1043,7 +1043,7 @@ fn mqtt5_persistent_connect_sends_clean_start_and_expiry() {
             assert_eq!(body[11], 0x11);
             assert_eq!(&body[12..16], &value.to_be_bytes());
             stream
-                .write_all(&[0x20, 8, 1, 0, 5, 0x27, 0, 1, 0, 0])
+                .write_all(&[0x20, 8, 0, 0, 5, 0x27, 0, 1, 0, 0])
                 .unwrap();
             let (header, publish) = packet(&mut stream);
             assert_eq!(header, 0x32);
@@ -1970,12 +1970,12 @@ fn mqtt5_continuous_default_subscription_survives_two_qos2_exchanges() {
 }
 
 #[test]
-fn mqtt5_default_unknown_pubrel_remains_rejected_without_pubcomp() {
+fn mqtt5_default_unknown_pubrel_answers_92_and_connection_remains_usable() {
     let listener = listener();
     let process = child(
         listener.local_addr().unwrap().port(),
         "sub",
-        &["--protocol-version", "5", "--qos", "2"],
+        &["--protocol-version", "5", "--qos", "2", "--count", "1"],
     );
     let mut stream = accept(&listener);
     assert_eq!(packet(&mut stream).0, 0x10);
@@ -1986,15 +1986,17 @@ fn mqtt5_default_unknown_pubrel_remains_rejected_without_pubcomp() {
         .write_all(&[0x90, 4, subscription[0], subscription[1], 0, 2])
         .unwrap();
     stream.write_all(&[0x62, 2, 0, 9]).unwrap();
+    assert_eq!(packet(&mut stream), (0x70, vec![0, 9, 0x92, 0]));
+    stream.write_all(&[0x30, 5, 0, 1, b't', 0, b'x']).unwrap();
+    let (header, unsubscribe) = packet(&mut stream);
+    assert_eq!(header, 0xa2);
+    stream
+        .write_all(&[0xb0, 4, unsubscribe[0], unsubscribe[1], 0, 0])
+        .unwrap();
+    assert_eq!(packet(&mut stream), (0xe0, vec![]));
     let output = finish(process);
-    assert!(!output.status.success());
-    assert_eq!(output.stdout, [] as [u8; 0]);
-    let mut bytes = Vec::new();
-    stream.read_to_end(&mut bytes).unwrap();
-    assert!(
-        bytes.is_empty(),
-        "unsolicited PUBREL must not be acknowledged by default"
-    );
+    assert!(output.status.success());
+    assert!(String::from_utf8_lossy(&output.stdout).contains("\"payload_bytes\":[120]"));
 }
 
 #[test]
