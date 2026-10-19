@@ -1,8 +1,8 @@
 # Histórico de versões
 
-## 0.43.0 / bridge 0.5.0 — candidata experimental, publicação pendente
+## 0.43.0 / bridge 0.5.0 — prerelease experimental publicada
 
-- C149 prepara a distribuição de C147/C148; a fonte funcional `45ca641` tem aceite local, enquanto CI exata da candidata, pacote, imagem, tag e prerelease ainda exigem seus próprios gates. A última publicação confirmada permanece 0.42.1.
+- C149 distribui C147/C148 e SIGTERM da fonte `9e1d011`, após seis jobs CI PASS. Pacote/imagem/ELFs, instalação/rollback, tag anotada, seis anexos remotos e imagem por digest conferidos. 0.42.1 permanece disponível para rollback seguro.
 - Configuração v2 com uma a oito rotas, identidades e estado independentes, diagnóstico sem conexões e manifesto acíclico. Draft v2 de origem MQTT 5 com destino 3.1.1 exige `legacy_metadata_policy="drop"`; o formato v1 publicado mantém seu comportamento.
 - Novo modo MQTT 5 nas duas pontas preserva PFI, Content Type, Response Topic com política explícita, Correlation Data binária, User Properties ordenadas/repetidas e retained inicial/vivo/tombstone. Alias e Subscription Identifier são locais à conexão.
 - Journal de encaminhamento formato 2, privado, com um voo por rota, fases duráveis, identidade por perna, contadores de descarte e validade recalculada após espera/commit, sem renovar TTL. Sessão ausente, relógio regressivo ou estado inválido falham preservando a obrigação.

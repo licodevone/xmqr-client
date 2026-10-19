@@ -1,0 +1,74 @@
+{
+  "status": "PASS",
+  "prompt": "C148",
+  "bridge_sha256": "a85680f2acb5443c57e290f1c812c9cbbbc7f16fbcc4063c2560a4afa1b8f423",
+  "fixture_sha256": "e4a31096a8fe2ee08e8ebed30786f95a571140c46240836acaaf99748864dc72",
+  "scenarios": [
+    {
+      "name": "retentativa_apos_recusa_primeira_origem",
+      "status": "PASS"
+    },
+    {
+      "name": "sigint_durante_etapa_assincrona",
+      "status": "PASS"
+    },
+    {
+      "name": "sigterm_durante_etapa_assincrona",
+      "status": "PASS"
+    },
+    {
+      "name": "permissoes_exatas_0600",
+      "status": "PASS"
+    },
+    {
+      "name": "contadores_descarte_duraveis",
+      "status": "PASS"
+    },
+    {
+      "name": "queda_prepared",
+      "status": "PASS"
+    },
+    {
+      "name": "queda_sent_antes_envio",
+      "status": "PASS"
+    },
+    {
+      "name": "queda_destino_pubrel",
+      "status": "PASS"
+    },
+    {
+      "name": "queda_apos_ack_destino",
+      "status": "PASS"
+    },
+    {
+      "name": "queda_apos_pubrec_origem",
+      "status": "PASS"
+    },
+    {
+      "name": "queda_antes_pubcomp_origem",
+      "status": "PASS"
+    },
+    {
+      "name": "estado_invalido_preservado",
+      "status": "PASS"
+    },
+    {
+      "name": "lock_exclusivo_sem_afetar_escritor",
+      "status": "PASS"
+    },
+    {
+      "name": "overflow_descarte_sem_ack",
+      "status": "PASS"
+    },
+    {
+      "name": "expiry_recalculado_antes_enqueue",
+      "status": "PASS"
+    },
+    {
+      "name": "recusa_remota_preservada_sem_reenvio",
+      "status": "PASS"
+    }
+  ],
+  "scope": "Administração de processos e peers mTLS próprios; queda de processo não simula power loss",
+  "bridge_unchanged": true
+}

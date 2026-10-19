@@ -1,11 +1,11 @@
 # Versionamento
 
-Candidata experimental **0.43.0 / bridge 0.5.0**: C149 prepara C147/C148 após
-aceite funcional local da fonte `45ca641`. Inclui múltiplas rotas, MQTT 5 nas
+Prerelease experimental **0.43.0 / bridge 0.5.0** publicada: C149 distribui
+C147/C148 e a parada SIGTERM da fonte `9e1d011`. Inclui múltiplas rotas, MQTT 5 nas
 duas pontas, metadados, validade, percurso e encaminhamento durável privado.
-**Publicação pendente:** CI da revisão exata da candidata, pacote, imagem,
-tag e anexos remotos precisam dos próprios gates. A última prerelease
-confirmada permanece 0.42.1; [nota da candidata](docs/releases/0.43.0.md) e
+CI39301735099 com seis jobsPASS; pacote/imagem, instalação/rollback e seus
+ELFs aprovados. Tag anotada e seis anexos remotos conferidos, imagem numerada
+confirmada por digest sem mover latest; [nota](docs/releases/0.43.0.md) e
 [registro C149](prompts/registros/C149-release-0.43.0.md).
 
 O modo novo usa `bridge-forward.json` formato 2 em diretório novo com IDs

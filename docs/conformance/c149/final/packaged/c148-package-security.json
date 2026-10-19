@@ -1,0 +1,166 @@
+{
+  "schema": "xmqr-bridge-mqtt5-security-c149-v1",
+  "status": "PASS",
+  "started_unix": 1792434508,
+  "hashes": {
+    "bridge_elf_sha256": "197f44966f8c05cc48ee764fca05acf8da819b15ee3cab5cc68c4d1712c8b36d",
+    "client_elf_sha256": "45da156677c67eb11540c800dcf603bb4372b57226f0627bd255ffd79e6eb223",
+    "broker_elf_sha256": "677aab2fc46600cdd5e32a116db0478a58ce3525381c034b5a79d37270b39edd",
+    "admin_elf_sha256": "ea21aa0481293f230a62332ae82b9c121d37e5cf458ea92874f3e210ccc3b72a",
+    "fixture_sha256": "50c5d0ec56e3cc22d9a7ab24d8699a719badcf0888ed77c983ccb4e2166f151b"
+  },
+  "scenarios": [
+    {
+      "name": "source: reject ca",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "source: reject san",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "source: reject password",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "source: reject clientcert",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "destination: reject ca",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "destination: reject san",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "destination: reject password",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "destination: reject clientcert",
+      "status": "PASS",
+      "evidence": {
+        "runtime_refusal": true,
+        "source_unconfirmed": true,
+        "no_destination_message": true,
+        "source_retained_preserved": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "source: actual ACL refuses SUBACK",
+      "status": "PASS",
+      "evidence": {
+        "actual_acl_suback_refused": true,
+        "no_destination_message": true,
+        "pending": false,
+        "source_retained_preserved": true
+      }
+    },
+    {
+      "name": "destination: actual ACL refuses PUBLISH without source ACK",
+      "status": "PASS",
+      "evidence": {
+        "actual_acl_publish_refused": true,
+        "no_source_ack": true,
+        "no_destination_message": true,
+        "preserved_phase": "refused",
+        "restart_refuses_unchanged": true
+      }
+    },
+    {
+      "name": "one-flight: additional QoS0 refuses without replacing obligation",
+      "status": "PASS",
+      "evidence": {
+        "first_destination_publish": 1,
+        "extra_destination_publish": 0,
+        "no_source_ack": true,
+        "preserved_phase": "sent",
+        "receive_maximum_does_not_protect_qos0": true
+      }
+    },
+    {
+      "name": "SIGTERM: normal bounded exit before CONNACK",
+      "status": "PASS",
+      "evidence": {
+        "exit_code": 0,
+        "elapsed_seconds": 0.0032,
+        "no_connack_sent": true,
+        "no_source_connection": true,
+        "journal_unchanged": true,
+        "pending": false
+      }
+    },
+    {
+      "name": "SIGTERM: pending sent preserved and resumed with stable IDs and ACK",
+      "status": "PASS",
+      "evidence": {
+        "exit_code": 0,
+        "elapsed_seconds": 0.0032,
+        "preserved_phase": "sent",
+        "journal_unchanged_on_stop": true,
+        "same_journal_and_client_ids": true,
+        "replay_duplicate": true,
+        "destination_pkid": 1,
+        "source_pkid": 37,
+        "no_premature_source_ack": true,
+        "pending_cleared_after_correct_ack": true,
+        "no_extra_destination_publish": true
+      }
+    }
+  ],
+  "finished_unix": 1792434546,
+  "passed": 13,
+  "total": 13
+}

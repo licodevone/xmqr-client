@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "image": "lepinheiro100/xmqr-client:0.43.0",
+  "image_id": "sha256:9f2f798e49383332d37ac01d5ea98ce1a2056933871e86a98beb03bdd2d10ad6",
+  "labels": {
+    "org.opencontainers.image.licenses": "MIT",
+    "org.opencontainers.image.revision": "9e1d011ffa22aa1225d3775b6fc99a06ae6dfc60",
+    "org.opencontainers.image.source": "https://github.com/licodevone/xmqr-client",
+    "org.opencontainers.image.title": "XMQR Client",
+    "org.opencontainers.image.version": "0.43.0"
+  },
+  "user": "10001:10001",
+  "stop_signal": "SIGTERM",
+  "extracted_dir": "/tmp/xmqr-c149-image2-3w13ze2y",
+  "versions": {
+    "mqtt-client": "mqtt-client 0.43.0",
+    "mqtt-bridge": "mqtt-bridge 0.5.0 (xmqr-client 0.43.0)"
+  },
+  "docker_versions": {
+    "mqtt-client": "mqtt-client 0.43.0",
+    "mqtt-bridge": "mqtt-bridge 0.5.0 (xmqr-client 0.43.0)"
+  },
+  "elf_sha256": {
+    "mqtt-client": "c674ae9d5f7778e426b8598855c6dee25574ed5ab460e78c0bf238bc89dbd40a",
+    "mqtt-bridge": "96d176c7c5eba43f20f6c68109c94b17cdd21d7731784a11117850eeaef405bd"
+  }
+}

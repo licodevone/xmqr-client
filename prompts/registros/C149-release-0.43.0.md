@@ -50,3 +50,46 @@ o destino. ELFdebugSHA256
 CI39301146015 da imagem anterior foi cancelada como superada após a descoberta,
 sem alegar falha do Rust (jobPASS) ou aceite dos outros jobs cancelados. A
 próxima revisão completa e sua imagem/pacote substituem essa preparação.
+
+## Aceite final e publicação
+
+Fonte exata`9e1d011ffa22aa1225d3775b6fc99a06ae6dfc60`,
+[CI39301735099](https://github.com/licodevone/xmqr-client/actions/runs/39301735099)
+com os seis jobsPASS. Relatórios baixados e lidos: debugwire33PASS/1NOT_RUN,
+recovery16PASS, security13PASS, brokers34PASS; pacote wire33PASS/1NOT_RUN,
+security13PASS, brokers34PASS. Imagem final repete wire33PASS/1NOT_RUN,
+security13PASS e brokers34PASS no ELF extraído, inclusive SIGTERM normal e
+retomada. O NOT_RUN de alias/subID permanece explícito, com unitário separado.
+
+PacoteUbuntu26amd64 xmqr-client0.43.0-1, SHA256
+`e4d09cec660a0dba20790181727b17c44040913425a3340d3838e45113241f76`.
+Lifecycle descartável0.42.1→0.43.0→0.42.1→0.43.0PASS, preservando configuração
+e serviçosopt-in. Nenhuma instalação foi feita no host do operador.
+
+Tag anotada`v0.43.0`, objeto`61765545258a621b629728cf4e33f0cf2b92b5d3`, alvo
+9e1d011 completo acima, ambos conferidos porls-remote.
+[Prerelease](https://github.com/licodevone/xmqr-client/releases/tag/v0.43.0)
+com seis anexos: todos baixados e idênticos aos locais porSHA256, três
+sidecars remotos passaram sha256sum-c. TarSHA256
+`073edbeeabb8ca2d284d613ea43ffdf49b4f7d998ceb5f3c2f7e417fda09ad42`.
+
+Imagem numerada publicada sem mover latest; digest remoto
+`sha256:9f2f798e49383332d37ac01d5ea98ce1a2056933871e86a98beb03bdd2d10ad6`.
+Pull por digest e execução read-only/network-none/cap-drop/no-new-privileges
+dos dois bináriosPASS. Labels da revisão exata, Linux/amd64, user10001:10001
+e SIGTERM conferidos. Versões: mqtt-client0.43.0 e mqtt-bridge0.5.0.
+
+Primeira exportação foi recusada por diferença de interpretação de finais
+CRLF/LF entre GitWindows e GitWSL,61arquivos, antes de gravar assets. Sob
+[C149B](../clients/149b-exportar-windows-wsl.md), diff canônico permaneceu
+vazio com core.autocrlf=true apenas no processo, igual ao GitWindows. O gate
+de árvore limpa continuou ativo; nenhum arquivo, configuração persistente,
+histórico ou revisão9e1d011 foi alterado. A repetição exportou os seis assets.
+Os FAIL/cancelamentos anteriores continuam preservados, sem confundir com CI
+final. [Evidência consolidada](../../docs/conformance/client-release-0.43.0-c149.json).
+
+C147/C148/C149 cumprem o contrato finitoP235; reconciliação globalP237 no
+broker. Limites: um voo por rota,1–8rotas, expiry conservador, Refused exige
+investigaçãooffline, percurso depende de preservar propriedades, duplicação
+após resultado remoto incerto. Não há atomicidade distribuída, certificação
+MQTT5 integral, cluster ou aceiteWindows. Broker0.43/admin0.11 independentes.

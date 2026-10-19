@@ -1,0 +1,363 @@
+{
+  "prompt": "C148-v1.14",
+  "scope": "wire TLS/MQTT5 finito; não conclui fase8/interop/crash integral",
+  "started_utc": "2026-10-19T18:25:19.763527+00:00",
+  "bridge_sha256": "96d176c7c5eba43f20f6c68109c94b17cdd21d7731784a11117850eeaef405bd",
+  "selection": "all",
+  "source_sha256": {
+    "scripts/verify_bridge_v5_wire.py": "04675045b59642ec443757f73de973021ecadd39f5940fabbed187be6849ab96",
+    "src/bridge_metadata.rs": "897447e0ebc48bf9bb1044abddeb8f62b21585b8a5205c720bf5c7b3a413f467",
+    "src/bridge_store.rs": "9692dcedfbac7b6164d769c1839c3de4e55ef90334efbbcbecfaa4622cc4c082",
+    "src/bridge_v5.rs": "99598993aad9842f6ee3ef9c0161415aa5d14ec9a9e792d00b14dc286fbe8403",
+    "src/bridge_multi.rs": "2c39dce3bf2d056c4ca4445bcac1327144d263209ac518c6078fa2f0b61dc322",
+    "src/bin/mqtt-bridge.rs": "2d440eea57370b891723947741c76aca95db0708b3c6526658f89bece05b3668"
+  },
+  "scenarios": [
+    {
+      "name": "qos_rota0_origem0_retained_tombstone",
+      "status": "PASS",
+      "evidence": {
+        "route_qos": 0,
+        "source_qos": 0,
+        "messages": 4,
+        "retained_initial": true,
+        "retained_live": true,
+        "tombstone": true
+      }
+    },
+    {
+      "name": "qos_rota1_origem0_retained_tombstone",
+      "status": "PASS",
+      "evidence": {
+        "route_qos": 1,
+        "source_qos": 0,
+        "messages": 4,
+        "retained_initial": true,
+        "retained_live": true,
+        "tombstone": true
+      }
+    },
+    {
+      "name": "qos_rota1_origem1_retained_tombstone",
+      "status": "PASS",
+      "evidence": {
+        "route_qos": 1,
+        "source_qos": 1,
+        "messages": 4,
+        "retained_initial": true,
+        "retained_live": true,
+        "tombstone": true
+      }
+    },
+    {
+      "name": "qos_rota2_origem0_retained_tombstone",
+      "status": "PASS",
+      "evidence": {
+        "route_qos": 2,
+        "source_qos": 0,
+        "messages": 4,
+        "retained_initial": true,
+        "retained_live": true,
+        "tombstone": true
+      }
+    },
+    {
+      "name": "qos_rota2_origem1_retained_tombstone",
+      "status": "PASS",
+      "evidence": {
+        "route_qos": 2,
+        "source_qos": 1,
+        "messages": 4,
+        "retained_initial": true,
+        "retained_live": true,
+        "tombstone": true
+      }
+    },
+    {
+      "name": "qos_rota2_origem2_retained_tombstone",
+      "status": "PASS",
+      "evidence": {
+        "route_qos": 2,
+        "source_qos": 2,
+        "messages": 4,
+        "retained_initial": true,
+        "retained_live": true,
+        "tombstone": true
+      }
+    },
+    {
+      "name": "metadados_preserve",
+      "status": "PASS",
+      "evidence": {
+        "response_policy": "preserve",
+        "ordered_duplicates": true,
+        "binary_correlation": true,
+        "expiry_not_increased": true,
+        "path_extended": true
+      }
+    },
+    {
+      "name": "metadados_map-prefix",
+      "status": "PASS",
+      "evidence": {
+        "response_policy": "map-prefix",
+        "ordered_duplicates": true,
+        "binary_correlation": true,
+        "expiry_not_increased": true,
+        "path_extended": true
+      }
+    },
+    {
+      "name": "expiry_zero_descarte",
+      "status": "PASS",
+      "evidence": {
+        "no_destination_publish": true,
+        "source_handshake_completed": true
+      }
+    },
+    {
+      "name": "retorno_percurso_descarte_qos2",
+      "status": "PASS",
+      "evidence": {
+        "no_destination_publish": true,
+        "source_handshake_completed": true
+      }
+    },
+    {
+      "name": "teto_percurso_descarte",
+      "status": "PASS",
+      "evidence": {
+        "no_destination_publish": true,
+        "source_handshake_completed": true
+      }
+    },
+    {
+      "name": "marcador_repetido_recusado",
+      "status": "PASS",
+      "evidence": {
+        "no_source_ack": true,
+        "no_destination_publish": true
+      }
+    },
+    {
+      "name": "identidade_repetida_percurso_recusada",
+      "status": "PASS",
+      "evidence": {
+        "no_source_ack": true,
+        "no_destination_publish": true
+      }
+    },
+    {
+      "name": "marcador_invalido_recusado",
+      "status": "PASS",
+      "evidence": {
+        "no_source_ack": true,
+        "no_destination_publish": true
+      }
+    },
+    {
+      "name": "pfi_utf8_invalido_recusado",
+      "status": "PASS",
+      "evidence": {
+        "no_source_ack": true,
+        "no_destination_publish": true
+      }
+    },
+    {
+      "name": "response_fora_prefixo_recusado",
+      "status": "PASS",
+      "evidence": {
+        "no_source_ack": true,
+        "no_destination_publish": true
+      }
+    },
+    {
+      "name": "user_properties_limite_com_marcador",
+      "status": "PASS",
+      "evidence": {
+        "no_source_ack": true,
+        "no_destination_publish": true
+      }
+    },
+    {
+      "name": "maximum_qos_recusado_sem_reducao",
+      "status": "PASS",
+      "evidence": {
+        "no_source_ack": true,
+        "no_destination_publish": true,
+        "preserved_phase": "prepared"
+      }
+    },
+    {
+      "name": "retain_indisponivel_recusado",
+      "status": "PASS",
+      "evidence": {
+        "no_source_ack": true,
+        "no_destination_publish": true,
+        "preserved_phase": "prepared"
+      }
+    },
+    {
+      "name": "maximum_packet_size_recusado",
+      "status": "PASS",
+      "evidence": {
+        "no_source_ack": true,
+        "no_destination_publish": true,
+        "preserved_phase": "prepared"
+      }
+    },
+    {
+      "name": "puback_negativo_sem_ack_origem",
+      "status": "PASS",
+      "evidence": {
+        "no_source_ack": true,
+        "no_destination_retry": true,
+        "phase_before_negative_ack": "sent",
+        "preserved_phase": "refused"
+      }
+    },
+    {
+      "name": "pubrec_negativo_sem_ack_origem",
+      "status": "PASS",
+      "evidence": {
+        "no_source_ack": true,
+        "no_destination_retry": true,
+        "phase_before_negative_ack": "sent",
+        "preserved_phase": "refused"
+      }
+    },
+    {
+      "name": "pubcomp_negativo_sem_ack_origem",
+      "status": "PASS",
+      "evidence": {
+        "no_source_ack": true,
+        "no_destination_retry": true,
+        "phase_before_negative_ack": "rel",
+        "preserved_phase": "refused"
+      }
+    },
+    {
+      "name": "expiry_replay_desconta_tempo",
+      "status": "PASS",
+      "evidence": {
+        "initial_expiry": 12,
+        "replay_expiry": 10,
+        "stable_pid": true,
+        "duplicate": true,
+        "absolute_deadline_preserved": true
+      }
+    },
+    {
+      "name": "sessao_destino_ausente_preserva_journal",
+      "status": "PASS",
+      "evidence": {
+        "missing_leg": "destination",
+        "journal_byte_identical": true,
+        "no_source_ack": true
+      }
+    },
+    {
+      "name": "sessao_origem_ausente_preserva_journal",
+      "status": "PASS",
+      "evidence": {
+        "missing_leg": "source",
+        "journal_byte_identical": true,
+        "no_source_ack": true
+      }
+    },
+    {
+      "name": "sessao_destino_desconhecida_recusada",
+      "status": "PASS",
+      "evidence": {
+        "unknown_leg": "destination",
+        "source_known": false,
+        "destination_known": false,
+        "rejected_leg_not_adopted": true,
+        "no_pending_delivery": true
+      }
+    },
+    {
+      "name": "sessao_origem_desconhecida_recusada",
+      "status": "PASS",
+      "evidence": {
+        "unknown_leg": "source",
+        "source_known": false,
+        "destination_known": true,
+        "rejected_leg_not_adopted": true,
+        "no_pending_delivery": true
+      }
+    },
+    {
+      "name": "qos2_duplicata_pendente_sem_nova_entrega",
+      "status": "PASS",
+      "evidence": {
+        "pending_duplicate_no_extra_publish": true,
+        "recovery_replay_same_pid": true,
+        "unknown_pubrel_reason": "0x92",
+        "mqtt_clause": "MQTT-4.3.3-10"
+      }
+    },
+    {
+      "name": "qos2_reuso_pid_apos_pubcomp_dup0_mesmo_payload",
+      "status": "PASS",
+      "evidence": {
+        "reused_source_pkid": 37,
+        "source_duplicate": false,
+        "different_payload": false,
+        "new_message_forwarded": true,
+        "mqtt_clause": "MQTT-4.3.3-12"
+      }
+    },
+    {
+      "name": "qos2_reuso_pid_apos_pubcomp_dup0_outro_payload",
+      "status": "PASS",
+      "evidence": {
+        "reused_source_pkid": 37,
+        "source_duplicate": false,
+        "different_payload": true,
+        "new_message_forwarded": true,
+        "mqtt_clause": "MQTT-4.3.3-12"
+      }
+    },
+    {
+      "name": "qos2_reuso_pid_apos_pubcomp_dup1_mesmo_payload",
+      "status": "PASS",
+      "evidence": {
+        "reused_source_pkid": 37,
+        "source_duplicate": true,
+        "different_payload": false,
+        "new_message_forwarded": true,
+        "mqtt_clause": "MQTT-4.3.3-12"
+      }
+    },
+    {
+      "name": "qos2_reuso_pid_apos_pubcomp_dup1_outro_payload",
+      "status": "PASS",
+      "evidence": {
+        "reused_source_pkid": 37,
+        "source_duplicate": true,
+        "different_payload": true,
+        "new_message_forwarded": true,
+        "mqtt_clause": "MQTT-4.3.3-12"
+      }
+    },
+    {
+      "name": "alias_subid_wire_somente_se_negociados",
+      "status": "NOT_RUN",
+      "evidence": {
+        "reason": "CONNECT não anuncia Topic Alias Maximum; alias recebido não seria legal. Subscription Identifier também não foi solicitado.",
+        "alias_negotiated": false,
+        "subscription_identifier_requested": false
+      }
+    }
+  ],
+  "bridge_unchanged": true,
+  "sources_unchanged": true,
+  "counts": {
+    "PASS": 33,
+    "FAIL": 0,
+    "NOT_RUN": 1
+  },
+  "status": "PASS",
+  "elapsed_seconds": 22.936
+}

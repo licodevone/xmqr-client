@@ -1,16 +1,20 @@
 # xmqr-client
 
-## Candidata 0.43.0 / bridge 0.5.0 — C147/C148/C149
+## Prerelease 0.43.0 / bridge 0.5.0 publicada — C147/C148/C149
 
 O modo v2 opt-in oferece uma a oito rotas isoladas, MQTT 5 nas duas pontas,
 metadados de aplicação, expiração sem renovar TTL, journal de encaminhamento
 e marcador limitado de percurso. [Configuração, limites e migração](docs/bridge-mqtt5.md)
 e [registro C148](prompts/registros/C148-bridge-mqtt5-duravel-percurso.md).
-Validação local: wire33PASS/1NOT_RUN, recuperação15PASS, brokers reais34PASS
-e regressão C14723PASS. CI e distribuição da candidata seguem pendentes.
+Fonte `9e1d011`, [CI com seis jobs PASS](https://github.com/licodevone/xmqr-client/actions/runs/39301735099):
+208 testes Rust, wire33PASS/1NOT_RUN, recuperação16PASS, segurança/parada13PASS,
+brokers reais34PASS e regressões. Pacote e imagem passaram wire/segurança/interop;
+instalação/rollback descartáveis aprovados. [Release e seis anexos conferidos](https://github.com/licodevone/xmqr-client/releases/tag/v0.43.0),
+imagem numerada publicada e verificada por digest. A [fase 8/T02](https://github.com/licodevone/xmqr/blob/main/docs/phase8-acceptance.md)
+foi aceita no contrato experimental P235; os limites do guia permanecem.
 [Nota de atualização e rollback](docs/releases/0.43.0.md) e
 [registro C149](prompts/registros/C149-release-0.43.0.md).
-Client0.42.1/bridge0.4.0 publicados abaixo ainda não incluem C147/C148.
+Os parágrafos abaixo preservam os marcos históricos anteriores.
 
 ## Prerelease corretiva 0.42.1 publicada — C144/C146
 

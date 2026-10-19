@@ -14,12 +14,11 @@ neste guia. Configurações v1 publicadas mantêm seu comportamento histórico.
 
 ## Disponibilidade e versão
 
-A candidata **client 0.43.0 / bridge 0.5.0**, preparada por C149, incorpora
-C147/C148. **A publicação ainda está pendente** dos gates da revisão exata,
-do pacote e da imagem, além da conferência remota de tag e anexos.
-A última release confirmada é **client 0.42.1 / bridge 0.4.0**, cujo pacote
-e imagem não contêm C147/C148. Use o executável compilado da revisão candidata
-registrada, com seu hash e evidências; `--version` confirma a versão declarada.
+A [prerelease **client 0.43.0 / bridge 0.5.0**](https://github.com/licodevone/xmqr-client/releases/tag/v0.43.0)
+distribui C147/C148 e a parada SIGTERM da fonte `9e1d011`. CI exata com seis
+jobsPASS, pacote/imagem aprovados e seis anexos remotos conferidos.
+A release anterior client0.42.1/bridge0.4.0 não contém esses incrementos.
+Confira o executável instalado, a versão e os hashes da publicação utilizada.
 Consulte a [nota 0.43.0](releases/0.43.0.md) e o
 [registro C149](../prompts/registros/C149-release-0.43.0.md) para o estado da distribuição.
 

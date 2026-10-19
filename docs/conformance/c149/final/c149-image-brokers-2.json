@@ -1,0 +1,158 @@
+{
+  "schema": "xmqr-bridge-mqtt5-real-brokers-c148-v1",
+  "status": "PASS",
+  "started_unix": 1792434319,
+  "hashes": {
+    "bridge_elf_sha256": "96d176c7c5eba43f20f6c68109c94b17cdd21d7731784a11117850eeaef405bd",
+    "client_elf_sha256": "c674ae9d5f7778e426b8598855c6dee25574ed5ab460e78c0bf238bc89dbd40a",
+    "broker_elf_sha256": "fce0b871be72e5cfc7eb5a8dc46d04280075dd21dbbbb5b3677676952c6e9257",
+    "admin_elf_sha256": "6f2de794f67e4f0cf1ed59aaaea933ff7fc31516ac992a49fc2cee1dd27af854",
+    "fixture_sha256": "f78b69b1434deca18d3d500894c71202d42f1aa04f4bbc389043d797277dd05a"
+  },
+  "mosquitto": {
+    "requested": "eclipse-mosquitto:2.0.22",
+    "repository_digest": "eclipse-mosquitto@sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21",
+    "image_id": "sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21"
+  },
+  "scenarios": [
+    {
+      "name": "xx: retained source before bridge and elapsed expiry on destination replay",
+      "status": "PASS"
+    },
+    {
+      "name": "xx: route QoS 0 source QoS 0 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "xx: route QoS 1 source QoS 0 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "xx: route QoS 1 source QoS 1 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "xx: route QoS 2 source QoS 0 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "xx: route QoS 2 source QoS 1 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "xx: route QoS 2 source QoS 2 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "xx: all routes keep separate private identities locks and durable state",
+      "status": "PASS"
+    },
+    {
+      "name": "xx: live retained message preserves metadata and retained flag",
+      "status": "PASS"
+    },
+    {
+      "name": "xx: empty retained tombstone removes destination retained value",
+      "status": "PASS"
+    },
+    {
+      "name": "external cooperative finite forwarder returns path and bridge discards without replay",
+      "status": "PASS"
+    },
+    {
+      "name": "maximum-hop path is durably consumed without new forwarding",
+      "status": "PASS"
+    },
+    {
+      "name": "marker-stripping boundary is explicit: finite stripped return is forwarded again",
+      "status": "PASS"
+    },
+    {
+      "name": "three real XMQR brokers in a chain preserve ordered path and map-prefix response topics",
+      "status": "PASS"
+    },
+    {
+      "name": "xm: retained source before bridge and elapsed expiry on destination replay",
+      "status": "PASS"
+    },
+    {
+      "name": "xm: route QoS 0 source QoS 0 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "xm: route QoS 1 source QoS 0 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "xm: route QoS 1 source QoS 1 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "xm: route QoS 2 source QoS 0 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "xm: route QoS 2 source QoS 1 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "xm: route QoS 2 source QoS 2 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "xm: all routes keep separate private identities locks and durable state",
+      "status": "PASS"
+    },
+    {
+      "name": "xm: live retained message preserves metadata and retained flag",
+      "status": "PASS"
+    },
+    {
+      "name": "xm: empty retained tombstone removes destination retained value",
+      "status": "PASS"
+    },
+    {
+      "name": "mx: retained source before bridge and elapsed expiry on destination replay",
+      "status": "PASS"
+    },
+    {
+      "name": "mx: route QoS 0 source QoS 0 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "mx: route QoS 1 source QoS 0 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "mx: route QoS 1 source QoS 1 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "mx: route QoS 2 source QoS 0 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "mx: route QoS 2 source QoS 1 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "mx: route QoS 2 source QoS 2 and complete metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "mx: all routes keep separate private identities locks and durable state",
+      "status": "PASS"
+    },
+    {
+      "name": "mx: live retained message preserves metadata and retained flag",
+      "status": "PASS"
+    },
+    {
+      "name": "mx: empty retained tombstone removes destination retained value",
+      "status": "PASS"
+    }
+  ],
+  "finished_unix": 1792434374,
+  "passed": 34,
+  "total": 34
+}

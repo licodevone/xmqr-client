@@ -2,9 +2,9 @@
 
 Para o novo modo de origem e destino MQTT 5, consulte o
 [guia C148 de encaminhamento durável, metadados e percurso](bridge-mqtt5.md).
-Ele descreve a fonte ainda não distribuída e a migração com estado separado.
+Ele descreve client0.43.0/bridge0.5.0 publicados e a migração com estado separado.
 
-## Fonte C147 — múltiplos mapeamentos (ainda sem nova release)
+## C147 — múltiplos mapeamentos publicados no client0.43.0
 
 O TOML `version=2` aceita de uma a oito tabelas `[[routes]]`, no lugar de
 `[route]`. Cada uma tem `id`, `source_prefix`, `target_prefix` e `qos`.

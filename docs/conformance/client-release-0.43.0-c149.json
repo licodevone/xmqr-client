@@ -1,0 +1,410 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-19",
+  "timezone": "America/Sao_Paulo",
+  "prompt": "C149v1.4 / C149Bv1.0",
+  "status": "PASS",
+  "source_commit": "9e1d011ffa22aa1225d3775b6fc99a06ae6dfc60",
+  "client_version": "0.43.0",
+  "bridge_version": "0.5.0",
+  "experimental": true,
+  "release_url": "https://github.com/licodevone/xmqr-client/releases/tag/v0.43.0",
+  "tag": {
+    "peeled_target": "9e1d011ffa22aa1225d3775b6fc99a06ae6dfc60",
+    "name": "v0.43.0",
+    "remote_verified": true,
+    "annotated_object": "61765545258a621b629728cf4e33f0cf2b92b5d3"
+  },
+  "ci": {
+    "run_id": 39301735099,
+    "jobs": [
+      {
+        "conclusion": "success",
+        "name": "ubuntu-package",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "bridge-v5",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "rust",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "bridge-integration",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "bridge-image",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "name": "bridge-package-integration",
+        "status": "completed"
+      }
+    ],
+    "report": "docs/conformance/c149/final/ci-status.json",
+    "conclusion": "success",
+    "head_sha": "9e1d011ffa22aa1225d3775b6fc99a06ae6dfc60",
+    "url": "https://github.com/licodevone/xmqr-client/actions/runs/39301735099"
+  },
+  "remote_assets": [
+    {
+      "file": "xmqr-client-0.43.0-linux-amd64.tar.gz",
+      "size": 37670694,
+      "sha256": "073edbeeabb8ca2d284d613ea43ffdf49b4f7d998ceb5f3c2f7e417fda09ad42",
+      "download_url": "https://github.com/licodevone/xmqr-client/releases/download/v0.43.0/xmqr-client-0.43.0-linux-amd64.tar.gz",
+      "local_remote_github_digest_equal": true
+    },
+    {
+      "file": "xmqr-client-0.43.0-linux-amd64.tar.gz.sha256",
+      "size": 104,
+      "sha256": "81b98e786ee87b032c4651de116b3f4d22d4026e93c9d7a20625cb803b2eed34",
+      "download_url": "https://github.com/licodevone/xmqr-client/releases/download/v0.43.0/xmqr-client-0.43.0-linux-amd64.tar.gz.sha256",
+      "local_remote_github_digest_equal": true
+    },
+    {
+      "file": "xmqr-client-0.43.0-release-manifest.json",
+      "size": 1075,
+      "sha256": "5464e5bdeaf797fd1f0efe2713129454aaedda31ccf3aea6b444b41ae4e1a7cc",
+      "download_url": "https://github.com/licodevone/xmqr-client/releases/download/v0.43.0/xmqr-client-0.43.0-release-manifest.json",
+      "local_remote_github_digest_equal": true
+    },
+    {
+      "file": "xmqr-client-0.43.0-release-manifest.json.sha256",
+      "size": 107,
+      "sha256": "bfdfa048503c433213865162a6d85b7a13dbb883d1fc7002c5f0fce826b994e7",
+      "download_url": "https://github.com/licodevone/xmqr-client/releases/download/v0.43.0/xmqr-client-0.43.0-release-manifest.json.sha256",
+      "local_remote_github_digest_equal": true
+    },
+    {
+      "file": "xmqr-client_0.43.0-1_amd64.deb",
+      "size": 4636176,
+      "sha256": "e4d09cec660a0dba20790181727b17c44040913425a3340d3838e45113241f76",
+      "download_url": "https://github.com/licodevone/xmqr-client/releases/download/v0.43.0/xmqr-client_0.43.0-1_amd64.deb",
+      "local_remote_github_digest_equal": true
+    },
+    {
+      "file": "xmqr-client_0.43.0-1_amd64.deb.sha256",
+      "size": 97,
+      "sha256": "5777945eb0ff07cacf83fd479f1a94c5a40b126ece1f48843770e2eeba5c33e1",
+      "download_url": "https://github.com/licodevone/xmqr-client/releases/download/v0.43.0/xmqr-client_0.43.0-1_amd64.deb.sha256",
+      "local_remote_github_digest_equal": true
+    }
+  ],
+  "manifest": {
+    "schema_version": 1,
+    "package": "xmqr-client",
+    "version": "0.43.0",
+    "source_revision": "9e1d011ffa22aa1225d3775b6fc99a06ae6dfc60",
+    "git_tag": "v0.43.0",
+    "deb_target": "Ubuntu 26.04 amd64",
+    "docker_target": "Debian Bookworm linux/amd64",
+    "images": {
+      "lepinheiro100/xmqr-client:0.43.0": {
+        "id": "sha256:9f2f798e49383332d37ac01d5ea98ce1a2056933871e86a98beb03bdd2d10ad6",
+        "platform": "linux/amd64",
+        "binary": "mqtt-client",
+        "user": "10001:10001",
+        "source_revision": "9e1d011ffa22aa1225d3775b6fc99a06ae6dfc60",
+        "bridge_version_output": "mqtt-bridge 0.5.0 (xmqr-client 0.43.0)",
+        "version_output": "mqtt-client 0.43.0"
+      }
+    },
+    "artifacts": [
+      {
+        "file": "xmqr-client_0.43.0-1_amd64.deb",
+        "sha256": "e4d09cec660a0dba20790181727b17c44040913425a3340d3838e45113241f76",
+        "size": 4636176
+      },
+      {
+        "file": "xmqr-client-0.43.0-linux-amd64.tar.gz",
+        "sha256": "073edbeeabb8ca2d284d613ea43ffdf49b4f7d998ceb5f3c2f7e417fda09ad42",
+        "size": 37670694
+      }
+    ],
+    "experimental": true
+  },
+  "ci_package_matches_published_deb": true,
+  "reports": [
+    {
+      "file": "docs/conformance/c149/final/debug/c148-ci-brokers.json",
+      "sha256": "2efae7c8c620a8385f4325450cec02e490e20eb9d8bff7133307b16f5a7ff004",
+      "source_path": "dist/c149-ci-39301735099/debug/c148-ci-brokers.json",
+      "status": "PASS",
+      "counts": {
+        "PASS": 34,
+        "FAIL": 0,
+        "NOT_RUN": 0
+      },
+      "hashes": {
+        "bridge_elf_sha256": "a85680f2acb5443c57e290f1c812c9cbbbc7f16fbcc4063c2560a4afa1b8f423",
+        "client_elf_sha256": "ea9171bb4e0d29b7f2e9045063d2541e30b509b33394f17820e2e1156482a935",
+        "broker_elf_sha256": "677aab2fc46600cdd5e32a116db0478a58ce3525381c034b5a79d37270b39edd",
+        "admin_elf_sha256": "ea21aa0481293f230a62332ae82b9c121d37e5cf458ea92874f3e210ccc3b72a",
+        "fixture_sha256": "f78b69b1434deca18d3d500894c71202d42f1aa04f4bbc389043d797277dd05a"
+      }
+    },
+    {
+      "file": "docs/conformance/c149/final/debug/c148-ci-recovery.json",
+      "sha256": "9fea8a61fd26c4f3ef3799a0e74a818b3b4af41d190faf99171c5fae85491a5a",
+      "source_path": "dist/c149-ci-39301735099/debug/c148-ci-recovery.json",
+      "status": "PASS",
+      "counts": {
+        "PASS": 16,
+        "FAIL": 0,
+        "NOT_RUN": 0
+      },
+      "bridge_elf_sha256": "a85680f2acb5443c57e290f1c812c9cbbbc7f16fbcc4063c2560a4afa1b8f423"
+    },
+    {
+      "file": "docs/conformance/c149/final/debug/c148-ci-security.json",
+      "sha256": "8a01d6b3bfab53000995b94339b6e46ffc9a148908d753a3fb3c4bad2c0e4a37",
+      "source_path": "dist/c149-ci-39301735099/debug/c148-ci-security.json",
+      "status": "PASS",
+      "counts": {
+        "PASS": 13,
+        "FAIL": 0,
+        "NOT_RUN": 0
+      },
+      "hashes": {
+        "bridge_elf_sha256": "a85680f2acb5443c57e290f1c812c9cbbbc7f16fbcc4063c2560a4afa1b8f423",
+        "client_elf_sha256": "ea9171bb4e0d29b7f2e9045063d2541e30b509b33394f17820e2e1156482a935",
+        "broker_elf_sha256": "677aab2fc46600cdd5e32a116db0478a58ce3525381c034b5a79d37270b39edd",
+        "admin_elf_sha256": "ea21aa0481293f230a62332ae82b9c121d37e5cf458ea92874f3e210ccc3b72a",
+        "fixture_sha256": "50c5d0ec56e3cc22d9a7ab24d8699a719badcf0888ed77c983ccb4e2166f151b"
+      }
+    },
+    {
+      "file": "docs/conformance/c149/final/debug/c148-ci-wire.json",
+      "sha256": "1b4d584eeb10c4ce411b3f0bcd2b0f6d52aa3193fa11f7e54915ff82deb92432",
+      "source_path": "dist/c149-ci-39301735099/debug/c148-ci-wire.json",
+      "status": "PASS",
+      "counts": {
+        "PASS": 33,
+        "FAIL": 0,
+        "NOT_RUN": 1
+      },
+      "bridge_elf_sha256": "a85680f2acb5443c57e290f1c812c9cbbbc7f16fbcc4063c2560a4afa1b8f423"
+    },
+    {
+      "file": "docs/conformance/c149/final/packaged/c148-package-brokers.json",
+      "sha256": "da74b033296d0b9ebce9b5069c51bd4631a3736e6cd40d9254d1d508b1d6b505",
+      "source_path": "dist/c149-ci-39301735099/packaged/c148-package-brokers.json",
+      "status": "PASS",
+      "counts": {
+        "PASS": 34,
+        "FAIL": 0,
+        "NOT_RUN": 0
+      },
+      "hashes": {
+        "bridge_elf_sha256": "197f44966f8c05cc48ee764fca05acf8da819b15ee3cab5cc68c4d1712c8b36d",
+        "client_elf_sha256": "45da156677c67eb11540c800dcf603bb4372b57226f0627bd255ffd79e6eb223",
+        "broker_elf_sha256": "677aab2fc46600cdd5e32a116db0478a58ce3525381c034b5a79d37270b39edd",
+        "admin_elf_sha256": "ea21aa0481293f230a62332ae82b9c121d37e5cf458ea92874f3e210ccc3b72a",
+        "fixture_sha256": "f78b69b1434deca18d3d500894c71202d42f1aa04f4bbc389043d797277dd05a"
+      }
+    },
+    {
+      "file": "docs/conformance/c149/final/packaged/c148-package-security.json",
+      "sha256": "cc6e553cc69e4d4501385fcde0be0d36f55085bd06a9565b291c2a18b22cbaf6",
+      "source_path": "dist/c149-ci-39301735099/packaged/c148-package-security.json",
+      "status": "PASS",
+      "counts": {
+        "PASS": 13,
+        "FAIL": 0,
+        "NOT_RUN": 0
+      },
+      "hashes": {
+        "bridge_elf_sha256": "197f44966f8c05cc48ee764fca05acf8da819b15ee3cab5cc68c4d1712c8b36d",
+        "client_elf_sha256": "45da156677c67eb11540c800dcf603bb4372b57226f0627bd255ffd79e6eb223",
+        "broker_elf_sha256": "677aab2fc46600cdd5e32a116db0478a58ce3525381c034b5a79d37270b39edd",
+        "admin_elf_sha256": "ea21aa0481293f230a62332ae82b9c121d37e5cf458ea92874f3e210ccc3b72a",
+        "fixture_sha256": "50c5d0ec56e3cc22d9a7ab24d8699a719badcf0888ed77c983ccb4e2166f151b"
+      }
+    },
+    {
+      "file": "docs/conformance/c149/final/packaged/c148-package-wire.json",
+      "sha256": "e48224c954923d1e925e5a876870411ffba75001eeaac64f08f8d02ad35a5043",
+      "source_path": "dist/c149-ci-39301735099/packaged/c148-package-wire.json",
+      "status": "PASS",
+      "counts": {
+        "PASS": 33,
+        "FAIL": 0,
+        "NOT_RUN": 1
+      },
+      "bridge_elf_sha256": "197f44966f8c05cc48ee764fca05acf8da819b15ee3cab5cc68c4d1712c8b36d"
+    },
+    {
+      "file": "docs/conformance/c149/final/ci-status.json",
+      "sha256": "7d646d447cd18e456d1f44f05247b447fb27d191cfe6c4cd5c844a74f97c04c1",
+      "source_path": "dist/c149-ci-39301735099/ci-status.json",
+      "status": "completed"
+    },
+    {
+      "file": "docs/conformance/c149/final/c149-image-metadata-2.json",
+      "sha256": "2cd735e05d5a5039284994b6d4ea571d132df03eb08dff9915fb5d56c5d4e0e6",
+      "source_path": "dist/c149-image-metadata-2.json",
+      "status": "PASS"
+    },
+    {
+      "file": "docs/conformance/c149/final/c149-image-wire-2.json",
+      "sha256": "bb8179266cd25d49a4d798fc0b86e4a2f88ffe20addd5b431977d78d9cf67b20",
+      "source_path": "dist/c149-image-wire-2.json",
+      "status": "PASS",
+      "counts": {
+        "PASS": 33,
+        "FAIL": 0,
+        "NOT_RUN": 1
+      },
+      "bridge_elf_sha256": "96d176c7c5eba43f20f6c68109c94b17cdd21d7731784a11117850eeaef405bd"
+    },
+    {
+      "file": "docs/conformance/c149/final/c149-image-brokers-2.json",
+      "sha256": "2decff00ac0d91648d51454546bdf0850b9f3aca5a9477b80b1cb28c0a396cad",
+      "source_path": "dist/c149-image-brokers-2.json",
+      "status": "PASS",
+      "counts": {
+        "PASS": 34,
+        "FAIL": 0,
+        "NOT_RUN": 0
+      },
+      "hashes": {
+        "bridge_elf_sha256": "96d176c7c5eba43f20f6c68109c94b17cdd21d7731784a11117850eeaef405bd",
+        "client_elf_sha256": "c674ae9d5f7778e426b8598855c6dee25574ed5ab460e78c0bf238bc89dbd40a",
+        "broker_elf_sha256": "fce0b871be72e5cfc7eb5a8dc46d04280075dd21dbbbb5b3677676952c6e9257",
+        "admin_elf_sha256": "6f2de794f67e4f0cf1ed59aaaea933ff7fc31516ac992a49fc2cee1dd27af854",
+        "fixture_sha256": "f78b69b1434deca18d3d500894c71202d42f1aa04f4bbc389043d797277dd05a"
+      }
+    },
+    {
+      "file": "docs/conformance/c149/final/c149-image-security-2.json",
+      "sha256": "951ad1f1829e49c3ef426945067406b5d80ddb509a7b6846f97a9b19ed555614",
+      "source_path": "dist/c149-image-security-2.json",
+      "status": "PASS",
+      "counts": {
+        "PASS": 13,
+        "FAIL": 0,
+        "NOT_RUN": 0
+      },
+      "hashes": {
+        "bridge_elf_sha256": "96d176c7c5eba43f20f6c68109c94b17cdd21d7731784a11117850eeaef405bd",
+        "client_elf_sha256": "c674ae9d5f7778e426b8598855c6dee25574ed5ab460e78c0bf238bc89dbd40a",
+        "broker_elf_sha256": "fce0b871be72e5cfc7eb5a8dc46d04280075dd21dbbbb5b3677676952c6e9257",
+        "admin_elf_sha256": "6f2de794f67e4f0cf1ed59aaaea933ff7fc31516ac992a49fc2cee1dd27af854",
+        "fixture_sha256": "50c5d0ec56e3cc22d9a7ab24d8699a719badcf0888ed77c983ccb4e2166f151b"
+      }
+    }
+  ],
+  "image": {
+    "versions": {
+      "mqtt-client": "mqtt-client 0.43.0",
+      "mqtt-bridge": "mqtt-bridge 0.5.0 (xmqr-client 0.43.0)"
+    },
+    "elf_sha256": {
+      "mqtt-client": "c674ae9d5f7778e426b8598855c6dee25574ed5ab460e78c0bf238bc89dbd40a",
+      "mqtt-bridge": "96d176c7c5eba43f20f6c68109c94b17cdd21d7731784a11117850eeaef405bd"
+    },
+    "name": "lepinheiro100/xmqr-client:0.43.0",
+    "stop_signal": "SIGTERM",
+    "extracted_elf_gates": "wire33PASS/1NOT_RUN, brokers34PASS, security13PASS",
+    "registry_pull_run": "PASS; verificacao remota do integrador",
+    "digest": "sha256:9f2f798e49383332d37ac01d5ea98ce1a2056933871e86a98beb03bdd2d10ad6",
+    "user": "10001:10001",
+    "source_commit": "9e1d011ffa22aa1225d3775b6fc99a06ae6dfc60"
+  },
+  "rust_gates": {
+    "clippy_all_targets_deny_warnings": "PASS",
+    "fmt": "PASS",
+    "license_inventory": "PASS",
+    "provenance": "CI exata rust e gates nativos registrados pelo integrador",
+    "tests": 208,
+    "build_locked": "PASS"
+  },
+  "legacy_regression": {
+    "scope": [
+      "MQTT3.1.1QoS0/1/2 com XMQR e Mosquitto",
+      "origemMQTT5 com destino legado e retained/QoS0/1/2",
+      "negativos legados CA/SAN/senha/ACL e reconexao",
+      "topologia estatica e mapeamentosC147",
+      "auditorias MQTT5C140/C144 e journalC129"
+    ],
+    "provenance": "CI bridge-integration e bridge-package-integration",
+    "status": "PASS"
+  },
+  "package_lifecycle": {
+    "services_opt_in": true,
+    "sequence": [
+      "0.42.1",
+      "0.43.0",
+      "0.42.1",
+      "0.43.0"
+    ],
+    "prior_deb_sha256": "c6a1356e5eaefda6be2f18abb5dd5fafe4865c166346a6fc57002cd99cedfb7c",
+    "provenance": "CI ubuntu-package; sem instalacao no host do operador",
+    "platform": "Ubuntu26.04amd64",
+    "status": "PASS",
+    "operator_config_preserved": true
+  },
+  "previous_failures_preserved": [
+    {
+      "sha256": "3e2676f68323f8abfef2a3e5215a18a8caa282b34e77d359e010f029e5cf15f7",
+      "file": "docs/conformance/c149/c149-security-debug-1.json",
+      "status": "FAIL"
+    },
+    {
+      "sha256": "2fe387e284e5b53b0ab20667b81642bbee9ca41fdad83b61439cd37aa604094f",
+      "file": "docs/conformance/c149/image-before-sigterm-fix/c149-image-sigterm-1.json",
+      "status": "FAIL"
+    },
+    {
+      "sha256": "9447630e8005403725e90641b32755e62ae8066164de2ced61b202233b09b65a",
+      "file": "docs/conformance/c149/image-before-sigterm-fix/c149-image-sigterm-2.json",
+      "status": "FAIL"
+    }
+  ],
+  "failure_interpretation": [
+    "security-debug1: FAIL de oraculo exigindo detalhe interno corretamente redigido; C149v1.3 antes da correcao da fixture",
+    "image-sigterm1/2: FAIL real exit-15; journalSent preservado/zeroACK; C149v1.4 antes da correcao funcional; imagem final security13PASS"
+  ],
+  "superseded_ci": [
+    {
+      "conclusion": "cancelled",
+      "source_commit": "d22a63a24dac60c56e499785e3c7f4181fdcbd2e",
+      "reason": "superada pela inclusao de gates diretos; cancelamento nao equivale a FAIL",
+      "run_id": 39300446226
+    },
+    {
+      "conclusion": "cancelled",
+      "source_commit": "f695eb6d5dcf06c1e1ef50dd40fc4479187c93b3",
+      "reason": "superada pela correcaoSIGTERM; RustPASS nao aceita jobs cancelados",
+      "run_id": 39301146015
+    }
+  ],
+  "export_gate": {
+    "exported_source_commit": "9e1d011ffa22aa1225d3775b6fc99a06ae6dfc60",
+    "canonical_diff": "limpo conforme verificacao do integrador",
+    "correction": "core.autocrlf=true somente por processo via GIT_CONFIG_COUNT/KEY_0/VALUE_0; gate diffHEAD ativo",
+    "prompt_before_correction": "prompts/clients/149b-exportar-windows-wsl.md",
+    "source_index_history_files_changed": false,
+    "first_attempt": "FAIL antes de gerar assets: GitWSL viu61arquivosCRLF/LF, GitWindows limpo",
+    "final_result": "PASS; seis arquivos locais/remotos/GitHub com hashes iguais",
+    "product_failure": false
+  },
+  "limits": [
+    "Nao certifica integralmente MQTT5, nao implementa cluster nem atomicidade entre brokers",
+    "ACK de cada perna nao comprova processamento de negocio",
+    "Wire TopicAlias/SubscriptionIdentifier NOT_RUN: negociacao nao anunciada; unidades verificam remocao das propriedades locais de conexao",
+    "Hooks de crash somente debug; pacote e imagem executam wire/brokers/security sem hooks",
+    "Journal formato2 exige diretorio/IDs novos e migracao/rollback apos drenagem; nao apagar journal pendente",
+    "Marcador de percurso depende da cooperacao externa; stripping nao permite detectar retorno",
+    "Um voo por rota; ReceiveMaximum nao limitaQoS0; burst adicional encerra limitado preservando primeiro voo",
+    "Provas cobrem matriz finita documentada; nao prometem entrega ou disponibilidade ilimitada"
+  ]
+}
