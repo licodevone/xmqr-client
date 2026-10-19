@@ -97,6 +97,12 @@ Ubuntu 26.04/WSL, Rust 1.99; cache nativo separado
 
 ## CI e distribuição — pendentes neste commit
 
+Primeira CI [39183637497](https://github.com/licodevone/xmqr-client/actions/runs/39183637497),
+fonte cf7d7c2: FAIL em bridge-integration antes dos ensaios de protocolo,
+porque o harness ainda exigia `mqtt-bridge 0.3.0` após o bump para 0.4.0.
+C143 v1.3 precedeu a correção da expectativa. O FAIL original é preservado;
+release exige nova execução integral da fonte corrigida.
+
 Preparada candidata client 0.42.0/bridge 0.4.0 porque o pacote também inclui
 C139 já integrado. CI inclui 42 cenários no debug e nos ELFs extraídos do
 `.deb`, ciclo 0.41→0.42→0.41→0.42, bridges XMQR/Mosquitto e imagem não root.

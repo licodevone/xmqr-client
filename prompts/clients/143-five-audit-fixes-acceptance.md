@@ -1,4 +1,12 @@
-# C143 v1.2 — aceite integrado e distribuição 0.42.0
+# C143 v1.3 — aceite integrado e distribuição 0.42.0
+
+Revisão após FAIL da CI `39183637497`, fonte cf7d7c2: bridge-integration parou
+antes do protocolo porque `verify_bridge_brokers.py` ainda exigia versão
+0.3.0. Ajustar essa expectativa para 0.4.0 e o harness local de ciclo de
+pacote para baseline 0.41/candidata 0.42; buscar outros hardcodes antes de
+repetir. Não alterar runtime nem ignorar o teste. O primeiro build Docker
+local tem revisão cf7d7c2: reconstruir labels da nova fonte (não atribuir a
+imagem antiga ao novo commit), CI completa e artefatos da nova fonte exata.
 
 Revisão após primeira fixture ampliada: 35 PASS/5 FAIL de preparação do
 harness, não cinco falhas novas do protocolo. Repeat exige intervalo explícito;
