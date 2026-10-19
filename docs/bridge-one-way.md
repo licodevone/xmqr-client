@@ -1,5 +1,9 @@
 # Bridge XMQR experimental — C125/C126/C134/C136/C137/C139
 
+Para o novo modo de origem e destino MQTT 5, consulte o
+[guia C148 de encaminhamento durável, metadados e percurso](bridge-mqtt5.md).
+Ele descreve a fonte ainda não distribuída e a migração com estado separado.
+
 ## Fonte C147 — múltiplos mapeamentos (ainda sem nova release)
 
 O TOML `version=2` aceita de uma a oito tabelas `[[routes]]`, no lugar de
@@ -11,6 +15,8 @@ continuam comuns. Não misture campos v1 (`route`, `link_id`, `journal_dir`).
 ```toml
 version = 2
 source_protocol = "mqtt5"
+destination_protocol = "mqtt311"
+legacy_metadata_policy = "drop"
 topology_file = "/etc/xmqr/topology.toml"
 state_dir = "/var/lib/xmqr-bridge/lab"
 max_retries = 8
@@ -26,6 +32,17 @@ source_prefix = "metrics/"
 target_prefix = "archive/"
 qos = 2
 ```
+
+Na fonte C148, o v2 com origem MQTT 5 e destino 3.1.1 exige
+`legacy_metadata_policy="drop"` explícito: esse engine encaminha tópico,
+payload e retained, descartando os metadados MQTT 5 de aplicação que não
+cabem na perna 3.1.1, incluindo Message Expiry, resposta/correlação e marcador
+de percurso. Nesse modo, o manifesto acíclico continua a defesa disponível;
+a proteção de percurso por mensagem exige MQTT 5 nas duas pontas.
+Atualize os drafts C147 antes da primeira distribuição.
+O campo é recusado quando a origem é 3.1.1 ou as duas pontas usam MQTT 5.
+O formato v1 publicado mantém seu comportamento histórico; ele não recebe
+essa nova exigência de configuração.
 
 Cada identidade MQTT recebe o sufixo `-ID_DA_ROTA`, respeitando 128 bytes.
 Crie previamente `state_dir` absoluto com modo 0700 quando houver QoS2;

@@ -54,7 +54,7 @@ def exercise(broker_root, rows):
                          f'destination_broker="target"\nsource_prefix="{origin}"\n'
                          f'target_prefix="{destination}"\nqos={qos}\n')
         private(root / 'topology.toml', topology)
-        text = (f'version=2\nsource_protocol="mqtt5"\nmax_retries=8\n'
+        text = (f'version=2\nsource_protocol="mqtt5"\nlegacy_metadata_policy="drop"\nmax_retries=8\n'
                 f'topology_file={json.dumps(str(root / "topology.toml"))}\n'
                 f'state_dir={json.dumps(str(state))}\n')
         for name, port in [('source', source), ('destination', target)]:
@@ -106,6 +106,8 @@ def exercise(broker_root, rows):
                 trap.close()
 
         negatives = {
+            'sem_politica_descarte_metadata': text.replace('legacy_metadata_policy="drop"\n', ''),
+            'politica_descarte_metadata_desconhecida': text.replace('legacy_metadata_policy="drop"', 'legacy_metadata_policy="ignore"'),
             'id_duplicado': text.replace('id="umidade"', 'id="temperatura"'),
             'prefixo_sobreposto': text.replace('source_prefix="metrics/"', 'source_prefix="sensors/sala/"'),
             'identidade_longa': text.replace('client_id="c147-source"', 'client_id="' + 'a' * 128 + '"'),

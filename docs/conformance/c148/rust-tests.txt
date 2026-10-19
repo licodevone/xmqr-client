@@ -1,0 +1,246 @@
+   Compiling xmqr-client v0.42.1 (/mnt/d/projects/my-project/acmebr-projects/acmebr-broker-client/xmqr-client)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.40s
+     Running unittests src/bin/mqtt-bridge.rs (/var/tmp/xmqr-client-p92-native-e688c75/debug/deps/mqtt_bridge-135482aab72e204c)
+
+running 15 tests
+test bridge_journal::tests::corrupt_or_oversized_journal_is_preserved_and_refused ... ok
+test bridge_journal::tests::pending_completion_survives_restart_and_rejects_wrong_identity ... ok
+test bridge_journal::tests::mqtt5_pubcomp_intent_survives_restart_and_id_reuse ... ok
+test bridge_metadata::tests::campos_aplicacao_limitam_256_sem_reduzir_response_topic ... ok
+test bridge_metadata::tests::expiry_nao_renova_e_propriedades_de_conexao_nao_sao_reenviadas ... ok
+test bridge_metadata::tests::metadados_recusam_excesso_sem_truncar ... ok
+test bridge_metadata::tests::publish_real_preserva_aplicacao_remove_props_da_conexao_e_estabiliza_fingerprint ... ok
+test bridge_multi::tests::estado_e_identidades_derivadas_respeitam_limites ... ok
+test bridge_multi::tests::rotas_recusam_sobreposicao_ids_duplicados_e_quantidades_invalidas ... ok
+test bridge_metadata::tests::response_topic_segue_1024_e_rejeita_estouro_apos_mapeamento ... ok
+test tests::mqtt5_source_is_explicit_and_unknown_protocol_is_rejected ... ok
+test tests::prefix_mapping_stays_bounded_and_does_not_match_neighbors ... ok
+test tests::topology_rejects_direct_and_three_link_cycles_but_accepts_chain ... ok
+test bridge_store::tests::lock_identidade_checksum_e_corrupcao_preservados ... ok
+test bridge_journal::tests::pending_records_are_bounded_without_overwriting_older_ids ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (/var/tmp/xmqr-client-p92-native-e688c75/debug/deps/mqtt_client-0dca1e2e61bf34e0)
+
+running 112 tests
+test cli::payload_options_tests::sources_are_exclusive_and_lines_require_stream_source ... ok
+test cli::new_options_tests::output_and_retry_validation ... ok
+test cli::tests::accepts_password_file_path_without_reading_secret_during_parse ... ok
+test cli::tests::binary_output_modes_require_sub_and_raw_single_message ... ok
+test cli::tests::durable_subscription_requires_stable_uncounted_mqtt5_session ... ok
+test cli::tests::assigned_client_id_allows_durable_clean_start_mqtt5_without_manual_id ... ok
+test cli::tests::durable_qos1_outbox_requires_stable_session_and_one_publication ... ok
+test cli::tests::exclusions_are_validated_before_network_and_match_mqtt_levels ... ok
+test cli::tests::mqtt5_disconnect_session_expiry_is_scoped_and_bounded ... ok
+test cli::tests::mqtt5_initial_scope_is_explicit_and_validated_before_network ... ok
+test cli::tests::mqtt5_connect_properties_validate_and_preserve_pairs ... ok
+test cli::tests::mqtt5_maximum_packet_size_is_sub_only_and_bounded ... ok
+test cli::tests::mqtt5_message_expiry_is_pub_only_and_bounded ... ok
+test cli::tests::mqtt5_publish_format_and_content_type_are_validated_before_network ... ok
+test cli::tests::mqtt5_receive_maximum_is_sub_only_and_nonzero ... ok
+test cli::tests::mqtt5_publish_request_properties_validate_before_network ... ok
+test cli::tests::mqtt5_reuses_assigned_length_ids_but_legacy_keeps_23_byte_limit ... ok
+test cli::tests::mqtt5_topic_alias_maximum_is_sub_only_and_bounded ... ok
+test cli::tests::mqtt5_will_delay_requires_will_and_version_five ... ok
+test cli::tests::mqtt5_will_message_expiry_requires_complete_will_and_preserves_zero ... ok
+test cli::tests::no_local_and_retain_as_published_require_mqtt5_sub ... ok
+test cli::tests::mqtt5_will_metadata_is_scoped_bounded_and_ordered ... ok
+test cli::tests::open_lab_is_explicit_anonymous_and_loopback_only ... ok
+test cli::tests::plain_auth_lab_requires_username_and_rejects_certificates ... ok
+test cli::tests::plain_method_requires_mqtt5_and_tls ... ok
+test cli::tests::pub_and_sub_use_shared_utf8_byte_limit ... ok
+test cli::tests::pub_requires_message_and_rejects_wildcards ... ok
+test cli::tests::publish_topic_alias_requires_mqtt5_repeated_pub_and_valid_range ... ok
+test cli::tests::qos_retain_and_persistent_session_options_are_checked ... ok
+test cli::tests::reauth_requires_explicit_plain_method ... ok
+test cli::tests::rejects_invalid_usernames_and_passwords_without_echoing_secret ... ok
+test cli::tests::rejects_repeated_flags_and_oversized_message ... ok
+test cli::tests::repeat_is_finite_and_only_accepts_single_message_sources ... ok
+test cli::tests::requires_username_and_never_accepts_plaintext_password_argument ... ok
+test cli::tests::retain_handling_is_sub_only_mqtt5_and_bounded ... ok
+test cli::tests::remote_wss_requires_explicit_opt_in_and_secure_url ... ok
+test cli::tests::retained_filters_are_sub_only_and_mutually_exclusive ... ok
+test cli::tests::sub_accepts_filter_and_bounded_count ... ok
+test cli::tests::shared_subscription_filter_requires_mqtt5_valid_group_and_no_local_disabled ... ok
+test cli::tests::sub_filters_obey_count_byte_and_packet_limits ... ok
+test cli::tests::subscription_identifier_requires_mqtt5_sub_and_valid_range ... ok
+test cli::tests::subscription_user_properties_require_mqtt5_sub_and_are_bounded ... ok
+test cli::tests::subscribe_packet_limit_counts_header_and_utf8_bytes_at_exact_boundary ... ok
+test cli::tests::timing_options_preserve_defaults_and_validate_bounds ... ok
+test cli::tests::tls_password_requires_ca_and_rejects_client_identity ... ok
+test cli::tests::total_timeout_is_optional_bounded_and_unique ... ok
+test cli::tests::websocket_url_is_explicit_loopback_lab_only ... ok
+test cli::tests::will_file_is_exclusive_and_validated_before_network ... ok
+test cli::tests::will_options_validate_utf8_payload_qos_and_completeness ... ok
+test cli::tests::wss_durable_subscription_requires_secure_url_and_remote_opt_in ... ok
+test cli::tests::wss_qos1_qos2_outbox_requires_secure_url_and_persistent_session ... ok
+test credentials::tests::accepts_private_file_and_optional_newline ... ok
+test credentials::tests::rejects_world_readable_file_and_oversized_secret ... ok
+test cli::tests::wss_url_requires_loopback_mtls_without_destination_or_durable_state ... ok
+test outbox::tests::inbound_failed_commit_preserves_received_phase_and_old_document ... ok
+test outbox::tests::inbound_canonical_wire_preserves_binary_metadata_and_expiry_replay_identity ... ok
+test diagnostic_tests::server_disconnect_exposes_code_without_untrusted_reason_string ... ok
+test outbox::tests::inbound_identity_corruption_permissions_symlink_and_lock_are_rejected ... ok
+test outbox::tests::inbound_qos1_undelivered_record_cannot_be_overwritten_by_conflicting_identifier ... ok
+test outbox::tests::inbound_qos2_recovers_both_durable_ack_boundaries_and_new_id_reuse ... ok
+test outbox::tests::inbound_qos1_requires_durable_output_transition_before_cleanup ... ok
+test outbox::tests::inbound_review_mutable_subscription_identifiers_do_not_change_obligation ... ok
+test outbox::tests::inbound_review_orphan_refuses_new_manifest_preparation ... ok
+test outbox::tests::inbound_review_orphan_refuses_open_without_touching_temporary_or_document ... ok
+test outbox::tests::inbound_review_subscription_property_cursor_preserves_all_vbi_widths ... ok
+test outbox::tests::inbound_review_subscription_property_cursor_preserves_three_ids_and_binary_payload ... ok
+test outbox::tests::inbound_review_v1_draft_is_read_only_until_explicit_v2_transition ... ok
+test outbox::tests::journal_survives_reopen_and_rejects_concurrent_writer ... ok
+test outbox::tests::qos2_journal_survives_both_stages_and_excludes_qos1 ... ok
+test outbox::tests::qos2_rejects_corruption_and_symlink_without_losing_qos1 ... ok
+test outbox::tests::rejects_symlinks_public_directory_and_corruption ... ok
+test outbox::tests::subscription_manifest_survives_reopen_and_rejects_corruption ... ok
+test output::tests::binary_json_is_lossless_and_escaped ... ok
+test output::tests::empty_payload_and_text_are_compatible ... ok
+test output::tests::hex_is_reversible_for_topic_and_binary_payload ... ok
+test output::tests::mqtt5_metadata_json_preserves_binary_unicode_and_pair_order ... ok
+test output::tests::mqtt5_metadata_preserves_repeated_subscription_identifiers ... ok
+test payload::tests::file_policy_and_error_redaction ... ok
+test payload::tests::input_deadline_does_not_require_worker_to_finish ... ok
+test payload::tests::line_quota_excludes_only_lf_and_optional_cr ... ok
+test payload::tests::lines_frame_without_phantom_or_utf8_conversion ... ok
+test payload::tests::raw_binary_empty_and_byte_limit ... ok
+test payload::tests::will_file_is_bounded_and_binary_preserved ... ok
+test profile::tests::assigned_id_flag_before_profile_preserves_profile_position ... ok
+test profile::tests::environment_errors_do_not_expose_values_or_override_explicit_flags ... ok
+test profile::tests::environment_precedence_and_extended_fields ... ok
+test profile::tests::paths_precedence_and_bounded_effective_values ... ok
+test profile::tests::remote_wss_profile_requires_explicit_flag ... ok
+test profile::tests::tls_password_profile_selects_no_client_certificate ... ok
+test profile::tests::unknown_secrets_schema_and_size_never_leak_contents ... ok
+test profile::tests::wss_profile_rejects_unsafe_urls_and_conflicting_modes ... ok
+test profile::tests::wss_profile_uses_mtls_and_cli_url_precedence ... ok
+test session::tests::cancellation_budget_never_extends_total_deadline ... ok
+test outbox::tests::inbound_record_and_byte_quotas_refuse_without_replacing_committed_data ... ok
+test session::tests::cancellation_sends_disconnect_on_live_link ... ok
+test session::tests::diagnostics_distinguish_authentication_and_protocol_without_error_contents ... ok
+test session::tests::only_transport_errors_retry ... ok
+test session::tests::retry_budget_and_progressive_delays_are_finite ... ok
+test tls::tests::limits_pem_file_before_parsing ... ok
+test v5_session::assigned_client_id_tests::duplicate_assigned_identifier_is_malformed_on_wire ... ok
+test v5_session::assigned_client_id_tests::empty_connect_id_requires_valid_assigned_connack_property ... ok
+test v5_session::assigned_client_id_tests::mqtt5_connect_encodes_reused_assigned_id_length ... ok
+test v5_session::assigned_client_id_tests::mqtt5_empty_id_encodes_durable_session_expiry ... ok
+test v5_session::audited_connack_tests::publish_capabilities_enforce_boundaries_without_downgrading ... ok
+test v5_session::audited_connack_tests::session_present_requires_actual_local_state ... ok
+test v5_session::plain_auth_tests::plain_data_uses_auth_properties_without_legacy_credentials ... ok
+test v5_session::plain_auth_tests::reauth_large_secret_uses_variable_length_packet_and_properties ... ok
+test v5_session::plain_auth_tests::reauth_request_uses_exact_wire_lengths_and_method ... ok
+test v5_session::subscription_ack_tests::durable_wss_endpoint_identity_is_distinct_from_tcp_and_other_urls ... ok
+test v5_session::subscription_ack_tests::manual_acks_are_opt_in_for_persistent_subscription_only ... ok
+test outbox::tests::inbound_terminal_crash_markers_do_not_exhaust_live_record_quota ... ok
+test session::tests::cancellation_drops_retry_backoff_without_new_connection ... ok
+
+test result: ok. 112 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/mqtt5_receive_validation.rs (/var/tmp/xmqr-client-p92-native-e688c75/debug/deps/mqtt5_receive_validation-c9a8dc7f49462e2a)
+
+running 7 tests
+test all_reserved_fixed_header_flags_are_checked_before_waiting_for_a_body ... ok
+test fragmented_and_concatenated_canonical_packets_preserve_payload_and_boundaries ... ok
+test nul_and_malformed_utf8_topics_are_rejected_before_delivery ... ok
+test unicode_empty_user_properties_bom_and_binary_data_remain_intact ... ok
+test redundant_property_lengths_and_subscription_identifiers_are_rejected ... ok
+test user_property_keys_and_values_reject_nul_across_received_packet_types ... ok
+test vbi_is_minimal_at_every_width_boundary_and_truncated_data_is_not_consumed ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/mqtt5_receiver.rs (/var/tmp/xmqr-client-p92-native-e688c75/debug/deps/mqtt5_receiver-48a62a2daa4aa4a4)
+
+running 5 tests
+test durable_manual_receiver_keeps_duplicate_events_and_controls_pubcomp ... ok
+test error_pubrel_still_completes_known_exchange ... ok
+test suppressed_duplicate_still_produces_event_for_eventloop_progress ... ok
+test qos2_duplicate_acknowledges_without_redelivery_and_identifier_is_reusable ... ok
+test unknown_pubrel_gets_92_and_zero_remains_invalid ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/websocket.rs (/var/tmp/xmqr-client-p92-native-e688c75/debug/deps/websocket-152ed0efb20242a3)
+
+running 1 test
+test websocket_loopback_pub_sub_and_subprotocol_negatives ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/wire.rs (/var/tmp/xmqr-client-p92-native-e688c75/debug/deps/wire-ab209bbc55c4b8f6)
+
+running 68 tests
+test binary_will_file_is_sent_as_exact_connect_bytes ... ok
+test connect_carries_default_and_selected_keepalive_bytes ... ok
+test default_failure_is_immediate_and_initial_connection_can_retry ... ok
+test empty_lines_and_oversized_first_payload_never_connect ... ok
+test connect_rejection_never_retries_or_leaks_peer_payload ... ok
+test excluded_topics_still_complete_qos_handshakes_and_count_displayed_only ... ok
+test failed_publication_is_not_replayed ... ok
+test interrupted_incoming_qos2_handshake_does_not_claim_safe_resume ... ok
+test invalid_total_timeout_is_static_and_never_opens_network ... ok
+test line_mode_waits_for_each_terminal_ack_and_reports_partial_failure ... ok
+test mqtt5_clean_start_rejects_false_session_present ... ok
+test mqtt5_connect_informational_properties_have_versioned_wire ... ok
+test mqtt5_connect_will_delay_property_wire ... ok
+test mqtt5_connect_will_metadata_wire_preserves_user_property_order ... ok
+test mqtt5_continuous_default_subscription_survives_two_qos2_exchanges ... ok
+test mqtt5_default_unknown_pubrel_answers_92_and_connection_remains_usable ... ok
+test mqtt5_payload_format_one_rejects_binary_before_network ... ok
+test mqtt5_persistent_connect_sends_clean_start_and_expiry ... ok
+test mqtt5_puback_not_authorized_is_reported_without_success_output ... ok
+test mqtt5_publish_format_content_type_and_expiry_wire ... ok
+test mqtt5_publish_message_expiry_property_wire ... ok
+test mqtt5_publish_qos0_qos1_qos2_and_refusal_wire ... ok
+test mqtt5_publish_request_properties_wire_preserves_order ... ok
+test mqtt5_publish_topic_alias_rejects_missing_or_too_small_negotiation_before_publish ... ok
+test mqtt5_publish_with_zero_subscription_identifier_is_rejected ... ok
+test mqtt5_qos2_refused_pubrec_or_pubcomp_never_reports_success ... ok
+test mqtt5_repeat_stops_on_second_refused_puback_without_third_publish ... ok
+test incoming_packet_limit_reserves_header_even_with_nonminimal_remaining_length ... ok
+test mqtt5_repeat_uses_negotiated_topic_alias_and_shortens_subsequent_topics ... ok
+test mqtt5_repeat_waits_for_each_ack_and_reapplies_publish_properties ... ok
+test mqtt5_server_disconnect_prints_reason_code_without_remote_text ... ok
+test mqtt5_shared_subscription_filter_is_sent_and_receives_publication ... ok
+test mqtt5_shared_subscription_is_refused_when_connack_disables_it ... ok
+test mqtt5_subscribe_checks_suback_and_acknowledges_qos1_before_disconnect ... ok
+test mqtt5_subscribe_jsonl_exposes_publish_metadata_without_losing_qos_ack ... ok
+test mqtt5_subscribe_maximum_packet_size_connect_wire ... ok
+test mqtt5_subscribe_no_local_and_retain_as_published_bits_are_independent ... ok
+test mqtt5_repeat_timeout_preserves_confirmed_prefix_and_does_not_replay ... ok
+test mqtt5_subscribe_receive_maximum_connect_wire ... ok
+test mqtt5_subscribe_rejects_unestablished_topic_alias_on_new_connection ... ok
+test mqtt5_subscribe_topic_alias_maximum_connect_and_expansion_wire ... ok
+test mqtt5_subscriber_qos2_completes_handshake_before_disconnect ... ok
+test mqtt5_subscribe_retain_handling_bits_are_sent_per_filter ... ok
+test mqtt5_subscription_identifier_is_refused_when_connack_disables_it ... ok
+test mqtt5_subscription_identifier_is_sent_and_received_in_jsonl ... ok
+test multi_topic_subscription_rejects_partial_suback ... ok
+test configured_timeout_bounds_silent_protocol_stages_without_replay ... ok
+test payload_boundary_preserves_all_bytes_for_each_qos ... ok
+test publish_before_suback_obeys_count ... ok
+test publish_completion_matches_qos_protocol ... ok
+test mqtt5_unsuback_refusal_and_timeout_fail_the_subscription_command ... ok
+test qos1_duplicate_delivery_remains_observable_without_exactly_once_claim ... ok
+test raw_stdin_and_file_preserve_binary_for_all_qos ... ok
+test raw_and_hex_outputs_preserve_binary_payload ... ok
+test reconnect_preserves_id_and_resubscribes_only_without_session ... ok
+test refused_suback_reports_policy_limits_without_claiming_a_quota_reason ... ok
+test repeated_disconnects_exhaust_process_budget ... ok
+test reconnect_connack_is_protocol_bounded_not_ninety_second_idle ... ok
+test repeated_publish_waits_for_ack_and_interval_without_queuing_batch ... ok
+test retained_filters_count_only_displayed_messages_and_ack_filtered_qos ... ok
+test sigterm_sends_disconnect_without_reconnecting ... ok
+test sub_sends_all_repeated_topics_and_checks_each_suback_code ... ok
+test subscription_qos_acknowledgements_finish_before_count_disconnect ... ok
+test total_timeout_also_bounds_following_payload_input_without_new_publish ... ok
+test open_stdin_times_out_without_waiting_for_native_worker_shutdown ... ok
+test total_timeout_bounds_connack_suback_publish_and_application_wait ... ok
+test signals_cancel_connack_poll_backoff_and_following_input_without_retry ... ok
+test total_timeout_is_not_renewed_by_messages_or_reconnection_backoff ... ok
+
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.54s
+

@@ -1,0 +1,31 @@
+{
+  "status": "FAIL",
+  "prompt": "C148",
+  "bridge_sha256": "0580a7d6269bbbb5bc24171ea96b8ab75fb2f2c4bb68ad0f1304952b7142254d",
+  "fixture_sha256": "3d954427574e3127119d28fa5079fa829bce7cb113081bcb137164608ac446b7",
+  "scenarios": [
+    {
+      "name": "retentativa_apos_recusa_primeira_origem",
+      "status": "FAIL",
+      "error_type": "TimeoutError"
+    },
+    {
+      "name": "sigint_durante_etapa_assincrona",
+      "status": "FAIL",
+      "error_type": "TimeoutExpired"
+    },
+    {
+      "name": "permissoes_exatas_0600",
+      "status": "FAIL",
+      "error_type": "TimeoutExpired"
+    },
+    {
+      "name": "contadores_descarte_duraveis",
+      "status": "FAIL",
+      "error_type": "CheckError",
+      "reason": "descarte expiry sem contador durável"
+    }
+  ],
+  "scope": "Administração de processos e peers mTLS próprios; queda de processo não simula power loss",
+  "bridge_unchanged": true
+}

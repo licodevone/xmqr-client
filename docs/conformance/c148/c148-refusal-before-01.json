@@ -1,0 +1,16 @@
+{
+  "status": "FAIL",
+  "prompt": "C148",
+  "bridge_sha256": "4e53eb4b8b804ec17207304d6f9ed23a95df7f19bf33d392a79c5a888720f3ff",
+  "fixture_sha256": "6aa7ec6aa695a201a9c686db2cc5fd65549f554dac28148931853fbf7f289926",
+  "scenarios": [
+    {
+      "name": "recusa_remota_preservada_sem_reenvio",
+      "status": "FAIL",
+      "error_type": "CheckError",
+      "reason": "recusa remota não foi registrada duravelmente"
+    }
+  ],
+  "scope": "Administração de processos e peers mTLS próprios; queda de processo não simula power loss",
+  "bridge_unchanged": true
+}

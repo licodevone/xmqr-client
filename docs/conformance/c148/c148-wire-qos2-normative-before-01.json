@@ -1,0 +1,76 @@
+{
+  "prompt": "C148-v1.6",
+  "scope": "wire TLS/MQTT5 finito; não conclui fase8/interop/crash integral",
+  "started_utc": "2026-10-19T17:56:14.045385+00:00",
+  "bridge_sha256": "f76f7db1a98cd28c86200edde7365b3af542331da60ddad79a643c75beb94765",
+  "selection": [
+    "qos2_duplicata_pendente_sem_nova_entrega",
+    "qos2_reuso_pid_apos_pubcomp_dup0_mesmo_payload",
+    "qos2_reuso_pid_apos_pubcomp_dup0_outro_payload",
+    "qos2_reuso_pid_apos_pubcomp_dup1_mesmo_payload",
+    "qos2_reuso_pid_apos_pubcomp_dup1_outro_payload"
+  ],
+  "source_sha256": {
+    "scripts/verify_bridge_v5_wire.py": "8c319576c1df515d61f14cff06726aa7782e97541b622f95d7de43308e773740",
+    "src/bridge_metadata.rs": "6d3b222bda1216588d8cf604c803a3d591af916ddcd51bccda6ea3285038bc74",
+    "src/bridge_store.rs": "8eb8bbda10d4ea345377dfac16d1a11407f76863bc30ecd46a18b929f0a7c8f3",
+    "src/bridge_v5.rs": "3aaceb21e552ed2bcf94f106c1d966984d47f8f6b3d86f020a792431b8d3f39d",
+    "src/bridge_multi.rs": "4c52ad4c1199000c33156c67e38bbacdf5172aa8ad5867fc4aaa070f385069e8",
+    "src/bin/mqtt-bridge.rs": "a5e568e15003bfd7c19faffd89ec6f0519fe4b7a113696f80e40f68a1ca00b2e"
+  },
+  "scenarios": [
+    {
+      "name": "qos2_duplicata_pendente_sem_nova_entrega",
+      "status": "PASS",
+      "evidence": {
+        "pending_duplicate_no_extra_publish": true,
+        "recovery_replay_same_pid": true,
+        "unknown_pubrel_reason": "0x92",
+        "mqtt_clause": "MQTT-4.3.3-10"
+      }
+    },
+    {
+      "name": "qos2_reuso_pid_apos_pubcomp_dup0_mesmo_payload",
+      "status": "PASS",
+      "evidence": {
+        "reused_source_pkid": 37,
+        "source_duplicate": false,
+        "different_payload": false,
+        "new_message_forwarded": true,
+        "mqtt_clause": "MQTT-4.3.3-12"
+      }
+    },
+    {
+      "name": "qos2_reuso_pid_apos_pubcomp_dup0_outro_payload",
+      "status": "PASS",
+      "evidence": {
+        "reused_source_pkid": 37,
+        "source_duplicate": false,
+        "different_payload": true,
+        "new_message_forwarded": true,
+        "mqtt_clause": "MQTT-4.3.3-12"
+      }
+    },
+    {
+      "name": "qos2_reuso_pid_apos_pubcomp_dup1_mesmo_payload",
+      "status": "FAIL",
+      "error": "TimeoutError: The read operation timed out",
+      "location": "ssl.py:1140:read"
+    },
+    {
+      "name": "qos2_reuso_pid_apos_pubcomp_dup1_outro_payload",
+      "status": "FAIL",
+      "error": "EOFError: peer TLS fechado",
+      "location": "verify_bridge_v5_wire.py:164:exact"
+    }
+  ],
+  "bridge_unchanged": true,
+  "sources_unchanged": true,
+  "counts": {
+    "PASS": 3,
+    "FAIL": 2,
+    "NOT_RUN": 0
+  },
+  "status": "FAIL",
+  "elapsed_seconds": 9.956
+}

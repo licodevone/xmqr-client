@@ -117,6 +117,35 @@ jobs:
           name: c147-mapping-report
           path: dist/c147-ci-mappings.json
 
+  bridge-v5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: licodevone/xmqr
+          ref: v0.43.0
+          path: broker
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --locked --bins
+      - run: cargo build --locked --bins --manifest-path broker/Cargo.toml
+      - run: docker pull eclipse-mosquitto:2.0.22
+      - name: C148 wire properties acknowledgements and lifecycle
+        run: |
+          mkdir -p dist
+          python3 -B scripts/verify_bridge_v5_wire.py --bridge target/debug/mqtt-bridge --broker-root broker --report dist/c148-ci-wire.json
+      - name: C148 durable recovery and negative acknowledgements
+        run: python3 -B scripts/verify_bridge_v5_crash.py --bridge target/debug/mqtt-bridge --broker-root broker --report dist/c148-ci-recovery.json
+      - name: C148 actual brokers multi-route chain and cooperative return
+        run: python3 -B scripts/verify_bridge_v5_brokers.py --bridge target/debug/mqtt-bridge --client target/debug/mqtt-client --broker-root broker --mosquitto eclipse-mosquitto:2.0.22 --report dist/c148-ci-brokers.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c148-mqtt5-bridge
+          path: dist/c148-ci-*.json
+
   bridge-image:
     runs-on: ubuntu-latest
     steps:
@@ -168,3 +197,12 @@ jobs:
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --mqtt5-retain --qos1
       - run: python3 scripts/verify_bridge_brokers.py --broker-root broker --mqtt5-retain --qos2 --skip-crash-checkpoint
       - run: python3 scripts/verify_bridge_mosquitto.py --broker-root broker --mqtt5-retain --qos2
+      - name: C148 wire contract on packaged ELF
+        run: python3 -B scripts/verify_bridge_v5_wire.py --bridge "$XMQR_BRIDGE_BIN" --broker-root broker --report dist/c148-package-wire.json
+      - name: C148 real brokers on packaged ELF
+        run: python3 -B scripts/verify_bridge_v5_brokers.py --bridge "$XMQR_BRIDGE_BIN" --client "$XMQR_CLIENT_BIN" --broker-root broker --mosquitto eclipse-mosquitto:2.0.22 --report dist/c148-package-brokers.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c148-packaged-mqtt5-bridge
+          path: dist/c148-package-*.json

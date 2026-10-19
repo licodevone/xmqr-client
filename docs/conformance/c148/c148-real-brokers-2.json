@@ -1,0 +1,32 @@
+{
+  "schema": "xmqr-bridge-mqtt5-real-brokers-c148-v1",
+  "status": "FAIL",
+  "started_unix": 1792432901,
+  "hashes": {
+    "bridge_elf_sha256": "edee37ea0f4d9ea794a035f2ad3501584a3c392a677e676c842ba83d65e1d2a2",
+    "client_elf_sha256": "d644cbaaa2bacb631f47e362bd266004da978603b76fc6c5fecd91bf10896034",
+    "broker_elf_sha256": "fce0b871be72e5cfc7eb5a8dc46d04280075dd21dbbbb5b3677676952c6e9257",
+    "admin_elf_sha256": "6f2de794f67e4f0cf1ed59aaaea933ff7fc31516ac992a49fc2cee1dd27af854",
+    "fixture_sha256": "4bf16209f3e0e8c7ac28a3a086210fcbfb12e59b833dede777a5e8521df4ec90"
+  },
+  "mosquitto": {
+    "requested": "eclipse-mosquitto:2.0.22",
+    "repository_digest": "eclipse-mosquitto@sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21",
+    "image_id": "sha256:199ea8ef2e35ec2b1b37e59cfd1dbae538ed4dfa4a2251a121a52215a6248a21"
+  },
+  "scenarios": [
+    {
+      "name": "xx: retained source before bridge and elapsed expiry on destination replay",
+      "status": "FAIL",
+      "error_type": "AssertionError",
+      "error_line": 89,
+      "reason": "owned CLI exited before protocol readiness"
+    }
+  ],
+  "error_type": "AssertionError",
+  "error_line": 89,
+  "reason": "owned CLI exited before protocol readiness",
+  "finished_unix": 1792432907,
+  "passed": 0,
+  "total": 1
+}

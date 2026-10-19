@@ -1,0 +1,107 @@
+{
+  "prompt": "C147",
+  "binary_sha256": "5686c2ddfb7304f3f5a02a63e6d43f3321f99f861bb6ca9093737fa2d52c7299",
+  "client_sha256": "d644cbaaa2bacb631f47e362bd266004da978603b76fc6c5fecd91bf10896034",
+  "harness_sha256": "93845b505d427036d4594f43eabc8f1e8b6f05cf3c9544a2c66800ead6013fb3",
+  "scenarios": [
+    {
+      "name": "check_duas_ordens_sem_conexao_ou_mutacao",
+      "status": "PASS"
+    },
+    {
+      "name": "sem_politica_descarte_metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "politica_descarte_metadata_desconhecida",
+      "status": "PASS"
+    },
+    {
+      "name": "id_duplicado",
+      "status": "PASS"
+    },
+    {
+      "name": "prefixo_sobreposto",
+      "status": "PASS"
+    },
+    {
+      "name": "identidade_longa",
+      "status": "PASS"
+    },
+    {
+      "name": "rota_ausente_manifesto",
+      "status": "PASS"
+    },
+    {
+      "name": "mistura_route_routes",
+      "status": "PASS"
+    },
+    {
+      "name": "sem_rotas",
+      "status": "PASS"
+    },
+    {
+      "name": "mais_de_oito",
+      "status": "PASS"
+    },
+    {
+      "name": "sem_estado_qos2",
+      "status": "PASS"
+    },
+    {
+      "name": "estado_permissivo_recusado",
+      "status": "PASS"
+    },
+    {
+      "name": "symlink_pendente_recusado",
+      "status": "PASS"
+    },
+    {
+      "name": "manifesto_permissivo_recusado",
+      "status": "PASS"
+    },
+    {
+      "name": "configuracao_permissiva_recusada",
+      "status": "PASS"
+    },
+    {
+      "name": "encaminhamento_sensors/value_qos0",
+      "status": "PASS"
+    },
+    {
+      "name": "encaminhamento_sensors/value_qos1",
+      "status": "PASS"
+    },
+    {
+      "name": "encaminhamento_metrics/value_qos0",
+      "status": "PASS"
+    },
+    {
+      "name": "encaminhamento_metrics/value_qos1",
+      "status": "PASS"
+    },
+    {
+      "name": "encaminhamento_metrics/value_qos2",
+      "status": "PASS"
+    },
+    {
+      "name": "journal_qos2_isolado_sem_pid_zero",
+      "status": "PASS"
+    },
+    {
+      "name": "reinicio_preserva_identidades_e_duas_rotas",
+      "status": "PASS"
+    },
+    {
+      "name": "worker_fatal_encerra_grupo_preserva_corrupcao",
+      "status": "PASS"
+    }
+  ],
+  "binary_unchanged": true,
+  "counts": {
+    "PASS": 23,
+    "FAIL": 0
+  },
+  "status": "PASS",
+  "elapsed_seconds": 9.174
+}

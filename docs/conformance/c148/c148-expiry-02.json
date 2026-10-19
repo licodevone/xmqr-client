@@ -1,0 +1,16 @@
+{
+  "status": "FAIL",
+  "prompt": "C148",
+  "bridge_sha256": "f76f7db1a98cd28c86200edde7365b3af542331da60ddad79a643c75beb94765",
+  "fixture_sha256": "e79fc2b995e964eb3ebece8f466327300c93b3add4af4eada42d0494c92ec0ec",
+  "scenarios": [
+    {
+      "name": "expiry_recalculado_antes_enqueue",
+      "status": "FAIL",
+      "error_type": "CheckError",
+      "reason": "prazo expirou durante commit/checkpoint mas novo PUBLISH foi enviado"
+    }
+  ],
+  "scope": "Administração de processos e peers mTLS próprios; queda de processo não simula power loss",
+  "bridge_unchanged": true
+}

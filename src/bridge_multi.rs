@@ -4,12 +4,19 @@ use std::{fs, io, path::PathBuf};
 use serde::Deserialize;
 use tokio::task::JoinSet;
 
+use super::bridge_metadata::{ResponsePolicy, Settings};
 use super::{
     AppResult, Config, Endpoint, Route, SourceProtocol, default_retries, invalid, prefixes_overlap,
     tls, valid_id, valid_prefix, validate,
 };
 
 const MAX_ROUTES: usize = 8;
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum LegacyMetadataPolicy {
+    Drop,
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -27,6 +34,12 @@ pub struct MultiConfig {
     version: u8,
     #[serde(default)]
     source_protocol: SourceProtocol,
+    #[serde(default)]
+    destination_protocol: SourceProtocol,
+    legacy_metadata_policy: Option<LegacyMetadataPolicy>,
+    bridge_id: Option<String>,
+    max_hops: Option<usize>,
+    response_topic_policy: Option<ResponsePolicy>,
     source: Endpoint,
     destination: Endpoint,
     routes: Vec<Mapping>,
@@ -57,12 +70,66 @@ pub fn private_directory(path: &std::path::Path) -> AppResult<()> {
 }
 
 impl MultiConfig {
+    fn settings(&self) -> AppResult<Option<Settings>> {
+        if self.destination_protocol == SourceProtocol::Mqtt311 {
+            if self.bridge_id.is_some()
+                || self.max_hops.is_some()
+                || self.response_topic_policy.is_some()
+            {
+                return Err(invalid("percurso e politica de resposta exigem destino MQTT5").into());
+            }
+            let explicit_drop = matches!(
+                self.legacy_metadata_policy,
+                Some(LegacyMetadataPolicy::Drop)
+            );
+            if (self.source_protocol == SourceProtocol::Mqtt5) != explicit_drop {
+                return Err(invalid(
+                    "MQTT5 para destino3.1.1 exige legacy_metadata_policy=drop explicito",
+                )
+                .into());
+            }
+            return Ok(None);
+        }
+        if self.legacy_metadata_policy.is_some() {
+            return Err(
+                invalid("politica legado nao se aplica ao encaminhamento MQTT5 completo").into(),
+            );
+        }
+        let id = self
+            .bridge_id
+            .as_deref()
+            .ok_or_else(|| invalid("bridge_id obrigatorio"))?;
+        let hops = self
+            .max_hops
+            .ok_or_else(|| invalid("max_hops obrigatorio"))?;
+        if self.source_protocol != SourceProtocol::Mqtt5
+            || self.state_dir.is_none()
+            || !valid_id(id)
+            || id.len() > 24
+            || !(1..=8).contains(&hops)
+        {
+            return Err(invalid(
+                "modo MQTT5 completo exige origem MQTT5, estado e percurso validos",
+            )
+            .into());
+        }
+        Ok(Some(Settings {
+            bridge_id: id.into(),
+            max_hops: hops,
+            response_policy: self
+                .response_topic_policy
+                .ok_or_else(|| invalid("politica de response topic obrigatoria"))?,
+        }))
+    }
+
     fn shape(&self) -> AppResult<()> {
+        self.settings()?;
         if self.version != 2 || self.routes.is_empty() || self.routes.len() > MAX_ROUTES {
             return Err(invalid("configuracao v2 exige de uma a oito rotas").into());
         }
         for (index, route) in self.routes.iter().enumerate() {
             if !valid_id(&route.id)
+                || matches!(route.id.as_str(), "." | "..")
                 || route.id.len() > 32
                 || !valid_prefix(&route.source_prefix)
                 || !valid_prefix(&route.target_prefix)
@@ -97,17 +164,18 @@ impl MultiConfig {
             let mut destination = self.destination.clone();
             source.client_id = format!("{}-{}", source.client_id, mapping.id);
             destination.client_id = format!("{}-{}", destination.client_id, mapping.id);
-            let journal_dir = if mapping.qos == 2 {
-                let path = self.state_dir.as_ref().unwrap().join(&mapping.id);
-                match fs::symlink_metadata(&path) {
-                    Ok(_) => private_directory(&path)?,
-                    Err(error) if error.kind() == io::ErrorKind::NotFound => {}
-                    Err(error) => return Err(error.into()),
-                }
-                Some(path)
-            } else {
-                None
-            };
+            let journal_dir =
+                if mapping.qos == 2 || self.destination_protocol == SourceProtocol::Mqtt5 {
+                    let path = self.state_dir.as_ref().unwrap().join(&mapping.id);
+                    match fs::symlink_metadata(&path) {
+                        Ok(_) => private_directory(&path)?,
+                        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+                        Err(error) => return Err(error.into()),
+                    }
+                    (mapping.qos == 2).then_some(path)
+                } else {
+                    None
+                };
             let worker = Config {
                 version: 1,
                 source_protocol: self.source_protocol,
@@ -132,7 +200,16 @@ impl MultiConfig {
     fn prepare(self) -> AppResult<Vec<Config>> {
         let configs = self.workers()?;
         for config in &configs {
-            if let Some(directory) = &config.journal_dir {
+            let state = self
+                .state_dir
+                .as_ref()
+                .map(|directory| directory.join(config.link_id.as_ref().unwrap()));
+            let directory = if self.destination_protocol == SourceProtocol::Mqtt5 {
+                state.as_ref()
+            } else {
+                config.journal_dir.as_ref()
+            };
+            if let Some(directory) = directory {
                 let mut builder = fs::DirBuilder::new();
                 #[cfg(unix)]
                 {
@@ -151,6 +228,8 @@ impl MultiConfig {
     }
 
     async fn run(self) -> AppResult<()> {
+        let settings = self.settings()?;
+        let state_dir = self.state_dir.clone();
         let configs = tokio::task::spawn_blocking(move || self.prepare()).await??;
         let mut tasks = JoinSet::new();
         for config in configs {
@@ -158,7 +237,15 @@ impl MultiConfig {
                 "Bridge: iniciando rota {}",
                 config.link_id.as_deref().unwrap()
             );
-            tasks.spawn(super::run(config));
+            if let Some(settings) = &settings {
+                let directory = state_dir
+                    .as_ref()
+                    .unwrap()
+                    .join(config.link_id.as_ref().unwrap());
+                tasks.spawn(super::bridge_v5::run(config, directory, settings.clone()));
+            } else {
+                tasks.spawn(super::run(config));
+            }
         }
         while let Some(result) = tasks.join_next().await {
             result??;
@@ -232,6 +319,11 @@ mod tests {
         MultiConfig {
             version: 2,
             source_protocol: SourceProtocol::Mqtt5,
+            destination_protocol: SourceProtocol::Mqtt311,
+            legacy_metadata_policy: Some(super::LegacyMetadataPolicy::Drop),
+            bridge_id: None,
+            max_hops: None,
+            response_topic_policy: None,
             source: endpoint("origem", 8883),
             destination: endpoint("destino", 8884),
             routes: vec![Mapping {

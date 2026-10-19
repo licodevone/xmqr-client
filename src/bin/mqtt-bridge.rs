@@ -1,8 +1,14 @@
 //! C125-C139: bounded, one-way MQTT bridge sidecar (experimental).
 #[path = "../bridge_journal.rs"]
 mod bridge_journal;
+#[path = "../bridge_metadata.rs"]
+mod bridge_metadata;
 #[path = "../bridge_multi.rs"]
 mod bridge_multi;
+#[path = "../bridge_store.rs"]
+mod bridge_store;
+#[path = "../bridge_v5.rs"]
+mod bridge_v5;
 use std::{
     error::Error,
     fs,
