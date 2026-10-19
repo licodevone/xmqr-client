@@ -1,6 +1,6 @@
 # Cobertura atual dos prompts do cliente
 
-## C139–C143 — candidata 0.42.0, 2026-10-18
+## C139–C143 — prerelease 0.42.0 publicada, 2026-10-18
 
 Bridge MQTT5/QoS2 C139 já integrado na fonte anterior. C140–C142 corrigem
 cinco falhas obrigatórias P232 com prompts anteriores ao código, testes de

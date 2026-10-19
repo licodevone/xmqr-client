@@ -1,5 +1,26 @@
 # Paridade do mqtt-client com Mosquitto
 
+## Checkpoint atual C143 — client 0.42.0 / bridge 0.4.0, 2026-10-18
+
+As cinco falhas obrigatórias do client na auditoria P232 foram corrigidas e
+distribuídas: Maximum QoS, Retain Available, Session Present sem estado local,
+duplicação de entrega QoS2 e resposta a PUBREL repetido/desconhecido. Prompts
+C140–C142 precederam as alterações; [registro C143](../prompts/registros/C143-five-audit-fixes.md)
+preserva RED/GREEN e falhas de preparação. [CI da fonte e0e553c](https://github.com/licodevone/xmqr-client/actions/runs/39183999929)
+PASS nos cinco jobs, 193 testes Rust, 42 cenários de correções/controles e
+regressões duráveis/bridge. Os executáveis da imagem e do `.deb` passaram nos
+probes originais para as cinco obrigações. Quatro recomendações recebidas
+P232 continuam FAIL; não há declaração de conformidade/certificação integral.
+
+[Prerelease 0.42.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.42.0)
+publicada com `.deb` Ubuntu26amd64, imagem Linuxamd64 numerada, manifesto e
+checksums remotos verificados. Inclui C139 na bridge: origem MQTT5/QoS2 com
+journal separado por protocolo, Retain As Published e retomada condicionada
+à sessão. Destino MQTT3.1.1, janela de duplicação entre confirmação e commit;
+sem transação distribuída, propagação de propriedades ou prevenção de ciclos
+externos. T02/fase 8 permanece aberto. Broker 0.43.0 e admin 0.11.0 não mudam.
+Os checkpoints abaixo são históricos, não pendências reabertas por este texto.
+
 ## Checkpoint C129 — 2026-10-18
 
 O [journal de recepção opt-in](mqtt5-inbound-journal.md) está integrado em

@@ -1,0 +1,866 @@
+{
+  "source_commit": "e0e553c3328839177c293870a6d12291c0099d19",
+  "ci_url": "https://github.com/licodevone/xmqr-client/actions/runs/39183999929",
+  "ci_status": "SUCCESS_ALL_FIVE_JOBS",
+  "tag": "v0.42.0",
+  "release_url": "https://github.com/licodevone/xmqr-client/releases/tag/v0.42.0",
+  "image_reference": "lepinheiro100/xmqr-client:0.42.0",
+  "image_digest": "sha256:30ebb6d40cbe075f3ff68ae01b54a4f3d73154aa95fde3b65acbc92bf746f838",
+  "image_wire": {
+    "suite": "C140-C142",
+    "binary_sha256": "0a349fc6a9cc375e5b3bdb6da7d4ec3d804623e2e190c3db3ce67191b4c9369e",
+    "version": "mqtt-client 0.42.0",
+    "harness_sha256": "d520080ec96f3d5e76a7b781c1ad5b319015118fb3437b7a1431d1cd60260c08",
+    "scenarios": [
+      {
+        "name": "default-qos0-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos0-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos0-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos0-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos0-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos0-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos0-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos0-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos1-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos1-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos1-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos1-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos1-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos1-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos1-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos1-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos2-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos2-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos2-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos2-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos2-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos2-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos2-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos2-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "invalid-maximum2",
+        "status": "PASS"
+      },
+      {
+        "name": "invalid-retain2",
+        "status": "PASS"
+      },
+      {
+        "name": "repeat-allowed",
+        "status": "PASS"
+      },
+      {
+        "name": "repeat-rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "fresh-pub-present",
+        "status": "PASS"
+      },
+      {
+        "name": "fresh-pub-absent",
+        "status": "PASS"
+      },
+      {
+        "name": "fresh-sub-present",
+        "status": "PASS"
+      },
+      {
+        "name": "fresh-sub-absent",
+        "status": "PASS"
+      },
+      {
+        "name": "qos2-cycle-repeat-pubrel",
+        "status": "PASS"
+      },
+      {
+        "name": "qos2-duplicate",
+        "status": "PASS"
+      },
+      {
+        "name": "qos2-unknown-pubrel",
+        "status": "PASS"
+      },
+      {
+        "name": "qos2-pid-reuse",
+        "status": "PASS"
+      },
+      {
+        "name": "first-sub-manifest-present",
+        "status": "PASS"
+      },
+      {
+        "name": "outbox-qos1-capability",
+        "status": "PASS"
+      },
+      {
+        "name": "outbox-qos2-capability",
+        "status": "PASS"
+      },
+      {
+        "name": "outbox-qos1-retain",
+        "status": "PASS"
+      },
+      {
+        "name": "outbox-qos2-retain",
+        "status": "PASS"
+      },
+      {
+        "name": "pubrel-resume-restricted",
+        "status": "PASS"
+      }
+    ],
+    "limitations": [
+      "synthetic TCP loopback, not TLS/certification or business exactly-once",
+      "four P232 receiving recommendations are not included"
+    ],
+    "binary_unchanged": true,
+    "counts": {
+      "PASS": 42,
+      "FAIL": 0
+    },
+    "elapsed_seconds": 1.581,
+    "status": "PASS"
+  },
+  "image_p232": {
+    "schema_version": 1,
+    "audit": "P232",
+    "binary_sha256": "0a349fc6a9cc375e5b3bdb6da7d4ec3d804623e2e190c3db3ce67191b4c9369e",
+    "version": "mqtt-client 0.42.0",
+    "source_commit_declared": "e0e553c3328839177c293870a6d12291c0099d19",
+    "harness_sha256": "3c02cdfa5e8c526de2072954acb21779aaaadffa37ad1dd239ba5003c1b5011d",
+    "helper_sha256": "72d35a2ead597bc9be0d59f6fb70e3d9f6a902dd0d70c50e622e9e48936b831c",
+    "scenarios": [
+      {
+        "name": "canonical_pub_qos1",
+        "status": "PASS",
+        "observed_header": 50,
+        "process_exit": 0,
+        "kind": "wire_probe",
+        "category": "POSITIVE_CONTROL"
+      },
+      {
+        "name": "canonical_sub",
+        "status": "PASS",
+        "process_exit": 0,
+        "displayed_rows": 1,
+        "displayed_expected_topic_and_payload": true,
+        "kind": "wire_probe",
+        "category": "POSITIVE_CONTROL"
+      },
+      {
+        "name": "nul_topic",
+        "status": "FAIL",
+        "process_exit": 0,
+        "displayed_rows": 1,
+        "displayed_expected_topic_and_payload": true,
+        "kind": "wire_probe",
+        "category": "RECEIVE_RECOMMENDATION"
+      },
+      {
+        "name": "malformed_utf8_topic",
+        "status": "PASS",
+        "process_exit": 1,
+        "displayed_rows": 0,
+        "displayed_expected_topic_and_payload": false,
+        "kind": "wire_probe",
+        "category": "RECEIVE_RECOMMENDATION"
+      },
+      {
+        "name": "nonminimal_connack_vbi",
+        "status": "FAIL",
+        "observed_header": 50,
+        "process_exit": 0,
+        "kind": "wire_probe",
+        "category": "RECEIVE_RECOMMENDATION"
+      },
+      {
+        "name": "reserved_puback_flags",
+        "status": "FAIL",
+        "observed_header": 50,
+        "process_exit": 0,
+        "kind": "wire_probe",
+        "category": "RECEIVE_RECOMMENDATION"
+      },
+      {
+        "name": "maximum_qos_zero",
+        "status": "PASS",
+        "observed_header": null,
+        "process_exit": 1,
+        "kind": "wire_probe",
+        "category": "MANDATORY_CLIENT_BEHAVIOR"
+      },
+      {
+        "name": "retain_unavailable",
+        "status": "PASS",
+        "observed_header": null,
+        "process_exit": 1,
+        "kind": "wire_probe",
+        "category": "MANDATORY_CLIENT_BEHAVIOR"
+      },
+      {
+        "name": "resume_without_local_session_state",
+        "status": "PASS",
+        "observed_header": null,
+        "process_exit": 1,
+        "kind": "wire_probe",
+        "category": "MANDATORY_CLIENT_BEHAVIOR"
+      },
+      {
+        "name": "nul_user_property",
+        "status": "FAIL",
+        "observed_header": 50,
+        "process_exit": 0,
+        "kind": "wire_probe",
+        "category": "RECEIVE_RECOMMENDATION"
+      },
+      {
+        "name": "qos2_repeated_pubrel",
+        "status": "PASS",
+        "canonical_qos2_cycle": "PASS",
+        "process_exit": 0,
+        "repeated_reply_header": 112,
+        "clauses": [
+          "MQTT-4.3.3-11"
+        ],
+        "kind": "wire_probe",
+        "category": "MANDATORY_CLIENT_BEHAVIOR"
+      },
+      {
+        "name": "qos2_duplicate_delivery",
+        "status": "PASS",
+        "displayed_same_transaction": 1,
+        "process_exit": 0,
+        "clauses": [
+          "MQTT-4.3.3-10"
+        ],
+        "kind": "wire_probe",
+        "category": "MANDATORY_CLIENT_BEHAVIOR"
+      }
+    ],
+    "limitations": [
+      "synthetic loopback TCP server, not TLS or production",
+      "declared source must be tied to package evidence separately",
+      "a PASS is only the stated probe, not whole-clause conformance",
+      "FAIL of a receiving recommendation is not automatically a MUST violation"
+    ],
+    "binary_unchanged": true,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "PASS": 8,
+      "FAIL": 4,
+      "BLOCKED": 0
+    },
+    "status": "FAIL"
+  },
+  "package_p232": {
+    "schema_version": 1,
+    "audit": "P232",
+    "binary_sha256": "e495aca45c0fd94f109cd19cb8bb01344899af07b4bcf82fe07b084b9eb6a10d",
+    "version": "mqtt-client 0.42.0",
+    "source_commit_declared": "e0e553c3328839177c293870a6d12291c0099d19",
+    "harness_sha256": "3c02cdfa5e8c526de2072954acb21779aaaadffa37ad1dd239ba5003c1b5011d",
+    "helper_sha256": "72d35a2ead597bc9be0d59f6fb70e3d9f6a902dd0d70c50e622e9e48936b831c",
+    "scenarios": [
+      {
+        "name": "canonical_pub_qos1",
+        "status": "PASS",
+        "observed_header": 50,
+        "process_exit": 0,
+        "kind": "wire_probe",
+        "category": "POSITIVE_CONTROL"
+      },
+      {
+        "name": "canonical_sub",
+        "status": "PASS",
+        "process_exit": 0,
+        "displayed_rows": 1,
+        "displayed_expected_topic_and_payload": true,
+        "kind": "wire_probe",
+        "category": "POSITIVE_CONTROL"
+      },
+      {
+        "name": "nul_topic",
+        "status": "FAIL",
+        "process_exit": 0,
+        "displayed_rows": 1,
+        "displayed_expected_topic_and_payload": true,
+        "kind": "wire_probe",
+        "category": "RECEIVE_RECOMMENDATION"
+      },
+      {
+        "name": "malformed_utf8_topic",
+        "status": "PASS",
+        "process_exit": 1,
+        "displayed_rows": 0,
+        "displayed_expected_topic_and_payload": false,
+        "kind": "wire_probe",
+        "category": "RECEIVE_RECOMMENDATION"
+      },
+      {
+        "name": "nonminimal_connack_vbi",
+        "status": "FAIL",
+        "observed_header": 50,
+        "process_exit": 0,
+        "kind": "wire_probe",
+        "category": "RECEIVE_RECOMMENDATION"
+      },
+      {
+        "name": "reserved_puback_flags",
+        "status": "FAIL",
+        "observed_header": 50,
+        "process_exit": 0,
+        "kind": "wire_probe",
+        "category": "RECEIVE_RECOMMENDATION"
+      },
+      {
+        "name": "maximum_qos_zero",
+        "status": "PASS",
+        "observed_header": null,
+        "process_exit": 1,
+        "kind": "wire_probe",
+        "category": "MANDATORY_CLIENT_BEHAVIOR"
+      },
+      {
+        "name": "retain_unavailable",
+        "status": "PASS",
+        "observed_header": null,
+        "process_exit": 1,
+        "kind": "wire_probe",
+        "category": "MANDATORY_CLIENT_BEHAVIOR"
+      },
+      {
+        "name": "resume_without_local_session_state",
+        "status": "PASS",
+        "observed_header": null,
+        "process_exit": 1,
+        "kind": "wire_probe",
+        "category": "MANDATORY_CLIENT_BEHAVIOR"
+      },
+      {
+        "name": "nul_user_property",
+        "status": "FAIL",
+        "observed_header": 50,
+        "process_exit": 0,
+        "kind": "wire_probe",
+        "category": "RECEIVE_RECOMMENDATION"
+      },
+      {
+        "name": "qos2_repeated_pubrel",
+        "status": "PASS",
+        "canonical_qos2_cycle": "PASS",
+        "process_exit": 0,
+        "repeated_reply_header": 112,
+        "clauses": [
+          "MQTT-4.3.3-11"
+        ],
+        "kind": "wire_probe",
+        "category": "MANDATORY_CLIENT_BEHAVIOR"
+      },
+      {
+        "name": "qos2_duplicate_delivery",
+        "status": "PASS",
+        "displayed_same_transaction": 1,
+        "process_exit": 0,
+        "clauses": [
+          "MQTT-4.3.3-10"
+        ],
+        "kind": "wire_probe",
+        "category": "MANDATORY_CLIENT_BEHAVIOR"
+      }
+    ],
+    "limitations": [
+      "synthetic loopback TCP server, not TLS or production",
+      "declared source must be tied to package evidence separately",
+      "a PASS is only the stated probe, not whole-clause conformance",
+      "FAIL of a receiving recommendation is not automatically a MUST violation"
+    ],
+    "binary_unchanged": true,
+    "elapsed_seconds": 0.851,
+    "counts": {
+      "PASS": 8,
+      "FAIL": 4,
+      "BLOCKED": 0
+    },
+    "status": "FAIL"
+  },
+  "package_wire_ci": {
+    "suite": "C140-C142",
+    "binary_sha256": "e495aca45c0fd94f109cd19cb8bb01344899af07b4bcf82fe07b084b9eb6a10d",
+    "version": "mqtt-client 0.42.0",
+    "harness_sha256": "d520080ec96f3d5e76a7b781c1ad5b319015118fb3437b7a1431d1cd60260c08",
+    "scenarios": [
+      {
+        "name": "default-qos0-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos0-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos0-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos0-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos0-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos0-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos0-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos0-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos1-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos1-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos1-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos1-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos1-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos1-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos1-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos1-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos2-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos2-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos2-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos2-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos2-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos2-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos2-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos2-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "invalid-maximum2",
+        "status": "PASS"
+      },
+      {
+        "name": "invalid-retain2",
+        "status": "PASS"
+      },
+      {
+        "name": "repeat-allowed",
+        "status": "PASS"
+      },
+      {
+        "name": "repeat-rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "fresh-pub-present",
+        "status": "PASS"
+      },
+      {
+        "name": "fresh-pub-absent",
+        "status": "PASS"
+      },
+      {
+        "name": "fresh-sub-present",
+        "status": "PASS"
+      },
+      {
+        "name": "fresh-sub-absent",
+        "status": "PASS"
+      },
+      {
+        "name": "qos2-cycle-repeat-pubrel",
+        "status": "PASS"
+      },
+      {
+        "name": "qos2-duplicate",
+        "status": "PASS"
+      },
+      {
+        "name": "qos2-unknown-pubrel",
+        "status": "PASS"
+      },
+      {
+        "name": "qos2-pid-reuse",
+        "status": "PASS"
+      },
+      {
+        "name": "first-sub-manifest-present",
+        "status": "PASS"
+      },
+      {
+        "name": "outbox-qos1-capability",
+        "status": "PASS"
+      },
+      {
+        "name": "outbox-qos2-capability",
+        "status": "PASS"
+      },
+      {
+        "name": "outbox-qos1-retain",
+        "status": "PASS"
+      },
+      {
+        "name": "outbox-qos2-retain",
+        "status": "PASS"
+      },
+      {
+        "name": "pubrel-resume-restricted",
+        "status": "PASS"
+      }
+    ],
+    "limitations": [
+      "synthetic TCP loopback, not TLS/certification or business exactly-once",
+      "four P232 receiving recommendations are not included"
+    ],
+    "binary_unchanged": true,
+    "counts": {
+      "PASS": 42,
+      "FAIL": 0
+    },
+    "elapsed_seconds": 0.458,
+    "status": "PASS"
+  },
+  "debug_wire_ci": {
+    "suite": "C140-C142",
+    "binary_sha256": "66d64303421b935394d7b25778fdf1d4e53fae15cce7790cd5b2d84d0c0f4581",
+    "version": "mqtt-client 0.42.0",
+    "harness_sha256": "d520080ec96f3d5e76a7b781c1ad5b319015118fb3437b7a1431d1cd60260c08",
+    "scenarios": [
+      {
+        "name": "default-qos0-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos0-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos0-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos0-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos0-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos0-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos0-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos0-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos1-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos1-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos1-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos1-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos1-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos1-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos1-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos1-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos2-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos2-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos2-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos2-retainFalse",
+        "status": "PASS"
+      },
+      {
+        "name": "default-qos2-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum0-qos2-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "maximum1-qos2-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "no-retain-qos2-retainTrue",
+        "status": "PASS"
+      },
+      {
+        "name": "invalid-maximum2",
+        "status": "PASS"
+      },
+      {
+        "name": "invalid-retain2",
+        "status": "PASS"
+      },
+      {
+        "name": "repeat-allowed",
+        "status": "PASS"
+      },
+      {
+        "name": "repeat-rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "fresh-pub-present",
+        "status": "PASS"
+      },
+      {
+        "name": "fresh-pub-absent",
+        "status": "PASS"
+      },
+      {
+        "name": "fresh-sub-present",
+        "status": "PASS"
+      },
+      {
+        "name": "fresh-sub-absent",
+        "status": "PASS"
+      },
+      {
+        "name": "qos2-cycle-repeat-pubrel",
+        "status": "PASS"
+      },
+      {
+        "name": "qos2-duplicate",
+        "status": "PASS"
+      },
+      {
+        "name": "qos2-unknown-pubrel",
+        "status": "PASS"
+      },
+      {
+        "name": "qos2-pid-reuse",
+        "status": "PASS"
+      },
+      {
+        "name": "first-sub-manifest-present",
+        "status": "PASS"
+      },
+      {
+        "name": "outbox-qos1-capability",
+        "status": "PASS"
+      },
+      {
+        "name": "outbox-qos2-capability",
+        "status": "PASS"
+      },
+      {
+        "name": "outbox-qos1-retain",
+        "status": "PASS"
+      },
+      {
+        "name": "outbox-qos2-retain",
+        "status": "PASS"
+      },
+      {
+        "name": "pubrel-resume-restricted",
+        "status": "PASS"
+      }
+    ],
+    "limitations": [
+      "synthetic TCP loopback, not TLS/certification or business exactly-once",
+      "four P232 receiving recommendations are not included"
+    ],
+    "binary_unchanged": true,
+    "counts": {
+      "PASS": 42,
+      "FAIL": 0
+    },
+    "elapsed_seconds": 0.632,
+    "status": "PASS"
+  },
+  "package_lifecycle": "C143_PACKAGE_LIFECYCLE_PASS",
+  "release_manifest": {
+    "schema_version": 1,
+    "package": "xmqr-client",
+    "version": "0.42.0",
+    "source_revision": "e0e553c3328839177c293870a6d12291c0099d19",
+    "git_tag": "v0.42.0",
+    "deb_target": "Ubuntu 26.04 amd64",
+    "docker_target": "Debian Bookworm linux/amd64",
+    "images": {
+      "lepinheiro100/xmqr-client:0.42.0": {
+        "id": "sha256:30ebb6d40cbe075f3ff68ae01b54a4f3d73154aa95fde3b65acbc92bf746f838",
+        "platform": "linux/amd64",
+        "binary": "mqtt-client",
+        "user": "10001:10001",
+        "source_revision": "e0e553c3328839177c293870a6d12291c0099d19",
+        "bridge_version_output": "mqtt-bridge 0.4.0 (xmqr-client 0.42.0)",
+        "version_output": "mqtt-client 0.42.0"
+      }
+    },
+    "artifacts": [
+      {
+        "file": "xmqr-client_0.42.0-1_amd64.deb",
+        "sha256": "552db5568fde4c045df5c1e8bfe5d5c98a1a5073ac201ada218d977d1e8f54b8",
+        "size": 4041662
+      },
+      {
+        "file": "xmqr-client-0.42.0-linux-amd64.tar.gz",
+        "sha256": "aa81c87148c0ca5c14bf138d4478b66eb2188e4fd70f6ce272f83ade356fe503",
+        "size": 37461450
+      }
+    ],
+    "experimental": true
+  }
+}

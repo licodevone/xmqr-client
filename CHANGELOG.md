@@ -1,12 +1,12 @@
 # Histórico de versões
 
-## 0.42.0 — candidata experimental, C139–C143
+## 0.42.0 — prerelease experimental publicada, C139–C143
 
 - Client MQTT 5 respeita Maximum QoS/Retain Available antes de publicar, sem downgrade silencioso e sem descartar outbox. Continuação PUBREL persistida não é tratada como novo PUBLISH.
 - Processo sem estado local recusa Session Present=1 antes de publicar/assinar. Retomadas duráveis existentes são preservadas; somente a declaração nova nunca ativada é removida na recusa, como em C108.
 - Receptor MQTT 5 auto-ACK não entrega novamente PUBLISH QoS2 do mesmo PID antes de PUBREL; ainda envia PUBREC. PUBREL repetido/desconhecido não zero recebe PUBCOMP 0x92. Eventos manuais de journal permanecem sob controle do chamador; MQTT 3.1.1 não muda.
 - Bridge 0.4.0 inclui C139, origem MQTT 5/QoS2 com journal separado por protocolo, retained preservado e conclusão persistida antes de PUBCOMP. Não há transação distribuída; crash entre confirmação do destino e registro pode duplicar.
-- Não declara certificação MQTT 5: quatro recomendações recebidas P232 permanecem abertas. Publicação depende do aceite C143 e dos artefatos da fonte exata.
+- Não declara certificação MQTT 5: quatro recomendações recebidas P232 permanecem abertas. CI exata e0e553c, pacote Ubuntu26amd64, upgrade/rollback, imagem numerada por digest, tag e seis anexos remotos verificados; aceite C143.
 
 ## 0.38.0 — journal inbound MQTT 5 (prerelease experimental)
 

@@ -1,4 +1,11 @@
-# C143 v1.4 — aceite integrado e distribuição 0.42.0
+# C143 v1.5 — aceite integrado e distribuição 0.42.0
+
+Reconciliação documental após publicação verificada: atualizar README,
+CHANGELOG, VERSIONING, nota 0.42.0, matriz docs/mosquitto-parity.md, cobertura
+e registro, acrescentando evidência JSON da fonte exata, pacote/imagem e CI.
+Não alterar código/versão/tag, não apagar RED nem declarações históricas de
+escopo, não fechar recomendações ou T02. Validar JSON/links/escopo e publicar
+commit documental separado; os artefatos continuam atribuídos a e0e553c.
 
 Após FAIL do build Docker local cf7d7c2, revisar também o assert de versão
 ao final do Dockerfile: ainda exigia bridge 0.3.0. Alterar para 0.4.0, buscar

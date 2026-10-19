@@ -95,7 +95,7 @@ Ubuntu 26.04/WSL, Rust 1.99; cache nativo separado
   WSL única executou os gates finais, evitando falsos resultados por comandos
   de validação que nem chegaram a iniciar.
 
-## CI e distribuição — pendentes neste commit
+## CI e distribuição — histórico da preparação e aceite final abaixo
 
 Primeira CI [39183637497](https://github.com/licodevone/xmqr-client/actions/runs/39183637497),
 fonte cf7d7c2: FAIL em bridge-integration antes dos ensaios de protocolo,
@@ -113,6 +113,58 @@ C139 já integrado. CI inclui 42 cenários no debug e nos ELFs extraídos do
 `.deb`, ciclo 0.41→0.42→0.41→0.42, bridges XMQR/Mosquitto e imagem não root.
 Aguardar todos os jobs da fonte exata antes de tag/release/DockerHub. Nenhuma
 tag, release ou imagem foi publicada por este registro inicial. Não mover latest.
+
+### Aceite final da fonte e0e553c e publicação
+
+Os parágrafos anteriores registram as tentativas, não pendências atuais.
+[CI final 39183999929](https://github.com/licodevone/xmqr-client/actions/runs/39183999929),
+fonte **e0e553c3328839177c293870a6d12291c0099d19**, passou nos cinco jobs:
+rust, ubuntu-package, bridge-integration, bridge-image e bridge-package-integration.
+Inclui 193 testes Rust, 42 cenários de correções/controles no debug **e** nos
+ELFs extraídos do pacote CI, migração real draft-v1→v2, regressões MQTT311/5,
+TCP/WSS mTLS, bridges XMQR/Mosquitto, topologia gerenciada e ciclo de pacote.
+
+O `.deb` foi baixado **dessa CI** (artifact 12157825242), não reempacotado de
+outro commit. Package xmqr-client, Version 0.42.0-1, Architecture amd64;
+SHA-256 **552db5568fde4c045df5c1e8bfe5d5c98a1a5073ac201ada218d977d1e8f54b8**.
+Executáveis extraídos imprimem mqtt-client 0.42.0 e mqtt-bridge 0.4.0
+(xmqr-client 0.42.0). Na máquina local, esse pacote passou novamente nos 42
+cenários e no ciclo descartável Ubuntu26 0.41→0.42→0.41→0.42→purge,
+preservando operator.keep e sem habilitar a unit: C143_PACKAGE_LIFECYCLE_PASS.
+
+A imagem local foi construída da fonte limpa e0e553c (somente o target/
+vendorizado preexistente ficou não rastreado e excluído do contexto). Os dois
+binários imprimem versões corretas, usuário 10001:10001, Linux/amd64, revisão
+OCI exata. O ELF mqtt-client extraído da imagem passou nos 42 cenários.
+Também se executou o P232 **original sem alteração** nos ELFs da imagem e do
+pacote: ambos deram 8 PASS/4 FAIL/0 BLOCKED, cinco obrigações corrigidas PASS
+e apenas as quatro recomendações recebidas ainda FAIL. Não se declara PASS
+global da auditoria. A imagem não instala o `.deb` Ubuntu dentro do Bookworm.
+
+[Tag/prerelease v0.42.0](https://github.com/licodevone/xmqr-client/releases/tag/v0.42.0)
+publicadas após o aceite. Tag anotada **712dedb731c9322bd6f4f27a4e75cfa63050f4f8**,
+commit alvo e0e553c completo acima, confirmado por ls-remote/peeled tag.
+Docker Hub **lepinheiro100/xmqr-client:0.42.0**, digest remoto
+**sha256:30ebb6d40cbe075f3ff68ae01b54a4f3d73154aa95fde3b65acbc92bf746f838**,
+confirmado por imagetools, pull por digest e execução read-only/network-none.
+Nenhum latest, tag ou asset antigo foi alterado.
+
+Seis assets remotos baixados para dist/c143-remote-042 e comparados por
+SHA-256 com dist/c143-release-e0e553c: todos idênticos. Além do pacote acima:
+
+- Imagem docker-load tar.gz: SHA-256
+  **aa81c87148c0ca5c14bf138d4478b66eb2188e4fd70f6ce272f83ade356fe503**.
+- Manifesto: SHA-256
+  **024b203060e00ff8622ad756ed525fc8e7cd1672381f2e1dc6ca7a837806f26a**.
+- Os três sidecars também foram confrontados byte a byte por seus hashes.
+  Além disso, sha256sum -c dos três sidecars baixados passou no WSL/Ubuntu.
+
+[Evidência final de pacote/imagem/CI](../../docs/conformance/client-audit-fixes-release-0.42.0.json)
+com fonte exata, relatórios completos e manifesto. O JSON local pré-commit
+permanece separado, sem apagar os FAILs anteriores. Broker 0.43.0 e admin
+independente 0.11.0 não foram alterados por C140–C143. Fase 8/T02 e as
+recomendações recebidas continuam abertas. Esses commits documentais de
+reconciliação posteriores não substituem a fonte dos artefatos e0e553c.
 
 Sem instalação no host, sem modificar senha/certificados reais, firewall,
 serviços, ESP32/COM4 ou estado do operador. Não houve homologação Windows

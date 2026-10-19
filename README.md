@@ -1,15 +1,20 @@
 # xmqr-client
 
-## Candidata 0.42.0 — correções da auditoria MQTT 5
+## Prerelease 0.42.0 publicada — correções da auditoria MQTT 5
 
 C140–C142 corrigem as cinco falhas obrigatórias P232: publicação acima de
 Maximum QoS, retained indisponível, aceitação de sessão sem estado local,
 entrega duplicada QoS 2 e ausência de PUBCOMP para PUBREL repetido. As quatro
 recomendações de validação recebida permanecem abertas; isso não é certificação.
 Os prompts e [registro de aceite](prompts/registros/C143-five-audit-fixes.md)
-preservam os resultados anteriores. A candidata também inclui C139:
+preservam os resultados anteriores. A release também inclui C139:
 `mqtt-bridge 0.4.0`, origem MQTT 5/QoS 2 com journal privado e destino MQTT 3.1.1.
-[Mudanças e migração](docs/releases/0.42.0.md). Distribuição só após gates.
+[Mudanças e migração](docs/releases/0.42.0.md),
+[release e pacotes](https://github.com/licodevone/xmqr-client/releases/tag/v0.42.0)
+e [CI da fonte exata](https://github.com/licodevone/xmqr-client/actions/runs/39183999929)
+PASS nos cinco jobs. `.deb` Ubuntu26amd64 e imagem Docker numerada
+`lepinheiro100/xmqr-client:0.42.0` publicados, com seis anexos remotos
+conferidos por SHA-256; nenhuma tag antiga ou latest foi movida.
 
 Um processo novo MQTT 5 sem estado local recusa Session Present=1, mesmo
 com `--clean-start false`. Para operação sem retomada, use Clean Start padrão.
