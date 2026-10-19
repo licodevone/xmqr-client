@@ -39,5 +39,5 @@ COPY --from=build --chown=10001:10001 /third-party-notices /usr/share/licenses/x
 USER 10001:10001
 STOPSIGNAL SIGTERM
 RUN test "$(/usr/local/bin/mqtt-client --version)" = "mqtt-client ${VERSION}"
-RUN test "$(/usr/local/bin/mqtt-bridge --version)" = "mqtt-bridge 0.3.0 (xmqr-client ${VERSION})"
+RUN test "$(/usr/local/bin/mqtt-bridge --version)" = "mqtt-bridge 0.4.0 (xmqr-client ${VERSION})"
 ENTRYPOINT ["/usr/local/bin/mqtt-client"]

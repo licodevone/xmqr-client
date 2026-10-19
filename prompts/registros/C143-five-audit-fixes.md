@@ -103,6 +103,11 @@ porque o harness ainda exigia `mqtt-bridge 0.3.0` após o bump para 0.4.0.
 C143 v1.3 precedeu a correção da expectativa. O FAIL original é preservado;
 release exige nova execução integral da fonte corrigida.
 
+Build Docker local cf7d7c2: FAIL depois de compilar release, no assert final
+do Dockerfile que ainda exigia bridge 0.3.0. C143 v1.4 precedeu o ajuste
+para 0.4.0; não se publicou imagem nem tag. A segunda CI 39183873286 também
+tem esse assert antigo e não pode servir como aceite integral da distribuição.
+
 Preparada candidata client 0.42.0/bridge 0.4.0 porque o pacote também inclui
 C139 já integrado. CI inclui 42 cenários no debug e nos ELFs extraídos do
 `.deb`, ciclo 0.41→0.42→0.41→0.42, bridges XMQR/Mosquitto e imagem não root.

@@ -1,4 +1,10 @@
-# C143 v1.3 — aceite integrado e distribuição 0.42.0
+# C143 v1.4 — aceite integrado e distribuição 0.42.0
+
+Após FAIL do build Docker local cf7d7c2, revisar também o assert de versão
+ao final do Dockerfile: ainda exigia bridge 0.3.0. Alterar para 0.4.0, buscar
+hardcodes em Dockerfile/scripts/src/tests/workflows completos e repetir CI e
+imagem da fonte final. Falha foi no assert final após compilação release,
+não no comportamento MQTT; preservar registro e não publicar essa imagem.
 
 Revisão após FAIL da CI `39183637497`, fonte cf7d7c2: bridge-integration parou
 antes do protocolo porque `verify_bridge_brokers.py` ainda exigia versão
