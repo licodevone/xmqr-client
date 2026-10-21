@@ -3302,6 +3302,48 @@ mod tests {
         }
     }
 
+    #[cfg(not(target_os = "linux"))]
+    #[test]
+    fn wss_outbox_remains_explicitly_linux_only() {
+        let args = [
+            "pub",
+            "--topic",
+            "test/value",
+            "--message",
+            "ok",
+            "--username",
+            "device",
+            "--ca",
+            "ca.crt",
+            "--cert",
+            "client.crt",
+            "--key",
+            "client.key",
+            "--password-file",
+            "password",
+            "--protocol-version",
+            "5",
+            "--qos",
+            "1",
+            "--client-id",
+            "fixed-id",
+            "--clean-start",
+            "false",
+            "--session-expiry-seconds",
+            "60",
+            "--outbox-dir",
+            "outbox",
+            "--ws-url",
+            "wss://127.0.0.1:8084/mqtt",
+        ];
+        assert!(
+            parse(args.map(str::to_owned))
+                .unwrap_err()
+                .contains("somente no Linux/WSL")
+        );
+    }
+
+    #[cfg(target_os = "linux")]
     #[test]
     fn wss_qos1_qos2_outbox_requires_secure_url_and_persistent_session() {
         let base = [

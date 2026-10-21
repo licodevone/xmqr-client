@@ -1,5 +1,12 @@
 # Histórico de versões
 
+## Em desenvolvimento - C151 Windows nativo experimental
+
+- `--password-file` Windows valida dono/DACL pelo handle, arquivo regular, parent privado e ausencia de reparse/ADS/device aliases; Linux preservado.
+- Runtime SCM opt-in aceita `sub --output jsonl` com arquivo existente privado e limite de 4 KiB a 64 MiB; falha de disco/capacidade encerra antes de PUBACK/PUBREC.
+- `--service-config` executa a mesma configuracao/sink em console; sincroniza STOP durante inicializacao e Ctrl+Break com broker.
+- Sem journal inbound Windows, promessa de exatamente uma vez, instalacao no host ou aceite SCM automatico. [Detalhes C151](docs/windows-service.md).
+
 ## 0.43.0 / bridge 0.5.0 — prerelease experimental publicada
 
 - C149 distribui C147/C148 e SIGTERM da fonte `9e1d011`, após seis jobs CI PASS. Pacote/imagem/ELFs, instalação/rollback, tag anotada, seis anexos remotos e imagem por digest conferidos. 0.42.1 permanece disponível para rollback seguro.

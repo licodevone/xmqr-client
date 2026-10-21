@@ -1,5 +1,10 @@
 # xmqr-client
 
+Windows nativo experimental C151: senha em arquivo com DACL validada e servico
+pub/sub com saida NDJSON privada e limitada. O adaptador SCM e opt-in; veja
+[configuracao, garantias de ACK e limites](docs/windows-service.md) e o
+[registro de execucao C151](prompts/registros/C151-windows-private-runtime.md).
+
 ## Prerelease 0.43.0 / bridge 0.5.0 publicada — C147/C148/C149
 
 O modo v2 opt-in oferece uma a oito rotas isoladas, MQTT 5 nas duas pontas,

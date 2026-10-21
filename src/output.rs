@@ -16,6 +16,10 @@ pub enum Output {
 
 impl Output {
     pub fn publish(self, publish: &Publish) -> io::Result<()> {
+        #[cfg(all(windows, feature = "windows-service-runtime"))]
+        if crate::service_output::active() {
+            return crate::service_output::append(&Self::Jsonl.render_publish(publish));
+        }
         let mut stdout = io::stdout().lock();
         if self == Self::Raw {
             stdout.write_all(&publish.payload)?;
@@ -40,6 +44,10 @@ impl Output {
             rendered.push_str(",\"metadata\":");
             rendered.push_str(&metadata);
             rendered.push('}');
+        }
+        #[cfg(all(windows, feature = "windows-service-runtime"))]
+        if crate::service_output::active() {
+            return crate::service_output::append(&rendered);
         }
         let mut stdout = io::stdout().lock();
         stdout.write_all(rendered.as_bytes())?;

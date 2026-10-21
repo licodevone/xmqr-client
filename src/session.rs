@@ -65,6 +65,10 @@ pub async fn run(
     options.set_clean_session(cli.clean_session);
     options.set_keep_alive(Duration::from_secs(u64::from(cli.keepalive_seconds)));
     options.set_max_packet_size(MAX_INCOMING_REMAINING_BYTES, MAX_PACKET_BYTES);
+    #[cfg(all(windows, feature = "windows-service-runtime"))]
+    if crate::service_output::active() {
+        options.set_manual_acks(true);
+    }
     if let (Some(username), Some(password)) = (cli.username.clone(), password) {
         // MQTT 3.1.1 §3.1.3.4-5: secure mode carries both credentials in CONNECT.
         options.set_credentials(username, password);
@@ -444,7 +448,7 @@ fn retryable(error: &ConnectionError) -> bool {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)] // Keep ACK/output ordering in one state machine.
 async fn subscribe(
     client: &AsyncClient,
     events: &mut EventLoop,
@@ -545,6 +549,10 @@ async fn subscribe(
                 {
                     output.publish(&publish)?;
                     received += 1;
+                }
+                #[cfg(all(windows, feature = "windows-service-runtime"))]
+                if crate::service_output::active() {
+                    client.try_ack(&publish)?;
                 }
                 if !waiting_ack {
                     deadline = Instant::now() + IDLE_TIMEOUT;

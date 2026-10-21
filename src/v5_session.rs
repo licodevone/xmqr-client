@@ -468,6 +468,10 @@ fn configure_connect_properties(options: &mut MqttOptions, cli: &Cli) {
 fn configure_options(cli: &Cli, password: Option<&str>) -> AppResult<MqttOptions> {
     let broker_address = cli.ws_url.as_deref().unwrap_or(&cli.host);
     let mut options = MqttOptions::new(&cli.client_id, broker_address, cli.port);
+    #[cfg(all(windows, feature = "windows-service-runtime"))]
+    if crate::service_output::active() {
+        options.set_manual_acks(true);
+    }
     #[cfg(target_os = "linux")]
     if cli.subscription_state_dir.is_some() {
         options.set_manual_acks(true);
@@ -1631,6 +1635,8 @@ async fn subscribe(
         false
     };
     let mut received = 0_u64;
+    #[cfg(all(windows, feature = "windows-service-runtime"))]
+    let mut service_qos2 = std::collections::HashSet::new();
     let mut aliases = HashMap::new();
     #[cfg(target_os = "linux")]
     let mut ack_deadlines = if let Some(outbox) = subscription_journal.take() {
@@ -1649,11 +1655,15 @@ async fn subscribe(
         HashMap::new()
     };
     loop {
-        if acknowledged && count.is_some_and(|target| received >= target) {
+        #[cfg(all(windows, feature = "windows-service-runtime"))]
+        let service_incomplete = !service_qos2.is_empty();
+        #[cfg(not(all(windows, feature = "windows-service-runtime")))]
+        let service_incomplete = false;
+        if acknowledged && !service_incomplete && count.is_some_and(|target| received >= target) {
             finish_counted_subscription(cli, client, events, filters, limit).await?;
             return Ok(());
         }
-        let wait = if acknowledged {
+        let wait = if acknowledged && !service_incomplete {
             Duration::from_secs(90)
         } else {
             limit
@@ -1726,6 +1736,17 @@ async fn subscribe(
                 {
                     received += 1;
                 }
+                #[cfg(all(windows, feature = "windows-service-runtime"))]
+                if crate::service_output::active() {
+                    client.try_ack(&publish)?;
+                    if publish.qos == rumqttc::v5::mqttbytes::QoS::ExactlyOnce {
+                        service_qos2.insert(publish.pkid);
+                    }
+                }
+            }
+            #[cfg(all(windows, feature = "windows-service-runtime"))]
+            Event::Incoming(Incoming::PubRel(rel)) if crate::service_output::active() => {
+                service_qos2.remove(&rel.pkid);
             }
             #[cfg(target_os = "linux")]
             Event::Incoming(Incoming::PubRel(rel)) if subscription_journal.is_some() => {

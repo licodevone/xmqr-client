@@ -11,6 +11,10 @@ pub async fn shutdown() -> io::Result<()> {
             _ = terminate.recv() => Ok(()),
         }
     }
-    #[cfg(not(unix))]
+    #[cfg(all(windows, feature = "windows-service-runtime"))]
+    {
+        crate::windows_service::shutdown().await
+    }
+    #[cfg(not(any(unix, all(windows, feature = "windows-service-runtime"))))]
     tokio::signal::ctrl_c().await
 }
