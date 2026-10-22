@@ -170,6 +170,7 @@ async fn run_connected(
                 cli.output,
                 cli.retained_filter,
                 protocol_timeout(cli),
+                persistent_subscription(),
             )
             .await?;
         }
@@ -254,7 +255,7 @@ async fn await_connack(
     limit: Duration,
 ) -> AppResult<()> {
     loop {
-        match retry.next(events, limit, limit).await? {
+        match retry.next(events, Some(limit), limit).await? {
             Event::Incoming(Incoming::ConnAck(ack)) if ack.code == ConnectReturnCode::Success => {
                 return Ok(());
             }
@@ -331,19 +332,25 @@ impl Retry {
     async fn next(
         &mut self,
         events: &mut EventLoop,
-        limit: Duration,
+        limit: Option<Duration>,
         connect_limit: Duration,
     ) -> AppResult<Event> {
         loop {
             let poll_limit = if events.network.is_none() {
-                limit.min(connect_limit)
+                Some(limit.map_or(connect_limit, |limit| limit.min(connect_limit)))
             } else {
                 limit
             };
-            let error = match timeout(poll_limit, events.poll()).await {
-                Ok(Ok(event)) => return Ok(event),
-                Ok(Err(error)) => error,
-                Err(_) => return Err(timed_out("resposta do broker").into()),
+            let result = if let Some(poll_limit) = poll_limit {
+                timeout(poll_limit, events.poll())
+                    .await
+                    .map_err(|_| timed_out("resposta do broker"))?
+            } else {
+                events.poll().await
+            };
+            let error = match result {
+                Ok(event) => return Ok(event),
+                Err(error) => error,
             };
             if !retryable(&error) {
                 // Do not format NotConnAck(Packet): untrusted packets may carry secrets.
@@ -380,7 +387,7 @@ impl Retry {
     ) -> AppResult<Event> {
         let duration = deadline.saturating_duration_since(Instant::now());
         // Absolute protocol/idle deadline includes failed polls and backoff.
-        timeout_at(deadline, self.next(events, duration, connect_limit))
+        timeout_at(deadline, self.next(events, Some(duration), connect_limit))
             .await
             .map_err(|_| {
                 timed_out(if waiting_ack {
@@ -448,6 +455,25 @@ fn retryable(error: &ConnectionError) -> bool {
     }
 }
 
+fn persistent_subscription() -> bool {
+    #[cfg(all(windows, feature = "windows-service-runtime"))]
+    {
+        crate::windows_service::active() || crate::service_output::active()
+    }
+    #[cfg(not(all(windows, feature = "windows-service-runtime")))]
+    false
+}
+
+fn subscription_deadline(persistent: bool, waiting_ack: bool, limit: Duration) -> Option<Instant> {
+    if waiting_ack {
+        Some(Instant::now() + limit)
+    } else if persistent {
+        None
+    } else {
+        Some(Instant::now() + IDLE_TIMEOUT)
+    }
+}
+
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)] // Keep ACK/output ordering in one state machine.
 async fn subscribe(
     client: &AsyncClient,
@@ -460,6 +486,7 @@ async fn subscribe(
     output: crate::output::Output,
     retained_filter: crate::cli::RetainedFilter,
     limit: Duration,
+    persistent: bool,
 ) -> AppResult<()> {
     client
         .subscribe_many(
@@ -471,7 +498,7 @@ async fn subscribe(
         .await?;
     let mut acknowledged = false;
     let mut waiting_ack = true;
-    let mut deadline = Instant::now() + limit;
+    let mut deadline = subscription_deadline(persistent, true, limit);
     let mut received = 0;
     let mut incoming_qos2 = std::collections::HashSet::new();
     let mut qos2_deadline = None;
@@ -482,9 +509,13 @@ async fn subscribe(
             break;
         }
         let event = if incoming_qos2.is_empty() {
-            retry
-                .next_before(events, deadline, limit, waiting_ack)
-                .await?
+            if let Some(deadline) = deadline {
+                retry
+                    .next_before(events, deadline, limit, waiting_ack)
+                    .await?
+            } else {
+                retry.next(events, None, limit).await?
+            }
         } else {
             // rumqttc clean() drops incoming QoS2 state. Resuming a partially
             // received handshake could reject PUBREL or duplicate application data.
@@ -519,7 +550,7 @@ async fn subscribe(
                 } else {
                     waiting_ack = false;
                 }
-                deadline = Instant::now() + if waiting_ack { limit } else { IDLE_TIMEOUT };
+                deadline = subscription_deadline(persistent, waiting_ack, limit);
             }
             Event::Incoming(Incoming::SubAck(ack)) if waiting_ack => {
                 if ack.return_codes.len() != filters.len()
@@ -531,7 +562,7 @@ async fn subscribe(
                 }
                 waiting_ack = false;
                 acknowledged = true;
-                deadline = Instant::now() + IDLE_TIMEOUT;
+                deadline = subscription_deadline(persistent, false, limit);
                 output.status("Assinatura ativa. Aguardando mensagens; Ctrl+C para sair.");
             }
             Event::Incoming(Incoming::Publish(publish)) => {
@@ -555,7 +586,7 @@ async fn subscribe(
                     client.try_ack(&publish)?;
                 }
                 if !waiting_ack {
-                    deadline = Instant::now() + IDLE_TIMEOUT;
+                    deadline = subscription_deadline(persistent, false, limit);
                 }
             }
             Event::Incoming(Incoming::PubRel(release)) => {
@@ -564,7 +595,8 @@ async fn subscribe(
             Event::Outgoing(_) | Event::Incoming(Incoming::PingResp) => {}
             Event::Incoming(_) => return Err(invalid_data("resposta MQTT inesperada").into()),
         }
-        // PINGRESP and outbound protocol ACKs do not renew application idle.
+        // CLI PINGRESP/ACKs do not renew application idle. Validated Windows
+        // service subscriptions have no idle deadline after their SUBACK.
     }
     graceful_disconnect(client, events, limit).await
 }
@@ -609,6 +641,213 @@ fn timed_out(stage: &'static str) -> io::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct IdleFixture {
+        task: tokio::task::JoinHandle<Result<(), String>>,
+        peer: tokio::net::TcpStream,
+        stop: tokio::sync::oneshot::Sender<()>,
+    }
+
+    async fn wire_packet(stream: &mut tokio::net::TcpStream) -> (u8, Vec<u8>) {
+        use tokio::io::AsyncReadExt;
+        let header = stream.read_u8().await.unwrap();
+        let mut length = 0;
+        let mut multiplier = 1;
+        for _ in 0..4 {
+            let byte = stream.read_u8().await.unwrap();
+            length += usize::from(byte & 127) * multiplier;
+            assert!(length <= 4096);
+            if byte & 128 == 0 {
+                let mut body = vec![0; length];
+                stream.read_exact(&mut body).await.unwrap();
+                return (header, body);
+            }
+            multiplier *= 128;
+        }
+        panic!("invalid fixture MQTT length")
+    }
+
+    async fn idle_fixture(persistent: bool, qos: QoS, acknowledge: bool) -> IdleFixture {
+        use tokio::io::AsyncWriteExt;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let mut options = MqttOptions::new(
+            "c152-isolated-test",
+            "127.0.0.1",
+            listener.local_addr().unwrap().port(),
+        );
+        options.set_keep_alive(Duration::ZERO);
+        let (client, mut events) = AsyncClient::new(options, 8);
+        let (stop, stopped) = tokio::sync::oneshot::channel();
+        let task = tokio::spawn(async move {
+            let mut retry = Retry::with_seed(0, 1);
+            await_connack(&mut events, &mut retry, Duration::from_secs(8))
+                .await
+                .map_err(|error| error.to_string())?;
+            let filters = ["c152/test".into()];
+            let exclusions = ["c152/test".into()];
+            let result = tokio::select! {
+                result = subscribe(
+                    &client, &mut events, &mut retry, &filters,
+                    &exclusions, qos, None, crate::output::Output::Jsonl,
+                    crate::cli::RetainedFilter::All, Duration::from_secs(8), persistent,
+                ) => return result.map_err(|error| error.to_string()),
+                _ = stopped => Ok::<(), io::Error>(()),
+            };
+            result.map_err(|error| error.to_string())?;
+            cancel_connection(&client, &mut events).await;
+            Ok(())
+        });
+        let (mut peer, _) = listener.accept().await.unwrap();
+        assert_eq!(wire_packet(&mut peer).await.0, 0x10);
+        peer.write_all(&[0x20, 2, 0, 0]).await.unwrap();
+        let (header, body) = wire_packet(&mut peer).await;
+        assert_eq!(header, 0x82);
+        if acknowledge {
+            peer.write_all(&[0x90, 3, body[0], body[1], qos as u8])
+                .await
+                .unwrap();
+        }
+        for _ in 0..128 {
+            tokio::task::yield_now().await;
+        }
+        IdleFixture { task, peer, stop }
+    }
+
+    fn prevent_automatic_clock_advance() -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async {
+            loop {
+                tokio::task::yield_now().await;
+            }
+        })
+    }
+
+    async fn advance_and_poll(seconds: u64) {
+        tokio::time::advance(Duration::from_secs(seconds)).await;
+        for _ in 0..128 {
+            tokio::task::yield_now().await;
+        }
+    }
+
+    #[tokio::test]
+    async fn service_subscription_survives_idle_beyond_90_seconds_and_stops() {
+        let mut fixture = idle_fixture(true, QoS::AtMostOnce, true).await;
+        tokio::time::pause();
+        let clock_guard = prevent_automatic_clock_advance();
+        advance_and_poll(180).await;
+        assert!(!fixture.task.is_finished());
+        fixture.stop.send(()).unwrap();
+        assert_eq!(wire_packet(&mut fixture.peer).await, (0xe0, vec![]));
+        fixture.task.await.unwrap().unwrap();
+        clock_guard.abort();
+    }
+
+    #[tokio::test]
+    async fn normal_cli_still_expires_at_90_seconds_despite_ping_responses() {
+        use tokio::io::AsyncWriteExt;
+        let mut fixture = idle_fixture(false, QoS::AtMostOnce, true).await;
+        tokio::time::pause();
+        let clock_guard = prevent_automatic_clock_advance();
+        for _ in 0..2 {
+            advance_and_poll(30).await;
+            fixture.peer.write_all(&[0xd0, 0]).await.unwrap();
+            for _ in 0..128 {
+                tokio::task::yield_now().await;
+            }
+        }
+        assert!(!fixture.task.is_finished());
+        advance_and_poll(31).await;
+        assert!(
+            fixture
+                .task
+                .await
+                .unwrap()
+                .unwrap_err()
+                .contains("tempo esgotado")
+        );
+        clock_guard.abort();
+    }
+
+    #[tokio::test]
+    async fn service_suback_and_incomplete_qos2_remain_protocol_bounded() {
+        use tokio::io::AsyncWriteExt;
+        let no_suback = idle_fixture(true, QoS::AtMostOnce, false).await;
+        tokio::time::pause();
+        let clock_guard = prevent_automatic_clock_advance();
+        advance_and_poll(9).await;
+        assert!(
+            no_suback
+                .task
+                .await
+                .unwrap()
+                .unwrap_err()
+                .contains("tempo esgotado")
+        );
+        tokio::time::resume();
+        clock_guard.abort();
+
+        let mut qos2 = idle_fixture(true, QoS::ExactlyOnce, true).await;
+        // QoS2 PUBLISH to the deliberately excluded fixture topic: no payload
+        // output, but the protocol must still finish or hit its own timeout.
+        let topic = b"c152/test";
+        let mut frame = vec![
+            0x34,
+            u8::try_from(topic.len() + 5).unwrap(),
+            0,
+            u8::try_from(topic.len()).unwrap(),
+        ];
+        frame.extend_from_slice(topic);
+        frame.extend_from_slice(&[0, 7, b'x']);
+        qos2.peer.write_all(&frame).await.unwrap();
+        assert_eq!(wire_packet(&mut qos2.peer).await, (0x50, vec![0, 7]));
+        for _ in 0..128 {
+            tokio::task::yield_now().await;
+        }
+        tokio::time::pause();
+        let clock_guard = prevent_automatic_clock_advance();
+        advance_and_poll(9).await;
+        assert!(
+            qos2.task
+                .await
+                .unwrap()
+                .unwrap_err()
+                .contains("QoS2 interrompida")
+        );
+        clock_guard.abort();
+    }
+
+    #[tokio::test]
+    async fn persistent_wait_still_obeys_an_explicit_total_deadline() {
+        let fixture = idle_fixture(true, QoS::AtMostOnce, true).await;
+        tokio::time::pause();
+        let clock_guard = prevent_automatic_clock_advance();
+        let total = Instant::now() + Duration::from_secs(35);
+        let abort = fixture.task.abort_handle();
+        let operation = tokio::spawn(async move {
+            tokio::select! {
+                result = fixture.task => { result.unwrap().unwrap(); panic!("unexpected early completion") },
+                () = total_expired(Some(total)) => {},
+            }
+        });
+        advance_and_poll(36).await;
+        assert!(operation.is_finished());
+        operation.await.unwrap();
+        abort.abort();
+        clock_guard.abort();
+    }
+
+    #[tokio::test]
+    async fn persistent_wait_still_obeys_the_reconnect_budget() {
+        let disconnected = idle_fixture(true, QoS::AtMostOnce, true).await;
+        drop(disconnected.peer);
+        assert!(
+            timeout(Duration::from_secs(2), disconnected.task)
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap_err()
+                .contains("reconexao esgotado")
+        );
+    }
 
     #[test]
     fn cancellation_budget_never_extends_total_deadline() {

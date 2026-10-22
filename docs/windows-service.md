@@ -1,4 +1,4 @@
-# Servico Windows - C151 (experimental)
+# Servico Windows - C152 (experimental)
 
 O adaptador SCM opt-in usa `packaging/windows-service/Cargo.toml`, com a feature
 `windows-service-runtime`. O manifest principal continua independente do SCM.
@@ -14,6 +14,25 @@ mqtt-client.exe --service-config "C:\ProgramData\XMQR\client\service.toml"
 console, sem SCM. Ctrl+C/Ctrl+Break encerram pelo caminho normal. O marker
 `--windows-service-capabilities` comprova somente a presenca do adaptador.
 Nenhum desses comandos instala um servico.
+
+## Assinatura continua MQTT 3.1.1
+
+Em Windows com `windows-service-runtime`, uma assinatura do servico SCM ou do
+console `--service-config` com sink privado ativo pode aguardar mensagens sem
+limite de inatividade de aplicacao. Depois do SUBACK, ausencia de publicacoes
+por90s nao encerra esse processo. Keepalive e falhas reais de transporte
+continuam sendo tratados pelo rumqttc; reconexoes continuam limitadas pela
+opcao existente. Configure `--reconnect-attempts` conforme a operacao desejada.
+
+A CLI comum preserva o prazo idle90s; PINGRESP nao o renova. CONNECT/SUBACK e
+conclusao de handshake QoS2 continuam com seus prazos de protocolo, inclusive
+no servico. `--total-timeout-seconds` explicito continua sendo um prazo total
+absoluto, sem renovacao por trafego/reconexao; `--count N` continua finito.
+Stop/Shutdown continuam cancelando cooperativamente a espera e enviando
+DISCONNECT quando a conexao permite. A capacidade da saida e as regras de ACK
+permanecem iguais. MQTT5 nao recebe essa nova politica nesta fatia.
+
+Veja [evidencias C152](../prompts/registros/C152-windows-service-idle-subscription.md).
 
 ## Configuracao
 
@@ -87,3 +106,14 @@ A bandeja/instalador sao mantidos no broker. Controle SCM real e aceite de conta
 de servico continuam requerendo VM Windows; nao foram instalados servicos no host.
 Historico: [C150](../prompts/registros/C150-windows-service.md).
 Implementacao e gates: [C151](../prompts/registros/C151-windows-private-runtime.md).
+
+## Icone do executavel de servico
+
+O manifesto `packaging/windows-service` incorpora o asset `assets/client.ico`
+durante o link nativo de `mqtt-client`, usando `build.rs` e o compilador
+`rc.exe` do Windows SDK. Configure `RC` com o caminho completo se o compilador
+nao estiver em PATH ou nas variaveis WindowsSdkDir/WindowsSDKVersion; ha fallback
+para o SDK10.0.26100.0 instalado no ambiente de validacao. Esse manifesto exige
+target Windows MSVC. Nao ha dependencia Rust adicional nem edicao do executavel
+depois da compilacao. O manifesto CLI normal nao usa esse build script.
+Validacao atual: [C152](../prompts/registros/C152-windows-service-idle-subscription.md).
