@@ -1,5 +1,19 @@
 # xmqr-client
 
+Na fonte C153, acrescente `--check-config` antes de `pub` ou `sub` para
+verificar opções, perfil TOML, materiais TLS e arquivo de senha antes de
+conectar. Exemplo de laboratório:
+
+```sh
+mqtt-client --check-config sub --open-lab --topic 'sensores/#'
+```
+
+Sucesso retorna JSON redigido e código 0. Erros retornam 2. O diagnóstico
+trata a senha interativa como requisito da execução normal e dispensa
+conexão MQTT e leitura do payload de publicação. Para a bridge, use
+`mqtt-bridge --check --config bridge.toml`. Veja a
+[comparação com os clientes Mosquitto](docs/mosquitto-parity.md).
+
 Windows nativo experimental C151: senha em arquivo com DACL validada e servico
 pub/sub com saida NDJSON privada e limitada. O adaptador SCM e opt-in; veja
 [configuracao, garantias de ACK e limites](docs/windows-service.md) e o

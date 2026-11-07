@@ -121,7 +121,7 @@ async fn run_service_cli(cli: cli::Cli) -> i32 {
 
 fn usage() -> String {
     format!(
-        "{}{}{}{}{}{}{}{}{}",
+        "{}{}{}{}{}{}{}{}{}\nValidação local: mqtt-client --check-config pub|sub [opções]\n",
         cli::USAGE,
         cli::V5_CONNECT_USAGE,
         cli::V5_PUBLISH_USAGE,
@@ -135,7 +135,7 @@ fn usage() -> String {
 }
 
 #[tokio::main]
-async fn run(arguments: Vec<String>) -> i32 {
+async fn run(mut arguments: Vec<String>) -> i32 {
     if arguments.len() == 1 && matches!(arguments[0].as_str(), "--help" | "-h") {
         print!("{}", usage());
         return 0;
@@ -145,14 +145,65 @@ async fn run(arguments: Vec<String>) -> i32 {
         println!("mqtt-client {}", env!("CARGO_PKG_VERSION"));
         return 0;
     }
+    let check = arguments.first().is_some_and(|arg| arg == "--check-config");
+    if check {
+        arguments.remove(0);
+    }
     let cli = match cli::parse(arguments) {
         Ok(cli) => cli,
+        Err(_) if check => {
+            eprintln!("Erro: opções ou perfil inválidos. Consulte mqtt-client --help.");
+            return 2;
+        }
         Err(message) => {
             eprintln!("Erro: {message}\n\n{}", usage());
             return 2;
         }
     };
-    run_cli(cli).await
+    if check {
+        check_config(&cli)
+    } else {
+        run_cli(cli).await
+    }
+}
+
+fn check_config(cli: &cli::Cli) -> i32 {
+    use cli::{Mode, ProtocolVersion, TransportMode};
+    let uses_tls = matches!(
+        cli.transport_mode,
+        TransportMode::Secure | TransportMode::TlsPassword
+    );
+    if uses_tls && tls::build_client_config(cli).is_err() {
+        eprintln!("Erro: não foi possível carregar os materiais TLS.");
+        return 2;
+    }
+    let password = if cli.transport_mode == TransportMode::OpenLab {
+        "none"
+    } else if let Some(path) = &cli.password_file {
+        let Ok(password) = credentials::read_password_file(path) else {
+            eprintln!("Erro: não foi possível ler o arquivo privado de senha.");
+            return 2;
+        };
+        if cli::validate_password(&password).is_err() {
+            eprintln!("Erro: arquivo privado de senha inválido.");
+            return 2;
+        }
+        "file"
+    } else {
+        "interactive"
+    };
+    let protocol = match cli.protocol_version {
+        ProtocolVersion::Mqtt311 => "3.1.1",
+        ProtocolVersion::Mqtt5 => "5",
+    };
+    let operation = match cli.mode {
+        Mode::Pub { .. } => "pub",
+        Mode::Sub { .. } => "sub",
+    };
+    println!(
+        "{{\"schema\":1,\"valid\":true,\"operation\":\"{operation}\",\"protocol\":\"{protocol}\",\"tls\":{uses_tls},\"password_source\":\"{password}\"}}"
+    );
+    0
 }
 
 async fn run_cli(cli: cli::Cli) -> i32 {

@@ -1,5 +1,22 @@
 # Paridade do mqtt-client com Mosquitto
 
+## Revisão C153 — ferramentas Mosquitto 2.1
+
+| Tarefa | Mosquitto | XMQR |
+| --- | --- | --- |
+| Publicar texto, binário ou linhas | `mosquitto_pub` com `-m`, `-f`, `-s`, `-l` | `mqtt-client pub` com `--message`, `--message-file`, `--stdin`, `--line-mode` |
+| Assinar, filtrar e contar | `mosquitto_sub` com filtros, contagem e opções de retained | `mqtt-client sub` com `--topic`, `--exclude-topic`, `--count`, `--ignore-retained` e `--retained-only` |
+| Formatar saída | `mosquitto_sub -F` permite templates e `--message-rate` informa taxa | XMQR usa formatos fixos `text`, `jsonl`, `hex`, `raw`. Template e taxa seguem pendentes. |
+| Requisição e resposta | `mosquitto_rr` aceita tópico de resposta e `--latency` | XMQR expõe Response Topic e Correlation Data no MQTT 5. O fluxo em comando único segue pendente. |
+| Verificar configuração sem rede | `mosquitto --test-config` valida o broker | C153 acrescenta `mqtt-client --check-config pub\|sub`. A bridge possui verificação própria. |
+| Perfis e credenciais | Arquivos e opções de conexão variam entre os três utilitários | XMQR oferece perfil TOML e senha em arquivo privado ou prompt. Os formatos dos perfis são distintos. |
+
+A comparação é por comportamento. Interoperabilidade com a série 2.1 deve
+ser medida em campanha própria. Manuais oficiais de
+[pub](https://mosquitto.org/man/mosquitto_pub-1.html),
+[sub](https://mosquitto.org/man/mosquitto_sub-1.html) e
+[request/response](https://mosquitto.org/man/mosquitto_rr-1.html).
+
 ## Checkpoint atual C143 — client 0.42.0 / bridge 0.4.0, 2026-10-18
 
 As cinco falhas obrigatórias do client na auditoria P232 foram corrigidas e
