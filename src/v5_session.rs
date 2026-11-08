@@ -465,7 +465,7 @@ fn configure_connect_properties(options: &mut MqttOptions, cli: &Cli) {
     }
 }
 
-fn configure_options(cli: &Cli, password: Option<&str>) -> AppResult<MqttOptions> {
+pub(crate) fn configure_options(cli: &Cli, password: Option<&str>) -> AppResult<MqttOptions> {
     let broker_address = cli.ws_url.as_deref().unwrap_or(&cli.host);
     let mut options = MqttOptions::new(&cli.client_id, broker_address, cli.port);
     #[cfg(all(windows, feature = "windows-service-runtime"))]
@@ -572,7 +572,7 @@ fn confirm_auth_method(cli: &Cli, method: Option<&str>) -> AppResult<()> {
     Ok(())
 }
 
-fn validate_connack(cli: &Cli, ack: &ConnAck) -> AppResult<Option<String>> {
+pub(crate) fn validate_connack(cli: &Cli, ack: &ConnAck) -> AppResult<Option<String>> {
     confirm_auth_method(
         cli,
         ack.properties

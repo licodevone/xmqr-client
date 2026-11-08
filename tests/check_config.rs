@@ -12,6 +12,29 @@ fn check() -> Command {
 }
 
 #[test]
+fn probe_rejects_unsafe_or_unknown_options_without_echoing_values() {
+    for options in [
+        vec!["--round-trip"],
+        vec!["--topic", "private-fixture/#"],
+        vec!["--host", "192.0.2.1"],
+        vec!["--client-id", "private-fixture"],
+        vec!["--will-topic", "private-fixture"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_mqtt-client"))
+            .args(["probe", "--open-lab"])
+            .args(options)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(report["phase"], "configuration");
+        assert_eq!(report["reason"], "invalid_options");
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("private-fixture"));
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
 fn validates_pub_stdin_without_reading_payload_and_sub_mqtt5() {
     let output = check()
         .args(["pub", "--open-lab", "--topic", "fixture", "--stdin"])

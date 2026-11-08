@@ -4,6 +4,7 @@ mod credentials;
 mod outbox;
 mod output;
 mod payload;
+mod probe;
 mod profile;
 #[cfg(any(test, all(windows, feature = "windows-service-runtime")))]
 mod service_config;
@@ -121,7 +122,7 @@ async fn run_service_cli(cli: cli::Cli) -> i32 {
 
 fn usage() -> String {
     format!(
-        "{}{}{}{}{}{}{}{}{}\nValidação local: mqtt-client --check-config pub|sub [opções]\n",
+        "{}{}{}{}{}{}{}{}{}\nValidação local: mqtt-client --check-config pub|sub [opções]\n{}",
         cli::USAGE,
         cli::V5_CONNECT_USAGE,
         cli::V5_PUBLISH_USAGE,
@@ -130,7 +131,8 @@ fn usage() -> String {
         cli::V5_WILL_USAGE,
         cli::OUTBOX_USAGE,
         cli::SUBSCRIPTION_STATE_USAGE,
-        cli::WS_USAGE
+        cli::WS_USAGE,
+        probe::USAGE
     )
 }
 
@@ -144,6 +146,9 @@ async fn run(mut arguments: Vec<String>) -> i32 {
     if arguments.len() == 1 && arguments[0] == "--version" {
         println!("mqtt-client {}", env!("CARGO_PKG_VERSION"));
         return 0;
+    }
+    if arguments.first().is_some_and(|arg| arg == "probe") {
+        return probe::run(arguments.into_iter().skip(1)).await;
     }
     let check = arguments.first().is_some_and(|arg| arg == "--check-config");
     if check {
@@ -247,11 +252,7 @@ async fn run_cli(cli: cli::Cli) -> i32 {
     let password = if cli.transport_mode == cli::TransportMode::OpenLab {
         None
     } else {
-        let password_result = if let Some(ref path) = cli.password_file {
-            credentials::read_password_file(path)
-        } else {
-            rpassword::prompt_password("Senha MQTT: ")
-        };
+        let password_result = read_mqtt_password(&cli);
         let password = match password_result {
             Ok(password) => password,
             Err(error) => {
@@ -280,6 +281,14 @@ async fn run_cli(cli: cli::Cli) -> i32 {
         return 1;
     }
     0
+}
+
+fn read_mqtt_password(cli: &cli::Cli) -> std::io::Result<String> {
+    if let Some(path) = &cli.password_file {
+        credentials::read_password_file(path)
+    } else {
+        rpassword::prompt_password("Senha MQTT: ")
+    }
 }
 
 #[cfg(test)]

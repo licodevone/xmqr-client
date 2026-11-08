@@ -9,6 +9,7 @@
 | Formatar saída | `mosquitto_sub -F` permite templates e `--message-rate` informa taxa | XMQR usa formatos fixos `text`, `jsonl`, `hex`, `raw`. Template e taxa seguem pendentes. |
 | Requisição e resposta | `mosquitto_rr` aceita tópico de resposta e `--latency` | XMQR expõe Response Topic e Correlation Data no MQTT 5. O fluxo em comando único segue pendente. |
 | Verificar configuração sem rede | `mosquitto --test-config` valida o broker | C153 acrescenta `mqtt-client --check-config pub\|sub`. A bridge possui verificação própria. |
+| Diagnosticar conexão online | `mosquitto_pub`, `mosquitto_sub` e `mosquitto_rr` exercitam etapas MQTT | C154 acrescenta `mqtt-client probe`, com CONNECT, assinatura exata opcional e ida e volta QoS 0 opt-in. |
 | Perfis e credenciais | Arquivos e opções de conexão variam entre os três utilitários | XMQR oferece perfil TOML e senha em arquivo privado ou prompt. Os formatos dos perfis são distintos. |
 
 A comparação é por comportamento. Interoperabilidade com a série 2.1 deve

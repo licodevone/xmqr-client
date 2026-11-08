@@ -36,11 +36,36 @@ pub async fn run(
     let total_deadline = cli
         .total_timeout_seconds
         .map(|seconds| Instant::now() + Duration::from_secs(u64::from(seconds)));
+    let options = configure_options(&cli, password)?;
+    let (client, mut events) = AsyncClient::new(options, 8);
+    let result = tokio::select! {
+        biased;
+        signal = crate::signals::shutdown() => signal,
+        () = total_expired(total_deadline) => {
+            // Do not add a grace period or call poll() after total expiry.
+            let message = if matches!(cli.mode, Mode::Pub { .. }) {
+                "tempo total da operacao esgotado; publicacao pode ter resultado desconhecido, nao reenviada"
+            } else {
+                "tempo total da operacao esgotado"
+            };
+            return Err(io::Error::new(io::ErrorKind::TimedOut, message).into());
+        },
+        result = run_connected(&cli, &client, &mut events, publication) => return result,
+    };
+    result?;
+    if let Some(deadline) = cancellation_deadline(total_deadline) {
+        let _ = timeout_at(deadline, cancel_connection(&client, &mut events)).await;
+    }
+    eprintln!("Cancelado por sinal de encerramento");
+    Ok(())
+}
+
+pub(crate) fn configure_options(cli: &Cli, password: Option<String>) -> AppResult<MqttOptions> {
     let broker_address = cli.ws_url.as_deref().unwrap_or(&cli.host);
     let mut options = MqttOptions::new(&cli.client_id, broker_address, cli.port);
     if let Some(url) = cli.ws_url.as_deref() {
         if url.starts_with("wss://") {
-            let tls_config = tls::build_client_config(&cli)?;
+            let tls_config = tls::build_client_config(cli)?;
             options.set_transport(Transport::wss_with_config(tls_config.into()));
         } else {
             options.set_transport(Transport::ws());
@@ -49,7 +74,7 @@ pub async fn run(
         cli.transport_mode,
         TransportMode::Secure | TransportMode::TlsPassword
     ) {
-        let tls_config = tls::build_client_config(&cli)?;
+        let tls_config = tls::build_client_config(cli)?;
         options.set_transport(Transport::tls_with_config(tls_config.into()));
     } else {
         options.set_transport(Transport::Tcp);
@@ -73,28 +98,7 @@ pub async fn run(
         // MQTT 3.1.1 §3.1.3.4-5: secure mode carries both credentials in CONNECT.
         options.set_credentials(username, password);
     }
-
-    let (client, mut events) = AsyncClient::new(options, 8);
-    let result = tokio::select! {
-        biased;
-        signal = crate::signals::shutdown() => signal,
-        () = total_expired(total_deadline) => {
-            // Do not add a grace period or call poll() after total expiry.
-            let message = if matches!(cli.mode, Mode::Pub { .. }) {
-                "tempo total da operacao esgotado; publicacao pode ter resultado desconhecido, nao reenviada"
-            } else {
-                "tempo total da operacao esgotado"
-            };
-            return Err(io::Error::new(io::ErrorKind::TimedOut, message).into());
-        },
-        result = run_connected(&cli, &client, &mut events, publication) => return result,
-    };
-    result?;
-    if let Some(deadline) = cancellation_deadline(total_deadline) {
-        let _ = timeout_at(deadline, cancel_connection(&client, &mut events)).await;
-    }
-    eprintln!("Cancelado por sinal de encerramento");
-    Ok(())
+    Ok(options)
 }
 
 fn cancellation_deadline(total: Option<Instant>) -> Option<Instant> {

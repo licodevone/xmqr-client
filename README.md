@@ -1,5 +1,25 @@
 # xmqr-client
 
+Na fonte C154, `mqtt-client probe` verifica uma conexão MQTT real em 3.1.1
+ou 5. Use as mesmas opções de TLS/mTLS e perfil do `pub`/`sub`. Por padrão,
+o diagnóstico termina após CONNACK. `--topic` espera SUBACK e o opt-in
+`--round-trip` testa a entrega de uma única mensagem QoS 0 não retida em
+um tópico de diagnóstico dedicado. Exemplos para laboratório local:
+
+```sh
+mqtt-client probe --open-lab --protocol-version 5
+mqtt-client probe --open-lab --topic xmqr/probe --round-trip --timeout-seconds 5
+```
+
+A execução usa sessão limpa e um Client ID efêmero próprio. Use uma ACL
+que autorize somente o tópico reservado para o diagnóstico. O comando
+retorna um objeto JSON em stdout com `schema`, `operation`, `ok`, `protocol`,
+`phase`, `reason` e `elapsed_ms`, sem dados de configuração ou da mensagem.
+Códigos de saída: 0 para sucesso, 1 para falha online e 2 para erro de
+configuração local. `--timeout-seconds` é o prazo total da sondagem online,
+após carregar TLS e credenciais. O resultado indica as etapas verificadas,
+com razão específica quando o transporte ou o protocolo a fornece.
+
 Na fonte C153, acrescente `--check-config` antes de `pub` ou `sub` para
 verificar opções, perfil TOML, materiais TLS e arquivo de senha antes de
 conectar. Exemplo de laboratório:

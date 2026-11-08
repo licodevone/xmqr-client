@@ -104,6 +104,146 @@ fn publish(stream: &mut TcpStream) {
         .unwrap();
 }
 
+fn probe_child(port: u16, extra: &[&str]) -> Child {
+    Command::new(env!("CARGO_BIN_EXE_mqtt-client"))
+        .args(["probe", "--open-lab", "--port", &port.to_string()])
+        .args(extra)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap()
+}
+
+#[test]
+fn probe_round_trip_requires_its_own_delivery_in_both_protocols() {
+    for (version, mqtt5) in [("3.1.1", false), ("5", true)] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            let (header, body) = packet(&mut stream);
+            assert_eq!(header, 0x10);
+            assert_eq!(body[6], if mqtt5 { 5 } else { 4 });
+            assert_eq!(
+                body[7], 2,
+                "probe must request a clean session without Will"
+            );
+            if mqtt5 {
+                stream.write_all(&[0x20, 3, 0, 0, 0]).unwrap();
+            } else {
+                stream.write_all(&[0x20, 2, 0, 0]).unwrap();
+            }
+            let (header, body) = packet(&mut stream);
+            assert_eq!(header, 0x82);
+            assert_eq!(&body[body.len() - 4..], &[0, 1, b't', 0]);
+            if mqtt5 {
+                stream
+                    .write_all(&[0x90, 4, body[0], body[1], 0, 0])
+                    .unwrap();
+            } else {
+                stream.write_all(&[0x90, 3, body[0], body[1], 0]).unwrap();
+            }
+            let (header, body) = packet(&mut stream);
+            assert_eq!(
+                header, 0x30,
+                "probe must publish once, QoS 0 without RETAIN"
+            );
+            assert_eq!(&body[..3], &[0, 1, b't']);
+            assert!(body[3 + usize::from(mqtt5)..].starts_with(b"xmqr-probe:"));
+            stream
+                .write_all(&[0x30, u8::try_from(body.len()).unwrap()])
+                .unwrap();
+            stream.write_all(&body).unwrap();
+            assert_eq!(packet(&mut stream), (0xe0, vec![]));
+        });
+        let output = finish(probe_child(
+            port,
+            &[
+                "--topic",
+                "t",
+                "--round-trip",
+                "--protocol-version",
+                version,
+            ],
+        ));
+        server.join().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(report["protocol"], version);
+        assert_eq!(report["phase"], "round_trip");
+        assert_eq!(report["ok"], true);
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("xmqr-probe:"));
+    }
+}
+
+#[test]
+fn probe_distinguishes_connack_refusal_from_suback_refusal() {
+    for subscribe in [false, true] {
+        let listener = listener();
+        let port = listener.local_addr().unwrap().port();
+        let server = thread::spawn(move || {
+            let mut stream = accept(&listener);
+            if subscribe {
+                connect(&mut stream, false);
+                let (header, body) = packet(&mut stream);
+                assert_eq!(header, 0x82);
+                stream
+                    .write_all(&[0x90, 3, body[0], body[1], 0x80])
+                    .unwrap();
+            } else {
+                assert_eq!(packet(&mut stream).0, 0x10);
+                stream.write_all(&[0x20, 2, 0, 4]).unwrap();
+            }
+        });
+        let output = finish(probe_child(
+            port,
+            if subscribe { &["--topic", "t"] } else { &[] },
+        ));
+        server.join().unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        let (phase, reason) = if subscribe {
+            ("subscribe", "rejected")
+        } else {
+            ("connect", "bad_credentials")
+        };
+        assert_eq!(report["phase"], phase);
+        assert_eq!(report["reason"], reason);
+    }
+}
+
+#[test]
+fn probe_times_out_when_echo_is_retained_or_unrelated() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        connect(&mut stream, false);
+        subscribe(&mut stream, 0);
+        let (header, body) = packet(&mut stream);
+        assert_eq!(header, 0x30);
+        stream
+            .write_all(&[0x31, u8::try_from(body.len()).unwrap()])
+            .unwrap();
+        stream.write_all(&body).unwrap();
+        stream.write_all(&[0x30, 4, 0, 1, b't', b'x']).unwrap();
+        assert_eq!(stream.read(&mut [0]).unwrap(), 0);
+    });
+    let output = finish(probe_child(
+        port,
+        &["--topic", "t", "--round-trip", "--timeout-seconds", "1"],
+    ));
+    server.join().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["phase"], "round_trip");
+    assert_eq!(report["reason"], "timeout");
+}
+
 #[test]
 fn retained_filters_count_only_displayed_messages_and_ack_filtered_qos() {
     for filter in ["--ignore-retained", "--retained-only"] {
