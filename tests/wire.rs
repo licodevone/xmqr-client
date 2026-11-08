@@ -114,6 +114,107 @@ fn probe_child(port: u16, extra: &[&str]) -> Child {
         .unwrap()
 }
 
+fn bench_report(port: u16, mode: &str, options: &[&str]) -> serde_json::Value {
+    let output = finish(
+        Command::new(env!("CARGO_BIN_EXE_mqtt-client"))
+            .args([
+                "bench",
+                mode,
+                "--open-lab",
+                "--timeout-seconds",
+                "1",
+                "--port",
+                &port.to_string(),
+            ])
+            .args(options)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap(),
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    serde_json::from_slice(&output.stdout).unwrap()
+}
+
+#[test]
+fn bench_conn_holds_two_independent_clients_until_the_end_of_the_wave() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut first = accept(&listener);
+        let first_connect = connect(&mut first, false);
+        let mut second = accept(&listener);
+        let second_connect = connect(&mut second, false);
+        assert_ne!(first_connect, second_connect);
+        assert_eq!(first.read(&mut [0]).unwrap(), 0);
+        assert_eq!(second.read(&mut [0]).unwrap(), 0);
+    });
+    let report = bench_report(port, "conn", &["--clients", "2"]);
+    server.join().unwrap();
+    assert_eq!(report["waves"][0]["connected"], 2);
+    assert_eq!(report["waves"][0]["completed"], 2);
+    assert!(report["waves"][0]["connect_us"]["p99"].is_number());
+}
+
+#[test]
+fn bench_reconnect_reuses_the_identity_after_the_previous_socket_closes() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut first = accept(&listener);
+        let first_connect = connect(&mut first, false);
+        assert_eq!(first.read(&mut [0]).unwrap(), 0);
+        let mut second = accept(&listener);
+        assert_eq!(connect(&mut second, false), first_connect);
+        assert_eq!(second.read(&mut [0]).unwrap(), 0);
+    });
+    let report = bench_report(port, "reconnect", &[]);
+    server.join().unwrap();
+    let waves = report["waves"].as_array().unwrap();
+    assert_eq!(waves.len(), 2);
+    assert!(waves.iter().all(|wave| wave["completed"] == 1));
+}
+
+#[test]
+fn bench_echo_counts_only_live_matching_messages_and_samples_both_deliveries() {
+    let listener = listener();
+    let port = listener.local_addr().unwrap().port();
+    let server = thread::spawn(move || {
+        let mut stream = accept(&listener);
+        connect(&mut stream, false);
+        subscribe(&mut stream, 0);
+        let mut markers = Vec::new();
+        for _ in 0..2 {
+            let (header, body) = packet(&mut stream);
+            assert_eq!(header, 0x30);
+            let topic_len = usize::from(u16::from_be_bytes([body[0], body[1]]));
+            assert!(body[2..2 + topic_len].starts_with(b"fixture/bench/"));
+            let marker = &body[2 + topic_len..];
+            assert!(!markers.iter().any(|prior: &Vec<u8>| prior == marker));
+            markers.push(marker.to_vec());
+            let length = u8::try_from(body.len()).unwrap();
+            stream.write_all(&[0x31, length]).unwrap();
+            stream.write_all(&body).unwrap();
+            stream.write_all(&[0x30, length]).unwrap();
+            stream.write_all(&body).unwrap();
+        }
+    });
+    let report = bench_report(
+        port,
+        "echo",
+        &["--topic-prefix", "fixture/bench", "--messages", "2"],
+    );
+    server.join().unwrap();
+    let wave = &report["waves"][0];
+    assert_eq!(wave["echo_attempted"], 2);
+    assert_eq!(wave["echo_delivered"], 2);
+    assert!(wave["echo_us"]["p99"].is_number());
+}
+
 #[test]
 fn probe_round_trip_requires_its_own_delivery_in_both_protocols() {
     for (version, mqtt5) in [("3.1.1", false), ("5", true)] {

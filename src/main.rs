@@ -1,3 +1,4 @@
+mod bench;
 mod cli;
 mod credentials;
 #[cfg(target_os = "linux")]
@@ -122,7 +123,7 @@ async fn run_service_cli(cli: cli::Cli) -> i32 {
 
 fn usage() -> String {
     format!(
-        "{}{}{}{}{}{}{}{}{}\nValidação local: mqtt-client --check-config pub|sub [opções]\n{}",
+        "{}{}{}{}{}{}{}{}{}\nValidação local: mqtt-client --check-config pub|sub [opções]\n{}{}",
         cli::USAGE,
         cli::V5_CONNECT_USAGE,
         cli::V5_PUBLISH_USAGE,
@@ -132,7 +133,8 @@ fn usage() -> String {
         cli::OUTBOX_USAGE,
         cli::SUBSCRIPTION_STATE_USAGE,
         cli::WS_USAGE,
-        probe::USAGE
+        probe::USAGE,
+        bench::USAGE
     )
 }
 
@@ -149,6 +151,9 @@ async fn run(mut arguments: Vec<String>) -> i32 {
     }
     if arguments.first().is_some_and(|arg| arg == "probe") {
         return probe::run(arguments.into_iter().skip(1)).await;
+    }
+    if arguments.first().is_some_and(|arg| arg == "bench") {
+        return bench::run(arguments.into_iter().skip(1)).await;
     }
     let check = arguments.first().is_some_and(|arg| arg == "--check-config");
     if check {

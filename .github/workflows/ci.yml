@@ -75,6 +75,7 @@ jobs:
       - run: apt-get install -y ./dist/*.deb
       - run: test "$(mqtt-client --version)" = 'mqtt-client 0.44.0' && test "$(mqtt-bridge --version)" = 'mqtt-bridge 0.5.0 (xmqr-client 0.44.0)'
       - run: mqtt-client probe --help | grep -F 'mqtt-client probe'
+      - run: mqtt-client bench --help | grep -F 'mqtt-client bench'
       - run: systemd-analyze verify /usr/lib/systemd/system/xmqr-client-sub@.service /usr/lib/systemd/system/xmqr-client-pub@.service /usr/lib/systemd/system/xmqr-client-bridge@.service
       - run: test "$(cat /etc/xmqr-client/operator.keep)" = keep && test ! -e /etc/systemd/system/multi-user.target.wants/xmqr-client-bridge@lab.service
       - run: apt-get install -y --allow-downgrades /tmp/xmqr-client_0.42.1-1_amd64.deb && test "$(mqtt-client --version)" = 'mqtt-client 0.42.1' && test "$(mqtt-bridge --version)" = 'mqtt-bridge 0.4.0 (xmqr-client 0.42.1)' && test "$(cat /etc/xmqr-client/operator.keep)" = keep
@@ -157,6 +158,7 @@ jobs:
       - run: test "$(docker run --rm --entrypoint /usr/local/bin/mqtt-client xmqr-client:ci --version)" = 'mqtt-client 0.44.0'
       - run: test "$(docker run --rm --entrypoint /usr/local/bin/mqtt-bridge xmqr-client:ci --version)" = 'mqtt-bridge 0.5.0 (xmqr-client 0.44.0)'
       - run: docker run --rm xmqr-client:ci probe --help | grep -F 'mqtt-client probe'
+      - run: docker run --rm xmqr-client:ci bench --help | grep -F 'mqtt-client bench'
       - run: test "$(docker image inspect xmqr-client:ci --format '{{.Config.User}}')" = '10001:10001'
 
   bridge-package-integration:

@@ -12,6 +12,29 @@ fn check() -> Command {
 }
 
 #[test]
+fn bench_rejects_unbounded_load_and_unsafe_topic_prefixes() {
+    for args in [
+        vec!["conn", "--clients", "1001"],
+        vec!["conn", "--hold-seconds", "0"],
+        vec!["conn", "--host", "--clients", "2", "127.0.0.1"],
+        vec!["reconnect", "--messages", "1"],
+        vec!["echo", "--topic-prefix", "private-fixture/#"],
+        vec!["echo", "--messages", "101", "--topic-prefix", "fixture"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_mqtt-client"))
+            .args(["bench", args[0], "--open-lab"])
+            .args(&args[1..])
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(report["operation"], "bench");
+        assert_eq!(report["reason"], "invalid_options");
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("private-fixture"));
+    }
+}
+
+#[test]
 fn probe_rejects_unsafe_or_unknown_options_without_echoing_values() {
     for options in [
         vec!["--round-trip"],

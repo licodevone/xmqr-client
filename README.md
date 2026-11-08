@@ -1,5 +1,23 @@
 # xmqr-client
 
+Na fonte de desenvolvimento C156, `mqtt-client bench` executa uma onda
+de conexões (`conn`), duas ondas com fechamento entre elas (`reconnect`)
+ou entregas MQTT QoS 0 em tópicos sintéticos por cliente (`echo`).
+
+```sh
+mqtt-client bench conn --open-lab --clients 1000 --hold-seconds 10
+mqtt-client bench reconnect --profile ./laboratorio-mtls.toml --clients 1000 --hold-seconds 10
+mqtt-client bench echo --open-lab --clients 50 --topic-prefix lab/bench --messages 10
+```
+
+Use um broker e ACL de teste. Os perfis TLS/mTLS do `probe` também valem
+para `bench`; o laboratório aberto aceita somente loopback. O relatório JSON
+separa cada onda e informa conexões, falhas por etapa, mensagens entregues,
+vazão do cenário e p50/p95/p99. `--timeout-seconds` é a janela comum de
+admissão e `--hold-seconds` é a janela posterior de espera ou entrega.
+Os resultados caracterizam a combinação de gerador, rede, perfil e broker
+testados. [Prompt C156](prompts/clients/156-bench.md).
+
 Na fonte C154, `mqtt-client probe` verifica uma conexão MQTT real em 3.1.1
 ou 5. Use as mesmas opções de TLS/mTLS e perfil do `pub`/`sub`. Por padrão,
 o diagnóstico termina após CONNACK. `--topic` espera SUBACK e o opt-in

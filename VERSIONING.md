@@ -1,7 +1,7 @@
 # Versionamento
 
-Candidato experimental **0.44.0 / bridge 0.5.0** preparado em C155.
-Inclui preflight C153, diagnóstico online C154 e a base Windows posterior
+Candidato experimental **0.44.0 / bridge 0.5.0** consolidado em C157.
+Inclui preflight C153, diagnóstico online C154, benchmark C156 e a base Windows posterior
 à publicação C149. Consulte [notas e gates](docs/releases/0.44.0.md).
 
 Prerelease experimental **0.43.0 / bridge 0.5.0** publicada: C149 distribui

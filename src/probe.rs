@@ -1,4 +1,4 @@
-use std::{collections::hash_map::RandomState, hash::BuildHasher, io, time::Duration};
+use std::{collections::hash_map::RandomState, hash::BuildHasher, io, sync::Arc, time::Duration};
 
 use rumqttc::{Outgoing as ClientPacket, QoS, mqttbytes::v4, v5};
 use serde_json::json;
@@ -9,13 +9,13 @@ use crate::cli::{self, Cli, ProtocolVersion, TransportMode};
 pub const USAGE: &str =
     "Diagnóstico online: mqtt-client probe [--topic TOPICO [--round-trip]] [opções de conexão]\n";
 
-struct Probe {
-    cli: Cli,
-    topic: Option<String>,
-    marker: Option<Vec<u8>>,
+pub(crate) struct Probe {
+    pub(crate) cli: Arc<Cli>,
+    pub(crate) topic: Option<String>,
+    pub(crate) marker: Option<Vec<u8>>,
 }
 
-fn parse(mut args: impl Iterator<Item = String>) -> Result<Probe, ()> {
+pub(crate) fn parse(mut args: impl Iterator<Item = String>) -> Result<Probe, ()> {
     let id = format!("probe{:016x}", RandomState::new().hash_one(0_u8));
     let mut shared = vec![
         "sub".into(),
@@ -64,13 +64,17 @@ fn parse(mut args: impl Iterator<Item = String>) -> Result<Probe, ()> {
     cli.clean_session = true;
     let marker = round_trip
         .then(|| format!("xmqr-probe:{:016x}", RandomState::new().hash_one(0_u8)).into_bytes());
-    Ok(Probe { cli, topic, marker })
+    Ok(Probe {
+        cli: Arc::new(cli),
+        topic,
+        marker,
+    })
 }
 
 #[derive(Clone, Copy)]
-struct Failure {
-    phase: &'static str,
-    reason: &'static str,
+pub(crate) struct Failure {
+    pub(crate) phase: &'static str,
+    pub(crate) reason: &'static str,
 }
 
 type Diagnosis<T> = Result<T, Failure>;
@@ -142,12 +146,12 @@ fn report(protocol: Option<&str>, phase: &str, reason: &str, elapsed_ms: Option<
     );
 }
 
-enum Connection {
+pub(crate) enum Connection {
     V4(rumqttc::AsyncClient, Box<rumqttc::EventLoop>),
     V5(v5::AsyncClient, Box<v5::EventLoop>),
 }
 
-enum Frame {
+pub(crate) enum Frame {
     Connected,
     SubscribeSent(u16),
     SubscribeAck(u16, bool),
@@ -156,25 +160,52 @@ enum Frame {
     Other,
 }
 
-impl Connection {
-    fn new(cli: &Cli, password: Option<String>) -> Result<Self, ()> {
+pub(crate) enum Options {
+    V4(Box<rumqttc::MqttOptions>),
+    V5(Box<v5::MqttOptions>),
+}
+
+impl Options {
+    pub(crate) fn new(cli: &Cli, password: Option<String>) -> Result<Self, ()> {
         match cli.protocol_version {
-            ProtocolVersion::Mqtt311 => {
-                let options = crate::session::configure_options(cli, password).map_err(|_| ())?;
-                let (client, events) = rumqttc::AsyncClient::new(options, 8);
-                Ok(Self::V4(client, Box::new(events)))
-            }
+            ProtocolVersion::Mqtt311 => crate::session::configure_options(cli, password)
+                .map(Box::new)
+                .map(Self::V4)
+                .map_err(|_| ()),
             ProtocolVersion::Mqtt5 => {
-                let options = crate::v5_session::configure_options(cli, password.as_deref())
-                    .map_err(|_| ())?;
-                let (client, events) = v5::AsyncClient::new(options, 8);
-                Ok(Self::V5(client, Box::new(events)))
+                crate::v5_session::configure_options(cli, password.as_deref())
+                    .map(Box::new)
+                    .map(Self::V5)
+                    .map_err(|_| ())
             }
         }
     }
 
+    pub(crate) fn connection(&self, id: &str) -> Connection {
+        match self {
+            Self::V4(options) => {
+                let mut options = options.as_ref().clone();
+                options.set_client_id(id.to_owned());
+                let (client, events) = rumqttc::AsyncClient::new(options, 8);
+                Connection::V4(client, Box::new(events))
+            }
+            Self::V5(options) => {
+                let mut options = options.as_ref().clone();
+                options.set_client_id(id.to_owned());
+                let (client, events) = v5::AsyncClient::new(options, 8);
+                Connection::V5(client, Box::new(events))
+            }
+        }
+    }
+}
+
+impl Connection {
+    fn new(cli: &Cli, password: Option<String>) -> Result<Self, ()> {
+        Ok(Options::new(cli, password)?.connection(&cli.client_id))
+    }
+
     async fn diagnose(&mut self, probe: &Probe, deadline: Instant) -> Diagnosis<&'static str> {
-        while !matches!(self.next(probe, deadline, CONNECT).await?, Frame::Connected) {}
+        self.wait_connect(probe, deadline).await?;
         let phase = if let Some(topic) = &probe.topic {
             self.subscribe(probe, topic, deadline).await?;
             if let Some(marker) = &probe.marker {
@@ -202,7 +233,17 @@ impl Connection {
         Ok(phase)
     }
 
-    async fn subscribe(&mut self, probe: &Probe, topic: &str, deadline: Instant) -> Diagnosis<()> {
+    pub(crate) async fn wait_connect(&mut self, probe: &Probe, deadline: Instant) -> Diagnosis<()> {
+        while !matches!(self.next(probe, deadline, CONNECT).await?, Frame::Connected) {}
+        Ok(())
+    }
+
+    pub(crate) async fn subscribe(
+        &mut self,
+        probe: &Probe,
+        topic: &str,
+        deadline: Instant,
+    ) -> Diagnosis<()> {
         let queued = match self {
             Self::V4(client, _) => client.try_subscribe(topic, QoS::AtMostOnce).is_ok(),
             Self::V5(client, _) => client
@@ -235,7 +276,7 @@ impl Connection {
         }
     }
 
-    fn send_echo(&self, topic: &str, marker: &[u8]) -> Diagnosis<()> {
+    pub(crate) fn send_echo(&self, topic: &str, marker: &[u8]) -> Diagnosis<()> {
         let queued = match self {
             Self::V4(client, _) => client
                 .try_publish(topic, QoS::AtMostOnce, false, marker)
@@ -259,7 +300,7 @@ impl Connection {
         }
     }
 
-    async fn next(
+    pub(crate) async fn next(
         &mut self,
         probe: &Probe,
         deadline: Instant,
