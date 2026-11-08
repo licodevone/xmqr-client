@@ -19,7 +19,7 @@ ENV CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0 RUSTFLAGS=-Cdebuginfo=0
 RUN cargo build --locked --release --bin mqtt-client --bin mqtt-bridge
 
 FROM debian:bookworm-slim AS runtime
-ARG VERSION=0.43.0
+ARG VERSION=0.44.0
 ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="XMQR Client" \
       org.opencontainers.image.version="${VERSION}" \
