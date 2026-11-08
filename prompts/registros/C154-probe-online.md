@@ -1,7 +1,7 @@
 # Registro C154 — diagnóstico MQTT online
 
 Data local: 2026-11-08, America/Sao_Paulo.
-[Prompt C154 v1.1](../clients/154-probe-online.md).
+[Prompt C154 v1.2](../clients/154-probe-online.md).
 Base `04189b6124aca075dd944b937351eb87380cc47c`.
 
 - `probe` verifica CONNECT/CONNACK em MQTT 3.1.1 ou 5. Assinatura exata
@@ -12,7 +12,8 @@ Base `04189b6124aca075dd944b937351eb87380cc47c`.
   Quatro testes diretos de CLI/configuração passaram. Formatação e diff
   foram verificados. A validação direta é complementar ao Cargo.
 - FAIL inicial: colisão de `Outgoing` na adaptação de eventos, corrigida
-  após revisão C154 v1.1. O build direto corrigido passou.
+  após revisão C154 v1.1. O build direto corrigido passou. O Clippy
+  pedantic detectou imports curingas, corrigidos após revisão v1.2.
 - BLOCKED: build/test/Clippy via Cargo exigem `windows-permissions` ausente
   no cache e acesso ao crates.io. A suíte unitária direta também requer um
   artefato Tokio compilado com `test-util`.

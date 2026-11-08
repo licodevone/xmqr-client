@@ -307,42 +307,41 @@ fn echo(probe: &Probe, topic: &[u8], payload: &[u8], retain: bool) -> Frame {
 }
 
 fn v4_frame(event: rumqttc::Event, probe: &Probe) -> Result<Frame, &'static str> {
-    use rumqttc::{Event::*, Incoming as Packet};
+    use rumqttc::{Event, Incoming as Packet};
     Ok(match event {
-        Incoming(Packet::ConnAck(ack)) if !ack.session_present => Frame::Connected,
-        Incoming(Packet::ConnAck(_)) => return Err("unexpected_session"),
-        Outgoing(ClientPacket::Subscribe(id)) => Frame::SubscribeSent(id),
-        Incoming(Packet::SubAck(ack)) => Frame::SubscribeAck(
+        Event::Incoming(Packet::ConnAck(ack)) if !ack.session_present => Frame::Connected,
+        Event::Incoming(Packet::ConnAck(_)) => return Err("unexpected_session"),
+        Event::Outgoing(ClientPacket::Subscribe(id)) => Frame::SubscribeSent(id),
+        Event::Incoming(Packet::SubAck(ack)) => Frame::SubscribeAck(
             ack.pkid,
             ack.return_codes == [v4::SubscribeReasonCode::Success(QoS::AtMostOnce)],
         ),
-        Incoming(Packet::Publish(msg)) => {
+        Event::Incoming(Packet::Publish(msg)) => {
             echo(probe, msg.topic.as_bytes(), &msg.payload, msg.retain)
         }
-        Outgoing(ClientPacket::Disconnect) => Frame::Disconnected,
+        Event::Outgoing(ClientPacket::Disconnect) => Frame::Disconnected,
         _ => Frame::Other,
     })
 }
 
 fn v5_frame(event: v5::Event, probe: &Probe) -> Result<Frame, &'static str> {
     use v5::{
-        Event::*,
-        Incoming as Packet,
+        Event, Incoming as Packet,
         mqttbytes::{QoS, v5::SubscribeReasonCode},
     };
     Ok(match event {
-        Incoming(Packet::ConnAck(ack)) => {
+        Event::Incoming(Packet::ConnAck(ack)) => {
             crate::v5_session::validate_connack(&probe.cli, &ack).map_err(|_| "invalid_connack")?;
             Frame::Connected
         }
-        Outgoing(ClientPacket::Subscribe(id)) => Frame::SubscribeSent(id),
-        Incoming(Packet::SubAck(ack)) => Frame::SubscribeAck(
+        Event::Outgoing(ClientPacket::Subscribe(id)) => Frame::SubscribeSent(id),
+        Event::Incoming(Packet::SubAck(ack)) => Frame::SubscribeAck(
             ack.pkid,
             ack.return_codes == [SubscribeReasonCode::Success(QoS::AtMostOnce)],
         ),
-        Incoming(Packet::Publish(msg)) => echo(probe, &msg.topic, &msg.payload, msg.retain),
-        Incoming(Packet::Disconnect(_)) => return Err("broker_disconnected"),
-        Outgoing(ClientPacket::Disconnect) => Frame::Disconnected,
+        Event::Incoming(Packet::Publish(msg)) => echo(probe, &msg.topic, &msg.payload, msg.retain),
+        Event::Incoming(Packet::Disconnect(_)) => return Err("broker_disconnected"),
+        Event::Outgoing(ClientPacket::Disconnect) => Frame::Disconnected,
         _ => Frame::Other,
     })
 }
@@ -356,34 +355,38 @@ fn io_reason(error: &io::Error) -> &'static str {
 }
 
 fn v4_reason(error: rumqttc::ConnectionError) -> &'static str {
-    use rumqttc::ConnectionError::*;
+    use rumqttc::ConnectionError as Error;
     use v4::ConnectReturnCode::{BadUserNamePassword, NotAuthorized};
     match error {
-        ConnectionRefused(BadUserNamePassword) => "bad_credentials",
-        ConnectionRefused(NotAuthorized) => "not_authorized",
-        ConnectionRefused(_) => "connack_refused",
-        Tls(_) => "tls_failed",
-        WsConnect(_) | Websocket(_) | ResponseValidation(_) => "websocket_failed",
-        Io(error) => io_reason(&error),
-        NetworkTimeout | FlushTimeout => "timeout",
+        Error::ConnectionRefused(BadUserNamePassword) => "bad_credentials",
+        Error::ConnectionRefused(NotAuthorized) => "not_authorized",
+        Error::ConnectionRefused(_) => "connack_refused",
+        Error::Tls(_) => "tls_failed",
+        Error::WsConnect(_) | Error::Websocket(_) | Error::ResponseValidation(_) => {
+            "websocket_failed"
+        }
+        Error::Io(error) => io_reason(&error),
+        Error::NetworkTimeout | Error::FlushTimeout => "timeout",
         _ => "protocol_error",
     }
 }
 
 fn v5_reason(error: v5::ConnectionError) -> &'static str {
     use v5::{
-        ConnectionError::*,
+        ConnectionError as Error,
         mqttbytes::v5::ConnectReturnCode::{BadUserNamePassword, NotAuthorized},
     };
     match error {
-        ConnectionRefused(BadUserNamePassword) => "bad_credentials",
-        ConnectionRefused(NotAuthorized) => "not_authorized",
-        ConnectionRefused(_) => "connack_refused",
-        Tls(_) => "tls_failed",
-        WsConnect(_) | Websocket(_) | ResponseValidation(_) => "websocket_failed",
-        Io(error) => io_reason(&error),
-        Timeout(_) => "timeout",
-        MqttState(v5::StateError::ServerDisconnect { .. }) => "broker_disconnected",
+        Error::ConnectionRefused(BadUserNamePassword) => "bad_credentials",
+        Error::ConnectionRefused(NotAuthorized) => "not_authorized",
+        Error::ConnectionRefused(_) => "connack_refused",
+        Error::Tls(_) => "tls_failed",
+        Error::WsConnect(_) | Error::Websocket(_) | Error::ResponseValidation(_) => {
+            "websocket_failed"
+        }
+        Error::Io(error) => io_reason(&error),
+        Error::Timeout(_) => "timeout",
+        Error::MqttState(v5::StateError::ServerDisconnect { .. }) => "broker_disconnected",
         _ => "protocol_error",
     }
 }

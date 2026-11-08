@@ -1,4 +1,4 @@
-# C154 v1.1 — diagnóstico MQTT online
+# C154 v1.2 — diagnóstico MQTT online
 
 ## Entrada e objetivo
 
@@ -41,3 +41,9 @@ A compilação direta com os artefatos C151 revelou colisão do nome `Outgoing`
 na adaptação de eventos. Qualificar o tipo do pacote, repetir a compilação
 e executar as fixtures diretamente quando a compilação via Cargo estiver
 indisponível. O resultado direto não substitui o gate Cargo/CI.
+
+### Revisão 1.2
+
+O Clippy direto com os lints pedantic do manifesto detectou imports
+curinga de variantes. Qualificar os enums e repetir o Clippy com
+`-D warnings -D clippy::all -W clippy::pedantic -F unsafe_code`.
