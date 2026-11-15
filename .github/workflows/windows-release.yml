@@ -1,0 +1,51 @@
+name: Windows release validation
+
+on:
+  push:
+    branches: ['release/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-client:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: ilammy/msvc-dev-cmd@v1
+      - run: cargo fmt --all -- --check
+      - run: cargo test --locked
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Build independent Windows service manifest
+        run: cargo build --locked --release --manifest-path packaging/windows-service/Cargo.toml --target-dir target/service-release --bin mqtt-client
+      - name: Service adapter tests
+        run: |
+          cargo test --locked --manifest-path packaging/windows-service/Cargo.toml --target-dir target/service-release --bin mqtt-client windows_service::tests
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          cargo test --locked --manifest-path packaging/windows-service/Cargo.toml --target-dir target/service-release --bin mqtt-client service_config::tests
+      - name: Verify version, commands and service adapter
+        run: |
+          $exe = Join-Path $PWD 'target/service-release/release/mqtt-client.exe'
+          if ((& $exe --version) -ne 'mqtt-client 0.44.0') { throw 'Client version mismatch' }
+          $capability = & $exe --windows-service-capabilities | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $capability.schema -ne 1 -or $capability.component -ne 'client' -or $capability.service_entrypoint -ne $true) { throw 'Service adapter mismatch' }
+          & $exe bench --help
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & $exe probe --help
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Get-FileHash -LiteralPath $exe -Algorithm SHA256 | ConvertTo-Json | Set-Content target/service-release/client-sha256.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-client-service-validation
+          path: |
+            target/service-release/release/mqtt-client.exe
+            target/service-release/client-sha256.json
