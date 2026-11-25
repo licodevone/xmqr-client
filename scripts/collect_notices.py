@@ -62,6 +62,31 @@ def notice_paths(package):
 
 def supplement_paths(root, package, packages):
     key = package['name'], package['version']
+    if key == ('windows-permissions', '0.2.4'):
+        repository = 'https://github.com/danieldulaney/windows-permissions-rs'
+        if (package.get('license') != 'MIT' or package.get('repository') != repository
+                or package.get('source') != 'registry+https://github.com/rust-lang/crates.io-index'):
+            raise ValueError('windows-permissions source/license does not match reviewed crate')
+        base = root / 'packaging/notices/windows-permissions-0.2.4'
+        crate = Path(package['manifest_path']).parent
+        expected = {
+            'LICENSE-MIT': '508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1',
+            'Cargo.toml': '7d7095e9b45322206e2e46466eafd90581f34dfab8a9c046ed4a5da1054f88a9',
+            'Cargo.toml.orig': '6b94500e0e663637e2ea697d70b7910ab341c03b2074116d39169aa9c5deac2a',
+        }
+        selected = []
+        for name, checksum in expected.items():
+            path = base / name
+            if path.is_symlink() or digest(path) != checksum:
+                raise ValueError('windows-permissions reviewed notice hash mismatch: ' + name)
+            if name != 'LICENSE-MIT' and digest(crate / name) != checksum:
+                raise ValueError('windows-permissions crate attribution hash mismatch: ' + name)
+            selected.append(path)
+        return base, selected, {
+            'repository': repository,
+            'archive_sha256': '9e2ccdc3c6bf4d4a094e031b63fadd08d8e42abd259940eb8aa5fdc09d4bf9be',
+            'scope': 'SPDX MIT text and unmodified author attribution from the crate manifests',
+        }
     if key == ('rumqttc', '0.25.1'):
         vcs = json.loads((Path(package['manifest_path']).parent / '.cargo_vcs_info.json').read_text())
         commit = 'f1e9e8d558783f942993046679cdf3c8c3a3d36b'

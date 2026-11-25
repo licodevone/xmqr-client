@@ -202,6 +202,8 @@ fn bench_echo_counts_only_live_matching_messages_and_samples_both_deliveries() {
             stream.write_all(&[0x30, length]).unwrap();
             stream.write_all(&body).unwrap();
         }
+        // Keep the peer alive until the client consumes the final frames.
+        assert_eq!(stream.read(&mut [0]).unwrap(), 0);
     });
     let report = bench_report(
         port,
@@ -299,6 +301,7 @@ fn probe_distinguishes_connack_refusal_from_suback_refusal() {
                 assert_eq!(packet(&mut stream).0, 0x10);
                 stream.write_all(&[0x20, 2, 0, 4]).unwrap();
             }
+            assert_eq!(stream.read(&mut [0]).unwrap(), 0);
         });
         let output = finish(probe_child(
             port,
