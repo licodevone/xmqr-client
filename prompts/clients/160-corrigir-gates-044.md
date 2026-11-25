@@ -9,3 +9,5 @@ as asserções existentes. Incluir o aviso MIT revisado pelo Broker, com
 proveniência, hashes e verificação dos manifestos contra o crate resolvido.
 Sem alterações de protocolo, versão ou dependências. Aceite pela CI Linux
 e Windows e pela coleta de avisos do pacote e da imagem.
+
+Revisão v1.1: a nova CI aprovou as fixtures e apontou três erros de Clippy 1.100. Usar assert_eq nas asserções de ausência de saída e alocar a future grande de run_cli na heap, mantendo o diagnóstico estrito.

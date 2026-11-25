@@ -173,7 +173,7 @@ async fn run(mut arguments: Vec<String>) -> i32 {
     if check {
         check_config(&cli)
     } else {
-        run_cli(cli).await
+        Box::pin(run_cli(cli)).await
     }
 }
 

@@ -53,7 +53,7 @@ fn probe_rejects_unsafe_or_unknown_options_without_echoing_values() {
         assert_eq!(report["phase"], "configuration");
         assert_eq!(report["reason"], "invalid_options");
         assert!(!String::from_utf8_lossy(&output.stdout).contains("private-fixture"));
-        assert!(output.stderr.is_empty());
+        assert_eq!(output.stderr, [] as [u8; 0]);
     }
 }
 
@@ -132,7 +132,7 @@ fn redacts_invalid_arguments_and_missing_private_files() {
     ] {
         let output = check().args(args).output().unwrap();
         assert_eq!(output.status.code(), Some(2));
-        assert!(output.stdout.is_empty());
+        assert_eq!(output.stdout, [] as [u8; 0]);
         assert!(!String::from_utf8_lossy(&output.stderr).contains("private-fixture"));
     }
 }
