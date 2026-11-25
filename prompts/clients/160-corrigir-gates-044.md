@@ -13,3 +13,5 @@ e Windows e pela coleta de avisos do pacote e da imagem.
 Revisão v1.1: a nova CI aprovou as fixtures e apontou três erros de Clippy 1.100. Usar assert_eq nas asserções de ausência de saída e alocar a future grande de run_cli na heap, mantendo o diagnóstico estrito.
 
 Revisão v1.2: a CI Windows também apontou mutabilidade exclusiva de Unix na criação de pastas e libc sem uso nesse alvo. Manter o modo Unix existente e declarar libc apenas para Unix nos dois manifestos.
+
+Revisão v1.3: atualizar o inventário gerado a partir do Cargo.lock. Conferir o diff e o modo --check antes de reenviar.

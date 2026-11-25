@@ -13,6 +13,7 @@ Este inventário não substitui esses textos nem uma revisão de licença dos fo
 | atomic-waker | 1.1.2 | `Apache-2.0 OR MIT` |
 | aws-lc-rs | 1.18.1 | `ISC AND (Apache-2.0 OR ISC)` |
 | aws-lc-sys | 0.45.0 | `ISC AND (Apache-2.0 OR ISC) AND Apache-2.0 AND MIT AND BSD-3-Clause AND (Apache-2.0 OR ISC OR MIT) AND (Apache-2.0 OR ISC OR MIT-0)` |
+| bitflags | 1.3.2 | `MIT/Apache-2.0` |
 | bitflags | 2.13.2 | `MIT OR Apache-2.0` |
 | block-buffer | 0.10.4 | `MIT OR Apache-2.0` |
 | bytes | 1.12.1 | `MIT` |
@@ -151,6 +152,7 @@ Este inventário não substitui esses textos nem uma revisão de licença dos fo
 | winapi-i686-pc-windows-gnu | 0.4.0 | `MIT/Apache-2.0` |
 | winapi-x86_64-pc-windows-gnu | 0.4.0 | `MIT/Apache-2.0` |
 | windows-link | 0.2.1 | `MIT OR Apache-2.0` |
+| windows-permissions | 0.2.4 | `MIT` |
 | windows-sys | 0.52.0 | `MIT OR Apache-2.0` |
 | windows-sys | 0.61.2 | `MIT OR Apache-2.0` |
 | windows-targets | 0.52.6 | `MIT OR Apache-2.0` |
@@ -164,6 +166,7 @@ Este inventário não substitui esses textos nem uma revisão de licença dos fo
 | windows_x86_64_msvc | 0.52.6 | `MIT OR Apache-2.0` |
 | winnow | 0.7.15 | `MIT` |
 | winnow | 1.0.4 | `MIT` |
+| winsafe | 0.0.29 | `MIT` |
 | wit-bindgen | 0.57.1 | `Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT` |
 | writeable | 0.6.4 | `Unicode-3.0` |
 | ws_stream_tungstenite | 0.15.0 | `Unlicense` |
